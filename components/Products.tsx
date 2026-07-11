@@ -1,5 +1,12 @@
+
+"use client";
+
+import { useEffect, useState } from "react";
 import Image from "next/image";
-import { products } from "@/data/products";
+
+import { getProducts } from "@/services/productService";
+import { Product } from "@/types/product";
+
 import {
   Cpu,
   HardDrive,
@@ -12,6 +19,32 @@ import {
 } from "lucide-react";
 
 export default function Products() {
+  const [products, setProducts] = useState<Product[]>([]);
+const [loading, setLoading] = useState(true);
+
+useEffect(() => {
+  async function loadProducts() {
+    try {
+      const data = await getProducts();
+      setProducts(data);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  loadProducts();
+}, []);
+if (loading) {
+  return (
+    <section className="bg-[#111111] py-20 text-center">
+      <h2 className="text-3xl text-white">
+        Loading Products...
+      </h2>
+    </section>
+  );
+}
   return (
     <section id="products" className="bg-[#111111] py-20">
       <div className="mx-auto max-w-7xl px-6">
@@ -63,7 +96,7 @@ export default function Products() {
                 <div className="absolute right-4 top-4">
 
                   <span className="rounded-full bg-yellow-400 px-3 py-1 text-xs font-bold text-black">
-                    {product.stock}
+                    {product.stock ? "In Stock" : "Out of Stock"}
                   </span>
 
                 </div>
@@ -172,7 +205,7 @@ export default function Products() {
                     <div>
 
                       <p className="text-3xl font-bold text-yellow-400">
-                        {product.price}
+                        ₹{product.price.toLocaleString("en-IN")}
                       </p>
 
                       <p className="text-sm text-gray-500 line-through">

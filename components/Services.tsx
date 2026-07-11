@@ -20,7 +20,7 @@ const icons = {
 
 export default function Services() {
   return (
-    <section className="bg-[#0B0B0B] py-20">
+    <section id="services" className="bg-[#0B0B0B] py-20">
       <div className="mx-auto max-w-7xl px-6">
         <div className="mb-14 text-center">
           <p className="font-semibold uppercase tracking-widest text-yellow-400">
