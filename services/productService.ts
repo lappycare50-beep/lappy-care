@@ -23,8 +23,8 @@ export async function getProducts(): Promise<Product[]> {
 }
 
 // Add Product
-export async function addProduct(product: Product) {
-  await addDoc(productsCollection, product);
+export async function addProduct(product: Omit<Product, "id">) {
+  return await addDoc(productsCollection, product);
 }
 
 // Update Product
@@ -34,12 +34,12 @@ export async function updateProduct(
 ) {
   const productRef = doc(db, "products", id);
 
-  await updateDoc(productRef, product);
+  return await updateDoc(productRef, product);
 }
 
 // Delete Product
 export async function deleteProduct(id: string) {
   const productRef = doc(db, "products", id);
 
-  await deleteDoc(productRef);
+  return await deleteDoc(productRef);
 }

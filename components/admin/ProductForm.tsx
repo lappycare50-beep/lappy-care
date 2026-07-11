@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 import ImageUpload from "@/components/admin/ImageUpload";
+import { addProduct } from "@/services/productService";
+import { Product } from "@/types/product";
 
 export default function ProductForm() {
   const [brand, setBrand] = useState("");
@@ -23,7 +25,62 @@ export default function ProductForm() {
 
   const [stock, setStock] = useState(true);
   const [image, setImage] = useState("");
+  const [loading, setLoading] = useState(false);
+async function handleSubmit() {
+  if (!brand || !model || !processor || !price || !image) {
+    alert("Please fill all required fields.");
+    return;
+  }
 
+  try {
+    setLoading(true);
+
+    const product: Omit<Product, "id"> = {
+      brand,
+      model,
+      processor,
+      ram,
+      storage,
+      display,
+      price: Number(price),
+      originalPrice: Number(originalPrice),
+      warranty,
+      stock,
+      image,
+      rating: Number(rating),
+      reviews: Number(reviews),
+      gift,
+      offer,
+    };
+
+    await addProduct(product);
+
+    alert("✅ Product Added Successfully!");
+
+    // Reset Form
+    setBrand("");
+    setModel("");
+    setProcessor("");
+    setRam("");
+    setStorage("");
+    setDisplay("");
+    setPrice("");
+    setOriginalPrice("");
+    setWarranty("6 Months");
+    setGift("");
+    setOffer("");
+    setRating("4.8");
+    setReviews("0");
+    setImage("");
+    setStock(true);
+
+  } catch (error) {
+    console.error(error);
+    alert("❌ Failed to save product.");
+  } finally {
+    setLoading(false);
+  }
+}
   return (
     <div className="rounded-3xl border border-yellow-500/20 bg-[#181818] p-8">
 
@@ -148,7 +205,17 @@ export default function ProductForm() {
         </label>
 
       </div>
+      <div className="mt-8">
+  <button
+    onClick={handleSubmit}
+    disabled={loading}
+    className="w-full rounded-xl bg-yellow-400 py-4 font-bold text-black transition hover:bg-yellow-300 disabled:opacity-50"
+  >
+    {loading ? "Saving..." : "Save Laptop"}
+  </button>
+</div>
 
     </div>
-  );
+
+);
 }
