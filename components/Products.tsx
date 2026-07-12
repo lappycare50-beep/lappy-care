@@ -214,7 +214,8 @@ if (loading) {
 
                     </div>
 
-                    <span className="rounded-full bg-red-500 px-3 py-1 text-xs font-bold text-white">
+                    <span className="rounded-full bg-red-500 px-3 py-1 text
+                  -xs font-bold text-white">
                       🔥 {product.offer}
                     </span>
 

@@ -5,6 +5,7 @@ import {
   updateDoc,
   deleteDoc,
   doc,
+  onSnapshot,
 } from "firebase/firestore";
 
 import { db } from "@/lib/firebase";
@@ -22,8 +23,24 @@ export async function getProducts(): Promise<Product[]> {
   }));
 }
 
+// Live Products
+export function subscribeProducts(
+  callback: (products: Product[]) => void
+) {
+  return onSnapshot(productsCollection, (snapshot) => {
+    const products: Product[] = snapshot.docs.map((doc) => ({
+      id: doc.id,
+      ...(doc.data() as Omit<Product, "id">),
+    }));
+
+    callback(products);
+  });
+}
+
 // Add Product
-export async function addProduct(product: Omit<Product, "id">) {
+export async function addProduct(
+  product: Omit<Product, "id">
+) {
   return await addDoc(productsCollection, product);
 }
 
@@ -34,12 +51,12 @@ export async function updateProduct(
 ) {
   const productRef = doc(db, "products", id);
 
-  return await updateDoc(productRef, product);
+  await updateDoc(productRef, product);
 }
 
 // Delete Product
 export async function deleteProduct(id: string) {
   const productRef = doc(db, "products", id);
 
-  return await deleteDoc(productRef);
+  await deleteDoc(productRef);
 }
