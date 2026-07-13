@@ -1,62 +1,67 @@
 import {
-  collection,
   addDoc,
-  updateDoc,
+  collection,
   deleteDoc,
   doc,
   getDocs,
-  onSnapshot,
+  orderBy,
+  query,
+  updateDoc,
 } from "firebase/firestore";
 
 import { db } from "@/lib/firebase";
+
 import { Repair } from "@/types/repair";
 
-const repairsCollection = collection(db, "repairs");
+const COLLECTION = "repairs";
+// ==========================
+// Get Repairs
+// ==========================
 
-// Get All Repairs
 export async function getRepairs(): Promise<Repair[]> {
-  const snapshot = await getDocs(repairsCollection);
+  const q = query(
+    collection(db, COLLECTION),
+    orderBy("createdAt", "desc")
+  );
+
+  const snapshot = await getDocs(q);
 
   return snapshot.docs.map((doc) => ({
     id: doc.id,
     ...(doc.data() as Omit<Repair, "id">),
   }));
 }
-
-// Live Listener
-export function subscribeRepairs(
-  callback: (repairs: Repair[]) => void
-) {
-  return onSnapshot(repairsCollection, (snapshot) => {
-    const repairs: Repair[] = snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...(doc.data() as Omit<Repair, "id">),
-    }));
-
-    callback(repairs);
-  });
-}
-
+// ==========================
 // Add Repair
+// ==========================
+
 export async function addRepair(
   repair: Omit<Repair, "id">
 ) {
-  return await addDoc(repairsCollection, repair);
+  return await addDoc(
+    collection(db, COLLECTION),
+    repair
+  );
 }
 
+// ==========================
 // Update Repair
+// ==========================
+
 export async function updateRepair(
   id: string,
-  repair: Partial<Repair>
+  repair: Omit<Repair, "id">
 ) {
-  const repairRef = doc(db, "repairs", id);
-
-  await updateDoc(repairRef, repair);
+  await updateDoc(
+    doc(db, COLLECTION, id),
+    repair
+  );
 }
 
-// Delete Repair
-export async function deleteRepair(id: string) {
-  const repairRef = doc(db, "repairs", id);
-
-  await deleteDoc(repairRef);
+export async function deleteRepair(
+  id: string
+) {
+  await deleteDoc(
+    doc(db, COLLECTION, id)
+  );
 }
