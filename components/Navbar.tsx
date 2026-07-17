@@ -1,19 +1,19 @@
 "use client";
 
+import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Menu, Phone, MessageCircle, X } from "lucide-react";
-import { useState } from "react";
+import { Menu, X, Phone, MessageCircle } from "lucide-react";
 
 export default function Navbar() {
   const [menuOpen, setMenuOpen] = useState(false);
 
   const navItems = [
-    { name: "Home", href: "#" },
-    { name: "Services", href: "#services" },
-    { name: "Laptops", href: "#products" },
-    { name: "Booking", href: "#booking" },
-    { name: "Contact", href: "#contact" },
+    { name: "Home", href: "/#hero" },
+    { name: "Services", href: "/#services" },
+    { name: "Laptops", href: "/#products" },
+    { name: "Booking", href: "/#booking" },
+    { name: "Contact", href: "/#contact" },
   ];
 
   return (
@@ -44,17 +44,18 @@ export default function Navbar() {
         {/* Desktop Menu */}
         <nav className="hidden items-center gap-8 lg:flex">
           {navItems.map((item) => (
-            <a
+            <Link
               key={item.name}
               href={item.href}
-              className="font-medium text-gray-300 transition duration-300 hover:text-yellow-400"
+              scroll={true}
+              className="font-medium text-gray-300 transition hover:text-yellow-400"
             >
               {item.name}
-            </a>
+            </Link>
           ))}
         </nav>
 
-        {/* Right Buttons */}
+        {/* Desktop Buttons */}
         <div className="hidden items-center gap-3 lg:flex">
           <a
             href="tel:+919595057006"
@@ -74,10 +75,10 @@ export default function Navbar() {
           </a>
         </div>
 
-        {/* Mobile Button */}
+        {/* Mobile Toggle */}
         <button
-          className="text-white lg:hidden"
           onClick={() => setMenuOpen(!menuOpen)}
+          className="text-white lg:hidden"
         >
           {menuOpen ? <X size={30} /> : <Menu size={30} />}
         </button>
@@ -89,14 +90,15 @@ export default function Navbar() {
           <div className="flex flex-col gap-4 p-6">
 
             {navItems.map((item) => (
-              <a
+              <Link
                 key={item.name}
                 href={item.href}
+                scroll={true}
                 onClick={() => setMenuOpen(false)}
                 className="text-lg text-white transition hover:text-yellow-400"
               >
                 {item.name}
-              </a>
+              </Link>
             ))}
 
             <a
@@ -110,7 +112,7 @@ export default function Navbar() {
               href="https://wa.me/919595057006"
               target="_blank"
               rel="noopener noreferrer"
-              className="rounded-xl bg-yellow-400 py-3 text-center font-bold text-black transition hover:scale-105"
+              className="rounded-xl bg-yellow-400 py-3 text-center font-bold text-black transition hover:opacity-90"
             >
               💬 WhatsApp
             </a>

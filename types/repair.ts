@@ -1,16 +1,30 @@
+// ==========================================
+// Repair Status
+// ==========================================
+
 export type RepairStatus =
   | "Received"
   | "Diagnosing"
+  | "Waiting Approval"
   | "Waiting Parts"
   | "Repairing"
   | "Testing"
   | "Ready"
-  | "Delivered";
+  | "Delivered"
+  | "Cancelled";
+
+// ==========================================
+// Payment Status
+// ==========================================
 
 export type PaymentStatus =
   | "Pending"
   | "Partial"
   | "Paid";
+
+// ==========================================
+// Priority
+// ==========================================
 
 export type Priority =
   | "Low"
@@ -18,82 +32,163 @@ export type Priority =
   | "High"
   | "Urgent";
 
-export interface Repair {
-  id?: string;
+// ==========================================
+// Customer
+// ==========================================
 
-  // ==========================
-  // Auto Generated
-  // ==========================
+export interface RepairCustomer {
+  customerId?: string;
 
-  repairId: string;
+  name: string;
 
-  // ==========================
-  // Customer
-  // ==========================
-
-  customerName: string;
   mobile: string;
+
+  alternateMobile?: string;
+
   email?: string;
 
-  // ==========================
-  // Device
-  // ==========================
+  address?: string;
+
+  city?: string;
+
+  state?: string;
+
+  pincode?: string;
+}
+
+// ==========================================
+// Device
+// ==========================================
+
+export interface RepairDevice {
+  type: string;
 
   brand: string;
+
   model: string;
+
   serialNo: string;
+
+  processor?: string;
+
+  ram?: string;
+
+  storage?: string;
+
+  color?: string;
+
   image?: string;
 
-  // ==========================
-  // Repair Details
-  // ==========================
+  devicePhotos?: string[];
+}
 
-  problem: string;
-  accessories: string;
+// ==========================================
+// Accessories
+// ==========================================
+
+export interface RepairAccessories {
+  items: string[];
+  other: string;
+}
+
+// ==========================================
+// Problem
+// ==========================================
+
+export interface RepairProblem {
+  complaint: string;
+
+  physicalCondition: string;
+
+  diagnosis?: string;
+
+  password?: string;
+
+  biosPassword?: string;
+}
+
+// ==========================================
+// Estimate
+// ==========================================
+
+export interface RepairEstimate {
+  labourCharge: number;
+
+  partsCharge: number;
+
+  discount: number;
+
+  totalAmount: number;
+
+  advancePaid: number;
+
+  balanceAmount: number;
+
+  expectedDelivery: string;
 
   technician: string;
 
   priority: Priority;
+}
 
-  // ==========================
-  // Cost
-  // ==========================
+// ==========================================
+// Assignment
+// ==========================================
 
-  estimatedCost: number;
-  finalCost: number;
+export interface RepairAssignment {
+  technician: string;
 
-  advancePaid: number;
-  balanceAmount: number;
+  priority: Priority;
+}
 
-  // ==========================
-  // Status
-  // ==========================
+// ==========================================
+// Timeline
+// ==========================================
 
+export interface RepairTimeline {
   status: RepairStatus;
 
-  // ==========================
-  // Payment
-  // ==========================
+  note?: string;
+
+  updatedBy?: string;
+
+  createdAt: string;
+}
+
+// ==========================================
+// Main Repair Model
+// ==========================================
+
+export interface Repair {
+
+  id?: string;
+
+  repairId: string;
+
+  customer: RepairCustomer;
+
+  device: RepairDevice;
+
+  accessories: RepairAccessories;
+
+  problem: RepairProblem;
+
+  estimate: RepairEstimate;
 
   paymentStatus: PaymentStatus;
 
-  // ==========================
-  // Dates
-  // ==========================
+  status: RepairStatus;
+
+  warranty: string;
+
+  remarks: string;
 
   createdAt: string;
+
   updatedAt: string;
+
   deliveredAt?: string;
 
-  // ==========================
-  // Warranty
-  // ==========================
+  timeline: RepairTimeline[];
 
-  warranty?: string;
-
-  // ==========================
-  // Notes
-  // ==========================
-
-  remarks?: string;
 }

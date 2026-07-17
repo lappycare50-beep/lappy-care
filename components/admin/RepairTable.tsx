@@ -1,21 +1,21 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 import { Repair } from "@/types/repair";
+
+import Link from "next/link";
 
 import {
   getRepairs,
   deleteRepair,
 } from "@/services/repairService";
 
-import JobCardModal from "@/components/repairs/JobCardModal";
-
 import {
+  Eye,
   Pencil,
-  Printer,
   Trash2,
-  MessageCircle,
+  Search,
 } from "lucide-react";
 
 type Props = {
@@ -34,348 +34,423 @@ export default function RepairTable({
   const [loading, setLoading] =
     useState(true);
 
-  const [showJobCard, setShowJobCard] =
-    useState(false);
-
-  const [selectedRepair, setSelectedRepair] =
-    useState<Repair | null>(null);
-
-  // ==========================
+  // ==========================================
   // Load Repairs
-  // ==========================
+  // ==========================================
 
   async function loadRepairs() {
+
     try {
-      const data = await getRepairs();
+
+      setLoading(true);
+
+      const data =
+        await getRepairs();
 
       setRepairs(data);
 
     } catch (error) {
+
       console.error(error);
 
+      alert("Failed to load repairs.");
+
     } finally {
+
       setLoading(false);
+
     }
+
   }
 
   useEffect(() => {
+
     loadRepairs();
+
   }, []);
 
-  // ==========================
-  // Delete
-  // ==========================
+  // ==========================================
+  // Search Filter
+  // ==========================================
 
-  async function handleDelete(id: string) {
+  const filteredRepairs =
+    useMemo(() => {
 
-    const ok = confirm(
-      "Are you sure you want to delete this repair?"
+      if (!search.trim())
+        return repairs;
+
+      const keyword =
+        search.toLowerCase();
+
+      return repairs.filter((repair) =>
+
+        repair.repairId
+          .toLowerCase()
+          .includes(keyword)
+
+        ||
+
+        repair.customer.name
+          .toLowerCase()
+          .includes(keyword)
+
+        ||
+
+        repair.customer.mobile
+          .toLowerCase()
+          .includes(keyword)
+
+        ||
+
+        repair.device.brand
+          .toLowerCase()
+          .includes(keyword)
+
+        ||
+
+        repair.device.model
+          .toLowerCase()
+          .includes(keyword)
+
+      );
+
+    }, [repairs, search]);
+
+  // ==========================================
+  // Status Color
+  // ==========================================
+
+  function getStatusColor(
+    status: string
+  ) {
+
+    switch (status) {
+
+      case "Received":
+        return "bg-blue-500";
+
+      case "Diagnosing":
+        return "bg-purple-500";
+
+      case "Waiting Approval":
+        return "bg-yellow-500";
+
+      case "Waiting Parts":
+        return "bg-orange-500";
+
+      case "Repairing":
+        return "bg-indigo-500";
+
+      case "Testing":
+        return "bg-cyan-500";
+
+      case "Ready":
+        return "bg-green-500";
+
+      case "Delivered":
+        return "bg-gray-500";
+
+      case "Cancelled":
+        return "bg-red-500";
+
+      default:
+        return "bg-gray-500";
+
+    }
+
+  }
+    // ==========================================
+  // Delete Repair
+  // ==========================================
+
+  async function handleDelete(
+    repair: Repair
+  ) {
+
+    const confirmDelete = window.confirm(
+      `Delete Repair ${repair.repairId}?`
     );
 
-    if (!ok) return;
+    if (!confirmDelete) return;
 
-    await deleteRepair(id);
+    try {
 
-    await loadRepairs();
+      if (!repair.id) {
+        alert("Invalid Repair ID");
+        return;
+      }
+
+      await deleteRepair(repair.id);
+
+      alert("Repair Deleted Successfully.");
+
+      loadRepairs();
+
+    } catch (error) {
+
+      console.error(error);
+
+      alert("Failed to delete repair.");
+
+    }
+
   }
 
-  // ==========================
-  // Search
-  // ==========================
-
-  const filtered = repairs.filter((repair) => {
-
-    const keyword =
-      search.toLowerCase();
-
-    return (
-
-      repair.repairId
-        .toLowerCase()
-        .includes(keyword)
-
-      ||
-
-      repair.customerName
-        .toLowerCase()
-        .includes(keyword)
-
-      ||
-
-      repair.mobile
-        .toLowerCase()
-        .includes(keyword)
-
-    );
-
-  });
-    // ==========================
-  // Loading
-  // ==========================
-
-  if (loading) {
-    return (
-      <div className="rounded-2xl bg-[#181818] p-10 text-center text-white">
-        Loading Repairs...
-      </div>
-    );
-  }
+  // ==========================================
+  // JSX
+  // ==========================================
 
   return (
-    <>
-      <div className="overflow-x-auto rounded-2xl border border-yellow-500/20 bg-[#181818]">
 
-        <table className="min-w-full">
+    <div className="overflow-hidden rounded-2xl border border-yellow-500/20 bg-[#181818]">
 
-          {/* Table Header */}
+      {/* Loading */}
 
-          <thead className="bg-[#202020]">
+      {loading && (
 
-            <tr>
+        <div className="flex items-center justify-center p-12">
 
-              <th className="px-4 py-4 text-left text-sm font-semibold text-yellow-400">
-                Repair ID
-              </th>
+          <div className="text-lg text-white">
+            Loading Repairs...
+          </div>
 
-              <th className="px-4 py-4 text-left text-sm font-semibold text-yellow-400">
-                Customer
-              </th>
+        </div>
 
-              <th className="px-4 py-4 text-left text-sm font-semibold text-yellow-400">
-                Mobile
-              </th>
+      )}
 
-              <th className="px-4 py-4 text-left text-sm font-semibold text-yellow-400">
-                Device
-              </th>
+      {/* Empty */}
 
-              <th className="px-4 py-4 text-left text-sm font-semibold text-yellow-400">
-                Technician
-              </th>
+      {!loading &&
+        filteredRepairs.length === 0 && (
 
-              <th className="px-4 py-4 text-left text-sm font-semibold text-yellow-400">
-                Status
-              </th>
+        <div className="flex flex-col items-center justify-center p-12">
 
-              <th className="px-4 py-4 text-left text-sm font-semibold text-yellow-400">
-                Payment
-              </th>
+          <Search
+            size={50}
+            className="mb-4 text-gray-600"
+          />
 
-              <th className="px-4 py-4 text-left text-sm font-semibold text-yellow-400">
-                Amount
-              </th>
+          <h3 className="text-xl font-semibold text-white">
+            No Repairs Found
+          </h3>
 
-              <th className="px-4 py-4 text-left text-sm font-semibold text-yellow-400">
-                Date
-              </th>
+          <p className="mt-2 text-gray-400">
+            Try another search keyword.
+          </p>
 
-              <th className="px-4 py-4 text-center text-sm font-semibold text-yellow-400">
-                Actions
-              </th>
+        </div>
 
-            </tr>
+      )}
 
-          </thead>
+      {/* Table */}
 
-          <tbody>
-                      {filtered.map((repair) => (
+      {!loading &&
+        filteredRepairs.length > 0 && (
 
-            <tr
-              key={repair.id}
-              className="border-t border-gray-800 hover:bg-[#202020]"
-            >
+        <div className="overflow-x-auto">
 
-              {/* Repair ID */}
+          <table className="min-w-full">
 
-              <td className="px-4 py-4 font-semibold text-yellow-400">
-                {repair.repairId}
-              </td>
+            <thead className="bg-black">
 
-              {/* Customer */}
+              <tr>
 
-              <td className="px-4 py-4 text-white">
-                {repair.customerName}
-              </td>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-yellow-400">
+                  Repair ID
+                </th>
 
-              {/* Mobile */}
+                <th className="px-6 py-4 text-left text-sm font-semibold text-yellow-400">
+                  Customer
+                </th>
 
-              <td className="px-4 py-4 text-gray-300">
-                {repair.mobile}
-              </td>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-yellow-400">
+                  Device
+                </th>
 
-              {/* Device */}
+                <th className="px-6 py-4 text-left text-sm font-semibold text-yellow-400">
+                  Technician
+                </th>
 
-              <td className="px-4 py-4 text-gray-300">
-                {repair.brand} {repair.model}
-              </td>
+                <th className="px-6 py-4 text-left text-sm font-semibold text-yellow-400">
+                  Amount
+                </th>
 
-              {/* Technician */}
+                <th className="px-6 py-4 text-left text-sm font-semibold text-yellow-400">
+                  Status
+                </th>
 
-              <td className="px-4 py-4 text-gray-300">
-                {repair.technician}
-              </td>
+                <th className="px-6 py-4 text-center text-sm font-semibold text-yellow-400">
+                  Actions
+                </th>
 
-              {/* Status */}
+              </tr>
 
-              <td className="px-4 py-4">
+            </thead>
 
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                    repair.status === "Delivered"
-                      ? "bg-green-500/20 text-green-400"
-                      : repair.status === "Ready"
-                      ? "bg-blue-500/20 text-blue-400"
-                      : repair.status === "Repairing"
-                      ? "bg-orange-500/20 text-orange-400"
-                      : "bg-yellow-500/20 text-yellow-400"
-                  }`}
+            <tbody>
+                            {filteredRepairs.map((repair) => (
+
+                <tr
+                  key={repair.id}
+                  className="border-t border-gray-800 transition hover:bg-[#202020]"
                 >
-                  {repair.status}
-                </span>
 
-              </td>
+                  {/* Repair ID */}
 
-              {/* Payment */}
+                  <td className="px-6 py-4">
 
-              <td className="px-4 py-4">
+                    <div className="font-semibold text-yellow-400">
+                      {repair.repairId}
+                    </div>
 
-                <span
-                  className={`rounded-full px-3 py-1 text-xs font-semibold ${
-                    repair.paymentStatus === "Paid"
-                      ? "bg-green-500/20 text-green-400"
-                      : repair.paymentStatus === "Partial"
-                      ? "bg-yellow-500/20 text-yellow-400"
-                      : "bg-red-500/20 text-red-400"
-                  }`}
-                >
-                  {repair.paymentStatus}
-                </span>
+                    <div className="mt-1 text-xs text-gray-500">
+                      {repair.createdAt}
+                    </div>
 
-              </td>
+                  </td>
 
-              {/* Final Cost */}
+                  {/* Customer */}
 
-              <td className="px-4 py-4 font-semibold text-white">
-                ₹{repair.finalCost.toLocaleString("en-IN")}
-              </td>
+                  <td className="px-6 py-4">
 
-              {/* Date */}
+                    <div className="font-semibold text-white">
+                      {repair.customer?.name ?? "-"}
+                    </div>
 
-              <td className="px-4 py-4 text-gray-400">
-                {repair.createdAt}
-              </td>
+                    <div className="mt-1 text-sm text-gray-400">
+                      {repair.customer?.mobile ?? "-"}
+                    </div>
 
-              {/* Actions */}
+                  </td>
 
-              <td className="px-4 py-4">
+                  {/* Device */}
 
-                <div className="flex items-center justify-center gap-3">
+                  <td className="px-6 py-4">
 
-                  {/* Edit */}
+                    <div className="font-semibold text-white">
+                      {repair.device?.brand ?? "-"}
+                    </div>
 
-                  <button
-                    type="button"
-                    onClick={() => onEdit(repair)}
-                    className="text-blue-400 transition hover:text-blue-300"
-                    title="Edit"
-                  >
-                    <Pencil size={18} />
-                  </button>
+                    <div className="mt-1 text-sm text-gray-400">
+                      {repair.device?.model ?? "-"}
+                    </div>
 
-                  {/* Delete */}
+                    <div className="text-xs text-gray-500">
+                      {repair.device?.type ?? "-"}
+                    </div>
 
-                  <button
-                    type="button"
-                    onClick={() => handleDelete(repair.id!)}
-                    className="text-red-400 transition hover:text-red-300"
-                    title="Delete"
-                  >
-                    <Trash2 size={18} />
-                  </button>
+                  </td>
 
-                  {/* Print */}
+                  {/* Technician */}
 
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedRepair(repair);
-                      setShowJobCard(true);
-                    }}
-                    className="text-green-400 transition hover:text-green-300"
-                    title="Print Job Card"
-                  >
-                    <Printer size={18} />
-                  </button>
+                  <td className="px-6 py-4">
 
-                  {/* WhatsApp */}
+                    <div className="text-white">
+                      {repair.estimate?.technician || "-"}
+                    </div>
 
-                  <button
-              
-  type="button"
-  onClick={() => {
-    const message = encodeURIComponent(
-`Hello ${repair.customerName},
+                    <div className="mt-1 text-xs text-gray-500">
+                      {repair.estimate?.priority}
+                    </div>
 
-Your Laptop Repair Status
+                  </td>
 
-🆔 Repair ID: ${repair.repairId}
-💻 Device: ${repair.brand} ${repair.model}
-🔧 Status: ${repair.status}
-💳 Payment: ${repair.paymentStatus}
+                  {/* Amount */}
 
-Thank you,
-Lappy Care
-📞 9595057006`
-    );
+                  <td className="px-6 py-4">
 
-    window.open(
-      `https://wa.me/91${repair.mobile}?text=${message}`,
-      "_blank"
-    );
-  }}
-  className="text-emerald-400 transition hover:text-emerald-300"
-  title="WhatsApp Customer"
+                    <div className="font-bold text-green-400">
+                      ₹
+                      {repair.estimate?.totalAmount.toLocaleString(
+                        "en-IN"
+                      )}
+                    </div>
+
+                    <div className="mt-1 text-xs text-gray-500">
+
+                      Advance :
+                      {" "}
+                      ₹
+                      {repair.estimate?.advancePaid.toLocaleString(
+                        "en-IN"
+                      )}
+
+                    </div>
+
+                  </td>
+
+                  {/* Status */}
+
+                  <td className="px-6 py-4">
+
+                    <span
+                      className={`rounded-full px-3 py-1 text-sm font-semibold text-white ${getStatusColor(
+                        repair.status
+                      )}`}
+                    >
+                      {repair.status}
+                    </span>
+
+                  </td>
+
+                  {/* Actions */}
+
+                  <td className="px-6 py-4">
+                                        <div className="flex items-center justify-center gap-2">
+
+                      {/* View */}
+                      
+
+                      <Link
+  href={`/admin/repairs/${repair.id}/job-card`}
+  title="Job Card Preview"
+  className="rounded-lg bg-blue-600 p-2 text-white transition hover:bg-blue-500"
 >
-  <MessageCircle size={18} />
-</button>
+  <Eye size={18} />
+</Link>
 
-                </div>
+                      {/* Edit */}
 
-              </td>
+                      <button
+                        type="button"
+                        title="Edit Repair"
+                        onClick={() => onEdit(repair)}
+                        className="rounded-lg bg-yellow-500 p-2 text-black transition hover:bg-yellow-400"
+                      >
+                        <Pencil size={18} />
+                      </button>
 
-            </tr>
+                      {/* Delete */}
 
-          ))}
-                    {/* Empty State */}
+                      <button
+                        type="button"
+                        title="Delete Repair"
+                        onClick={() =>
+                          handleDelete(repair)
+                        }
+                        className="rounded-lg bg-red-600 p-2 text-white transition hover:bg-red-500"
+                      >
+                        <Trash2 size={18} />
+                      </button>
 
-          {filtered.length === 0 && (
-            <tr>
-              <td
-                colSpan={10}
-                className="px-6 py-12 text-center text-gray-400"
-              >
-                No repair records found.
-              </td>
-            </tr>
-          )}
+                    </div>
 
-          </tbody>
+                  </td>
 
-        </table>
+                </tr>
 
-      </div>
+              ))}
 
-      {/* Job Card Modal */}
+            </tbody>
 
-      <JobCardModal
-        open={showJobCard}
-        repair={selectedRepair}
-        onClose={() => {
-          setShowJobCard(false);
-          setSelectedRepair(null);
-        }}
-      />
+          </table>
 
-    </>
+        </div>
+
+      )}
+
+    </div>
+
   );
+
 }

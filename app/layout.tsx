@@ -4,6 +4,8 @@ import "./globals.css";
 
 import { AuthProvider } from "@/context/AuthContext";
 
+import FloatingWhatsApp from "@/components/whatsapp/FloatingWhatsApp";
+
 const poppins = Poppins({
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700", "800"],
@@ -82,6 +84,7 @@ export default function RootLayout({
       <body className={poppins.className}>
         <AuthProvider>
           {children}
+        <FloatingWhatsApp />
         </AuthProvider>
       </body>
     </html>

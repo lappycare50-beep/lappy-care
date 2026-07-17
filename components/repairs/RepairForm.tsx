@@ -2,10 +2,16 @@
 
 import { useEffect, useState } from "react";
 
+import {
+  Repair,
+} from "@/types/repair";
+
 import CustomerSection from "./CustomerSection";
 import DeviceSection from "./DeviceSection";
-import RepairSection from "./RepairSection";
-import PaymentSection from "./PaymentSection";
+import AccessoriesSection from "./AccessoriesSection";
+import ProblemSection from "./ProblemSection";
+import ConditionSection from "./ConditionSection";
+import EstimateSection from "./EstimateSection";
 import StatusSection from "./StatusSection";
 import NotesSection from "./NotesSection";
 
@@ -14,369 +20,515 @@ import {
   updateRepair,
 } from "@/services/repairService";
 
-import {
-  PaymentStatus,
-  Priority,
-  Repair,
-  RepairStatus,
-} from "@/types/repair";
 
-type RepairFormProps = {
-  repair?: Repair | null;
+
+import { generateId } from "@/services/idGenerator";
+
+import { syncCustomer } from "@/services/customerService";
+
+type Props = {
+  editRepair?: Repair | null;
   onSuccess?: () => void;
 };
 
+const defaultRepair: Repair = {
+
+  repairId: "",
+
+  customer: {
+    customerId: "",
+    name: "",
+    mobile: "",
+    alternateMobile: "",
+    email: "",
+    address: "",
+    city: "",
+    state: "",
+    pincode: "",
+  },
+
+  device: {
+    type: "Laptop",
+    brand: "",
+    model: "",
+    serialNo: "",
+    processor: "",
+    ram: "",
+    storage: "",
+    color: "",
+    image: "",
+    devicePhotos: [],
+  },
+
+  accessories: {
+    items: [],
+    other: "",
+  },
+
+  problem: {
+    complaint: "",
+    physicalCondition: "",
+    diagnosis: "",
+    password: "",
+    biosPassword: "",
+  },
+
+  estimate: {
+    labourCharge: 0,
+    partsCharge: 0,
+    discount: 0,
+    totalAmount: 0,
+    advancePaid: 0,
+    balanceAmount: 0,
+    expectedDelivery: "",
+    technician: "",
+    priority: "Medium",
+  },
+
+  paymentStatus: "Pending",
+
+  status: "Received",
+
+  warranty: "No Warranty",
+
+  remarks: "",
+
+  createdAt: new Date()
+    .toISOString()
+    .split("T")[0],
+
+  updatedAt: "",
+
+  deliveredAt: "",
+
+  timeline: [],
+};
+
 export default function RepairForm({
-  repair,
+  editRepair,
   onSuccess,
-}: RepairFormProps) {
+}: Props) {
 
-  // ==========================
-  // Customer
-  // ==========================
-
-  const [customerName, setCustomerName] = useState("");
-  const [mobile, setMobile] = useState("");
-  const [email, setEmail] = useState("");
-
-  // ==========================
-  // Device
-  // ==========================
-
-  const [brand, setBrand] = useState("");
-  const [model, setModel] = useState("");
-  const [serialNo, setSerialNo] = useState("");
-  const [image, setImage] = useState("");
-
-  // ==========================
-  // Repair
-  // ==========================
-
-  const [problem, setProblem] = useState("");
-  const [accessories, setAccessories] = useState("");
-
-  const [technician, setTechnician] =
-    useState("");
-
-  const [priority, setPriority] =
-    useState<Priority>("Medium");
-
-  // ==========================
-  // Payment
-  // ==========================
-
-  const [estimatedCost, setEstimatedCost] =
-    useState(0);
-
-  const [finalCost, setFinalCost] =
-    useState(0);
-
-  const [advancePaid, setAdvancePaid] =
-    useState(0);
-
-  const [balanceAmount, setBalanceAmount] =
-    useState(0);
-
-  const [paymentStatus, setPaymentStatus] =
-    useState<PaymentStatus>("Pending");
-
-  // ==========================
-  // Status
-  // ==========================
-
-  const [status, setStatus] =
-    useState<RepairStatus>("Received");
-
-  const today =
-    new Date().toISOString().split("T")[0];
-
-  const [createdAt, setCreatedAt] =
-    useState(today);
-
-  const [deliveredAt, setDeliveredAt] =
-    useState("");
-
-  const [warranty, setWarranty] =
-    useState("No Warranty");
-
-  // ==========================
-  // Notes
-  // ==========================
-
-  const [remarks, setRemarks] =
-    useState("");
+  const [repair, setRepair] =
+    useState<Repair>(defaultRepair);
 
   const [loading, setLoading] =
     useState(false);
 
-  // ==========================
-  // Edit Mode
-  // ==========================
+  // ==========================================
+  // Load Edit Repair
+  // ==========================================
 
   useEffect(() => {
-    if (!repair) return;
 
-    setCustomerName(repair.customerName);
-    setMobile(repair.mobile);
-    setEmail(repair.email ?? "");
+    if (editRepair) {
 
-    setBrand(repair.brand);
-    setModel(repair.model);
-    setSerialNo(repair.serialNo);
+      setRepair({
 
-    setProblem(repair.problem);
-    setAccessories(repair.accessories);
+        ...defaultRepair,
 
-    setTechnician(repair.technician);
+        ...editRepair,
 
-    setEstimatedCost(repair.estimatedCost);
-    setFinalCost(repair.finalCost);
+        customer: {
+          ...defaultRepair.customer,
+          ...editRepair.customer,
+        },
 
-    setAdvancePaid(repair.advancePaid);
-    setBalanceAmount(repair.balanceAmount);
+        device: {
+          ...defaultRepair.device,
+          ...editRepair.device,
+        },
 
-    setPaymentStatus(repair.paymentStatus);
+        accessories: {
+          ...defaultRepair.accessories,
+          ...editRepair.accessories,
+        },
 
-    setStatus(repair.status);
+        problem: {
+          ...defaultRepair.problem,
+          ...editRepair.problem,
+        },
 
-    setCreatedAt(repair.createdAt);
-    setDeliveredAt(repair.deliveredAt ?? "");
+        estimate: {
+          ...defaultRepair.estimate,
+          ...editRepair.estimate,
+        },
 
-    setWarranty(repair.warranty ?? "No Warranty");
+      });
 
-    setRemarks(repair.remarks ?? "");
-    setImage(repair.image ?? "");
+    } else {
 
-  }, [repair]);
+      setRepair(defaultRepair);
 
-    // ==========================
-  // Save Repair
-  // ==========================
-
-  async function handleSubmit() {
-    if (
-      !customerName ||
-      !mobile ||
-      !brand ||
-      !model ||
-      !problem
-    ) {
-      alert("Please fill all required fields.");
-      return;
     }
 
+  }, [editRepair]);
+    // ==========================================
+  // Validation
+  // ==========================================
+
+  function validateRepair() {
+
+  if (!repair.customer.name.trim()) {
+    alert("Customer Name is required.");
+    return false;
+  }
+
+  const mobile = repair.customer.mobile.trim();
+
+  if (!mobile) {
+    alert("Mobile Number is required.");
+    return false;
+  }
+
+  if (!/^\d{10}$/.test(mobile)) {
+    alert("Please enter a valid 10-digit mobile number.");
+    return false;
+  }
+
+  if (!repair.device.brand.trim()) {
+    alert("Device Brand is required.");
+    return false;
+  }
+
+  if (!repair.device.model.trim()) {
+    alert("Device Model is required.");
+    return false;
+  }
+
+  if (!repair.problem.complaint.trim()) {
+    alert("Customer Complaint is required.");
+    return false;
+  }
+
+  return true;
+}
+
+  // ==========================================
+  // Save Repair
+  // ==========================================
+
+  async function handleSave() {
+
+    if (!validateRepair()) return;
+
     try {
+
       setLoading(true);
 
-      // Auto Repair ID
-      const repairId =
-        repair?.repairId ??
-        `LC${Date.now().toString().slice(-8)}`;
+      // Recalculate Estimate
 
-      const repairData: Omit<Repair, "id"> = {
-        repairId,
+      const totalAmount =
+        repair.estimate.labourCharge +
+        repair.estimate.partsCharge -
+        repair.estimate.discount;
 
-        // Customer
-        customerName,
-        mobile,
-        email,
+      const balanceAmount =
+        Math.max(
+          totalAmount -
+          repair.estimate.advancePaid,
+          0
+        );
 
-        // Device
-        brand,
-        model,
-        serialNo,
-        image,
+      const repairData: Repair = {
 
-        // Repair
-        problem,
-        accessories,
-        technician,
-        priority,
+        ...repair,
 
-        // Payment
-        estimatedCost,
-        finalCost,
-        advancePaid,
-        balanceAmount,
-        paymentStatus,
+        estimate: {
 
-        // Status
-        status,
+          ...repair.estimate,
 
-        // Dates
-        createdAt,
-        updatedAt: new Date().toISOString(),
-        deliveredAt,
+          totalAmount,
 
-        // Extra
-        warranty,
-        remarks,
+          balanceAmount,
+
+        },
+
+        updatedAt:
+          new Date().toISOString(),
+
       };
 
-      if (repair?.id) {
-        await updateRepair(repair.id, repairData);
+      // ==========================
+      // Update
+      // ==========================
 
-        alert("✅ Repair Updated Successfully");
-      } else {
-        await addRepair(repairData);
+      if (editRepair?.id) {
 
-        alert("✅ Repair Added Successfully");
+        await updateRepair(
+          editRepair.id,
+          repairData
+        );
+
+        alert(
+          "Repair Updated Successfully."
+        );
+
+        onSuccess?.();
+
+        return;
+
       }
 
       // ==========================
-      // Reset Form
+      // Generate Repair ID
       // ==========================
 
-      setCustomerName("");
-      setMobile("");
-      setEmail("");
+      const repairId = await generateId("repair");
 
-      setBrand("");
-      setModel("");
-      setSerialNo("");
-      setImage("");
+      // ==========================
+      // New Repair
+      // ==========================
 
-      setProblem("");
-      setAccessories("");
+      const newRepair: Repair = {
 
-      setTechnician("");
-      setPriority("Medium");
+        ...repairData,
 
-      setEstimatedCost(0);
-      setFinalCost(0);
-      setAdvancePaid(0);
-      setBalanceAmount(0);
+        repairId,
 
-      setPaymentStatus("Pending");
+        createdAt:
+          new Date()
+            .toISOString()
+            .split("T")[0],
 
-      setStatus("Received");
+        timeline: [
 
-      setCreatedAt(today);
-      setDeliveredAt("");
+          {
 
-      setWarranty("No Warranty");
+            status: "Received",
 
-      setRemarks("");
+            note:
+              "Repair Created",
+
+            createdAt:
+              new Date().toISOString(),
+
+          },
+
+        ],
+
+      };
+      // ==========================================
+// Sync Customer
+// ==========================================
+
+const customerDocId = await syncCustomer({
+  name: repair.customer.name,
+  mobile: repair.customer.mobile,
+  alternateMobile: repair.customer.alternateMobile,
+  email: repair.customer.email,
+  address: repair.customer.address,
+  city: repair.customer.city,
+  state: repair.customer.state,
+  pincode: repair.customer.pincode,
+  repairId,
+});
+
+// Save Customer Firestore Document ID in Repair
+newRepair.customer.customerId = customerDocId;
+
+      await addRepair(newRepair);
+
+      alert(
+        "Repair Saved Successfully."
+      );
+
+      setRepair(defaultRepair);
 
       onSuccess?.();
 
     } catch (error) {
+
       console.error(error);
 
-      alert("Failed to save repair.");
-    } finally {
-      setLoading(false);
-    }
-  }
-    return (
-    <div className="space-y-8">
+      alert(
+        "Failed to save repair."
+      );
 
-      {/* Customer Details */}
+    } finally {
+
+      setLoading(false);
+
+    }
+
+  }
+    // ==========================================
+  // JSX
+  // ==========================================
+
+  return (
+
+    <form
+      onSubmit={(e) => {
+        e.preventDefault();
+        handleSave();
+      }}
+      className="space-y-6"
+    >
+
+      {/* ==========================
+          Customer
+      ========================== */}
 
       <CustomerSection
-        customerName={customerName}
-        setCustomerName={setCustomerName}
-
-        mobile={mobile}
-        setMobile={setMobile}
-
-        email={email}
-        setEmail={setEmail}
+        customer={repair.customer}
+        setCustomer={(customer) =>
+          setRepair((prev) => ({
+            ...prev,
+            customer,
+          }))
+        }
       />
 
-      {/* Device Details */}
+      {/* ==========================
+          Device
+      ========================== */}
 
       <DeviceSection
-        brand={brand}
-        setBrand={setBrand}
-
-        model={model}
-        setModel={setModel}
-
-        serialNo={serialNo}
-        setSerialNo={setSerialNo}
-
-        image={image}
-        setImage={setImage}
-      />
-            {/* Repair Details */}
-
-      <RepairSection
-        problem={problem}
-        setProblem={setProblem}
-
-        accessories={accessories}
-        setAccessories={setAccessories}
-
-        technician={technician}
-        setTechnician={setTechnician}
-
-        priority={priority}
-        setPriority={setPriority}
+        device={repair.device}
+        setDevice={(device) =>
+          setRepair((prev) => ({
+            ...prev,
+            device,
+          }))
+        }
       />
 
-      {/* Payment */}
+      {/* ==========================
+          Accessories
+      ========================== */}
 
-      <PaymentSection
-        estimatedCost={estimatedCost}
-        setEstimatedCost={setEstimatedCost}
-
-        finalCost={finalCost}
-        setFinalCost={setFinalCost}
-
-        advancePaid={advancePaid}
-        setAdvancePaid={setAdvancePaid}
-
-        balanceAmount={balanceAmount}
-        setBalanceAmount={setBalanceAmount}
-
-        paymentStatus={paymentStatus}
-        setPaymentStatus={setPaymentStatus}
+      <AccessoriesSection
+        accessories={repair.accessories}
+        setAccessories={(accessories) =>
+          setRepair((prev) => ({
+            ...prev,
+            accessories,
+          }))
+        }
       />
 
-      {/* Status */}
+      {/* ==========================
+          Problem
+      ========================== */}
+
+      <ProblemSection
+        problem={repair.problem}
+        setProblem={(problem) =>
+          setRepair((prev) => ({
+            ...prev,
+            problem,
+          }))
+        }
+      />
+
+      {/* ==========================
+          Physical Condition
+      ========================== */}
+
+      <ConditionSection
+        problem={repair.problem}
+        setProblem={(problem) =>
+          setRepair((prev) => ({
+            ...prev,
+            problem,
+          }))
+        }
+      />
+
+      {/* ==========================
+          Estimate
+      ========================== */}
+
+      <EstimateSection
+        estimate={repair.estimate}
+        setEstimate={(estimate) =>
+          setRepair((prev) => ({
+            ...prev,
+            estimate,
+          }))
+        }
+      />
+            {/* ==========================
+          Status
+      ========================== */}
 
       <StatusSection
-        status={status}
-        setStatus={setStatus}
-
-        warranty={warranty}
-        setWarranty={setWarranty}
-
-        createdAt={createdAt}
-        setCreatedAt={setCreatedAt}
-
-        deliveredAt={deliveredAt}
-        setDeliveredAt={setDeliveredAt}
+        status={repair.status}
+        setStatus={(status) =>
+          setRepair((prev) => ({
+            ...prev,
+            status,
+          }))
+        }
+        warranty={repair.warranty}
+        setWarranty={(warranty) =>
+          setRepair((prev) => ({
+            ...prev,
+            warranty,
+          }))
+        }
+        createdAt={repair.createdAt}
+        setCreatedAt={(createdAt) =>
+          setRepair((prev) => ({
+            ...prev,
+            createdAt,
+          }))
+        }
+        deliveredAt={repair.deliveredAt ?? ""}
+        setDeliveredAt={(deliveredAt) =>
+          setRepair((prev) => ({
+            ...prev,
+            deliveredAt,
+          }))
+        }
       />
 
-      {/* Notes */}
+      {/* ==========================
+          Notes
+      ========================== */}
 
       <NotesSection
-        remarks={remarks}
-        setRemarks={setRemarks}
+        remarks={repair.remarks}
+        setRemarks={(remarks) =>
+          setRepair((prev) => ({
+            ...prev,
+            remarks,
+          }))
+        }
       />
-            {/* Save Button */}
 
-      <div className="flex justify-end">
+      {/* ==========================
+          Action Buttons
+      ========================== */}
+
+      <div className="flex justify-end gap-4 pt-4">
 
         <button
           type="button"
-          onClick={handleSubmit}
           disabled={loading}
-          className="rounded-xl bg-yellow-400 px-10 py-4 font-bold text-black transition hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-50"
+          onClick={() => setRepair(defaultRepair)}
+          className="rounded-xl border border-gray-600 px-6 py-3 font-semibold text-gray-300 transition hover:border-gray-500 hover:bg-[#202020] disabled:cursor-not-allowed disabled:opacity-60"
+        >
+          Reset
+        </button>
+
+        <button
+          type="submit"
+          disabled={loading}
+          className="rounded-xl bg-yellow-400 px-8 py-3 font-bold text-black transition hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-60"
         >
           {loading
-            ? repair
-              ? "Updating..."
-              : "Saving..."
-            : repair
+            ? "Saving..."
+            : editRepair
             ? "Update Repair"
             : "Save Repair"}
         </button>
 
       </div>
 
-    </div>
+    </form>
+
   );
+
 }
