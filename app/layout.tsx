@@ -6,6 +6,8 @@ import { AuthProvider } from "@/context/AuthContext";
 
 import FloatingWhatsApp from "@/components/whatsapp/FloatingWhatsApp";
 
+import GoogleAnalytics from "@/components/GoogleAnalytics";
+
 const poppins = Poppins({
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700", "800"],
@@ -82,9 +84,11 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={poppins.className}>
+        <GoogleAnalytics />
+
         <AuthProvider>
           {children}
-        <FloatingWhatsApp />
+          <FloatingWhatsApp />
         </AuthProvider>
       </body>
     </html>
