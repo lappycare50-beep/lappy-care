@@ -12,6 +12,42 @@ import { db } from "@/lib/firebase";
 const COLLECTION = "counters";
 
 // ==========================================
+// Helper Functions
+// ==========================================
+
+export function generateRepairId() {
+  return generateId("repair");
+}
+
+export function generateCustomerId() {
+  return generateId("customer");
+}
+
+export function generateBookingId() {
+  return generateId("booking");
+}
+
+export function generateContactId() {
+  return generateId("contact");
+}
+
+export function generateInvoiceId() {
+  return generateId("invoice", "WKD", true);
+}
+
+export function generatePurchaseId() {
+  return generateId("purchase", "WKD", true);
+}
+
+export function generateVendorId() {
+  return generateId("vendor");
+}
+
+export function generateProductId() {
+  return generateId("product");
+}
+
+// ==========================================
 // Configuration
 // ==========================================
 
