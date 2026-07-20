@@ -75,20 +75,62 @@ export const metadata: Metadata = {
     "Professional Laptop Repair in Pune. Dell, HP, Lenovo, ASUS, Acer, Apple Laptop Repair, Screen Replacement, SSD Upgrade, Motherboard Repair, Data Recovery and Refurbished Laptop Sales.",
 
   keywords: [
-    "Laptop Repair Pune",
-    "Laptop Repair Wakad",
-    "Laptop Service Pune",
-    "Laptop Repair Near Me",
-    "Computer Repair Pune",
-    "Dell Laptop Repair Pune",
-    "HP Laptop Repair Pune",
-    "Lenovo Laptop Repair Pune",
-    "Laptop Screen Replacement Pune",
-    "SSD Upgrade Pune",
-    "RAM Upgrade Pune",
-    "Motherboard Repair Pune",
-    "Data Recovery Pune",
-    "Refurbished Laptop Pune",
+  "Laptop Repair Pune",
+  "Laptop Repair Near Me",
+  "Laptop Service Pune",
+  "Laptop Service Center Pune",
+  "Computer Repair Pune",
+  "Computer Service Pune",
+  "Laptop Repair PCMC",
+  "Laptop Repair Wakad",
+  "Laptop Repair Hinjawadi",
+  "Laptop Repair Baner",
+  "Laptop Repair Balewadi",
+  "Laptop Repair Punawale",
+  "Laptop Repair Ravet",
+  "Laptop Repair Tathawade",
+  "Laptop Repair Pimple Saudagar",
+  "Laptop Repair Pimpri",
+  "Laptop Repair Chinchwad",
+  "Laptop Repair Aundh",
+  "Laptop Repair Pashan",
+  "Dell Laptop Repair Pune",
+  "HP Laptop Repair Pune",
+  "Lenovo Laptop Repair Pune",
+  "ASUS Laptop Repair Pune",
+  "Acer Laptop Repair Pune",
+  "Apple MacBook Repair Pune",
+  "MacBook Repair Pune",
+  "Gaming Laptop Repair Pune",
+  "Laptop Screen Replacement Pune",
+  "Laptop Keyboard Repair Pune",
+  "Laptop Battery Replacement Pune",
+  "Laptop Motherboard Repair Pune",
+  "Motherboard Repair Pune",
+  "Chip Level Laptop Repair Pune",
+  "SSD Upgrade Pune",
+  "RAM Upgrade Pune",
+  "Laptop SSD Upgrade Pune",
+  "Laptop RAM Upgrade Pune",
+  "Laptop Hinge Repair Pune",
+  "Laptop Charging Port Repair Pune",
+  "Laptop Fan Cleaning Pune",
+  "Laptop Overheating Repair Pune",
+  "Laptop Water Damage Repair Pune",
+  "Laptop Data Recovery Pune",
+  "Laptop Virus Removal Pune",
+  "Laptop Cleaning Service Pune",
+  "Business Laptop Repair Pune",
+  "Corporate Laptop Repair Pune",
+  "Student Laptop Repair Pune",
+  "Same Day Laptop Repair Pune",
+  "Emergency Laptop Repair Pune",
+  "Laptop Pickup and Drop Service Pune",
+  "Affordable Laptop Repair Pune",
+  "Best Laptop Repair Pune",
+  "Refurbished Laptops Pune",
+
+
   ],
 
   alternates: {
@@ -1455,34 +1497,23 @@ const faqs = [
 
       </div>
 
-      {/* CTA Buttons */}
+     {/* CTA Buttons */}
 
-      <div className="mt-14 flex flex-wrap justify-center gap-5">
+<div className="mt-14 flex flex-wrap justify-center gap-5">
 
-        <TrackCallButton
-  className="bg-yellow-400 text-black px-8 py-4 rounded-xl font-bold hover:bg-yellow-300 transition"
-/>
-        
-          <PhoneCall size={20} />
-          Call Now
-       
+  <TrackCallButton
+    className="bg-yellow-400 text-black px-8 py-4 rounded-xl font-bold hover:bg-yellow-300 transition"
+  />
 
-        <TrackWhatsappButton
-  className="bg-green-600 text-white px-8 py-4 rounded-xl font-bold hover:bg-green-500 transition"
-/>
-          <MessageCircle size={20} />
-          WhatsApp
-        
+  <TrackWhatsappButton
+    className="bg-green-600 text-white px-8 py-4 rounded-xl font-bold hover:bg-green-500 transition"
+  />
 
-        <Link
-          href="/#booking"
-          className="flex items-center gap-2 rounded-xl border border-white px-8 py-4 font-bold text-white transition hover:bg-white hover:text-black"
-        >
-          <CalendarCheck size={20} />
-          Book Repair
-        </Link>
+  <TrackBookRepairButton
+    className="border border-white px-8 py-4 rounded-xl font-bold text-white hover:bg-white hover:text-black transition"
+  />
 
-      </div>
+</div>
 
       {/* Bottom Stats */}
 

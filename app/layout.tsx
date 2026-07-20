@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Poppins } from "next/font/google";
 import "./globals.css";
 
@@ -11,7 +11,16 @@ import SeoSchema from "@/components/SeoSchema";
 const poppins = Poppins({
   subsets: ["latin"],
   weight: ["300", "400", "500", "600", "700", "800"],
+  display: "swap",
+  preload: true,
 });
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  themeColor: "#000000",
+  colorScheme: "light",
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://lappycarepune.in"),
@@ -26,7 +35,6 @@ export const metadata: Metadata = {
     "Lappy Care provides professional Laptop Repair, Computer Repair, Refurbished Laptop Sales, SSD Upgrade, RAM Upgrade, Screen Replacement, Motherboard Repair, Data Recovery, Keyboard Replacement, Laptop Cleaning and Pickup & Drop Service in Wakad, Hinjawadi, Baner, Balewadi, Tathawade, Punawale, Ravet, Pimple Saudagar, Pimpri Chinchwad and Pune.",
 
   keywords: [
-    // Laptop Repair
     "Laptop Repair Wakad",
     "Laptop Repair Pune",
     "Laptop Repair Near Me",
@@ -41,7 +49,6 @@ export const metadata: Metadata = {
     "Laptop Repair Pimple Saudagar",
     "Laptop Repair PCMC",
 
-    // Computer Repair
     "Computer Repair Pune",
     "Computer Repair Wakad",
     "Computer Service Center Pune",
@@ -49,7 +56,6 @@ export const metadata: Metadata = {
     "Desktop Repair Pune",
     "Desktop Repair Wakad",
 
-    // Refurbished Laptop
     "Refurbished Laptop Pune",
     "Refurbished Laptop Wakad",
     "Refurbished Laptop Near Me",
@@ -60,7 +66,6 @@ export const metadata: Metadata = {
     "Second Hand Laptop Pune",
     "Renewed Laptop Pune",
 
-    // Dealer & Shop
     "Laptop Dealer Pune",
     "Laptop Dealer Wakad",
     "Computer Dealer Pune",
@@ -74,7 +79,6 @@ export const metadata: Metadata = {
     "Computer Store Pune",
     "Computer Store Wakad",
 
-    // Sales
     "Buy Refurbished Laptop Pune",
     "Buy Used Laptop Pune",
     "Business Laptop Pune",
@@ -85,7 +89,6 @@ export const metadata: Metadata = {
     "Refurbished Dell Laptop Pune",
     "Refurbished Lenovo Laptop Pune",
 
-    // Brands
     "HP Laptop Repair",
     "Dell Laptop Repair",
     "Lenovo Laptop Repair",
@@ -95,7 +98,6 @@ export const metadata: Metadata = {
     "MSI Laptop Repair",
     "Samsung Laptop Repair",
 
-    // Services
     "Laptop Screen Replacement",
     "Laptop Display Repair",
     "Laptop Keyboard Replacement",
@@ -114,7 +116,6 @@ export const metadata: Metadata = {
     "Laptop Pickup and Drop",
     "Laptop AMC Pune",
 
-    // Brand
     "Lappy Care",
     "Lappy Care Pune",
     "Lappy Care Wakad",
@@ -130,6 +131,7 @@ export const metadata: Metadata = {
   ],
 
   creator: "Lappy Care",
+
   publisher: "Lappy Care",
 
   verification: {
@@ -201,11 +203,10 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en">
-      <body className={poppins.className}>
+    <html lang="en" suppressHydrationWarning>
+      <body className={`${poppins.className} antialiased`}>
         <GoogleAnalytics />
         <SeoSchema />
-        
 
         <AuthProvider>
           {children}

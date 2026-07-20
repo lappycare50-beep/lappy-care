@@ -1,15 +1,3 @@
-export {};
-
-declare global {
-  interface Window {
-    gtag?: (
-      command: "event",
-      action: string,
-      params?: Record<string, unknown>
-    ) => void;
-  }
-}
-
 export const trackEvent = (
   event: string,
   parameters?: Record<string, unknown>
