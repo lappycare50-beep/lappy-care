@@ -1,12 +1,14 @@
 import type { Metadata, Viewport } from "next";
+import dynamic from "next/dynamic";
 import { Poppins } from "next/font/google";
+
 import "./globals.css";
 
 import { AuthProvider } from "@/context/AuthContext";
-
-import FloatingWhatsApp from "@/components/whatsapp/FloatingWhatsApp";
 import GoogleAnalytics from "@/components/GoogleAnalytics";
 import SeoSchema from "@/components/SeoSchema";
+
+import FloatingWhatsApp from "@/components/whatsapp/FloatingWhatsApp";
 
 const poppins = Poppins({
   subsets: ["latin"],
@@ -24,6 +26,8 @@ export const viewport: Viewport = {
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://lappycarepune.in"),
+
+  applicationName: "Lappy Care",
 
   title: {
     default:
@@ -85,6 +89,7 @@ export const metadata: Metadata = {
     "Office Laptop Pune",
     "Student Laptop Pune",
     "Laptop Sale Pune",
+
     "Refurbished HP Laptop Pune",
     "Refurbished Dell Laptop Pune",
     "Refurbished Lenovo Laptop Pune",
@@ -134,12 +139,52 @@ export const metadata: Metadata = {
 
   publisher: "Lappy Care",
 
+  generator: "Next.js 16",
+
+  referrer: "origin-when-cross-origin",
+
+  formatDetection: {
+    telephone: false,
+    email: false,
+    address: false,
+  },
+
   verification: {
     google: "NZ0gL4jHfP0Yw-JHG74jZgTpgAEG2E5mVJNmU01cYBo",
   },
 
   alternates: {
     canonical: "https://lappycarepune.in",
+  },
+
+  
+
+  appleWebApp: {
+    capable: true,
+    title: "Lappy Care",
+    statusBarStyle: "default",
+  },
+
+  icons: {
+    icon: [
+      {
+        url: "/favicon.ico",
+      },
+      {
+        url: "/icon-192.png",
+        sizes: "192x192",
+        type: "image/png",
+      },
+      {
+        url: "/icon-512.png",
+        sizes: "512x512",
+        type: "image/png",
+      },
+    ],
+
+    apple: "/apple-touch-icon.png",
+
+    shortcut: "/favicon.ico",
   },
 
   openGraph: {
@@ -196,7 +241,6 @@ export const metadata: Metadata = {
 
   category: "Technology",
 };
-
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -204,12 +248,24 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
-      <body className={`${poppins.className} antialiased`}>
+      <body
+        className={`${poppins.className} antialiased`}
+        style={{
+          WebkitFontSmoothing: "antialiased",
+          MozOsxFontSmoothing: "grayscale",
+        }}
+      >
+        {/* Global Analytics */}
         <GoogleAnalytics />
+
+        {/* Global SEO Schema */}
         <SeoSchema />
 
+        {/* Application */}
         <AuthProvider>
           {children}
+
+          {/* Floating WhatsApp Button */}
           <FloatingWhatsApp />
         </AuthProvider>
       </body>

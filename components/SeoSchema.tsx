@@ -1,185 +1,182 @@
 export default function SeoSchema() {
-  const schema = {
-    "@context": "https://schema.org",
-    "@type": "ComputerStore",
+  const schema = [
+    {
+      "@context": "https://schema.org",
+      "@type": "Organization",
 
-    "@id": "https://lappycarepune.in/#organization",
+      "@id": "https://lappycarepune.in/#organization",
 
-    name: "Lappy Care",
+      name: "Lappy Care",
 
-    url: "https://lappycarepune.in",
+      alternateName: "Lappy Care Pune",
 
-    logo: "https://lappycarepune.in/images/logo.png",
+      url: "https://lappycarepune.in",
 
-    image: "https://lappycarepune.in/og-image.jpg",
-
-    telephone: "+91 9595057006",
-
-    email: "info@lappycare.in",
-
-    description:
-      "Professional Laptop Repair, Computer Repair, Laptop Service, Refurbished Laptop Sales, SSD Upgrade, RAM Upgrade, Data Recovery, Motherboard Repair and Pickup & Drop Service in Wakad, Pune.",
-
-    priceRange: "₹₹",
-
-    keywords: [
-      "Laptop Repair",
-      "Computer Repair",
-      "Laptop Service",
-      "Refurbished Laptop",
-      "Used Laptop",
-      "Second Hand Laptop",
-      "Laptop Shop",
-      "Computer Store",
-      "SSD Upgrade",
-      "RAM Upgrade",
-      "Motherboard Repair",
-      "Data Recovery",
-      "Laptop Screen Replacement",
-      "Laptop Keyboard Replacement",
-      "Laptop Battery Replacement",
-    ],
-
-    address: {
-      "@type": "PostalAddress",
-      streetAddress: "Janoba Chowk, Datta Mandir Road",
-      addressLocality: "Wakad",
-      addressRegion: "Maharashtra",
-      postalCode: "411057",
-      addressCountry: "IN",
-    },
-
-    geo: {
-      "@type": "GeoCoordinates",
-      latitude: "18.5970",
-      longitude: "73.7636",
-    },
-
-    openingHoursSpecification: [
-      {
-        "@type": "OpeningHoursSpecification",
-        dayOfWeek: [
-          "Monday",
-          "Tuesday",
-          "Wednesday",
-          "Thursday",
-          "Friday",
-          "Saturday",
-        ],
-        opens: "10:00",
-        closes: "20:00",
+      logo: {
+        "@type": "ImageObject",
+        url: "https://lappycarepune.in/logo.png",
       },
-    ],
 
-    areaServed: [
-      "Wakad",
-      "Hinjawadi",
-      "Baner",
-      "Balewadi",
-      "Punawale",
-      "Tathawade",
-      "Ravet",
-      "Pimple Saudagar",
-      "Pimpri",
-      "Chinchwad",
-      "Pune",
-      "PCMC",
-    ],
+      image: "https://lappycarepune.in/og-image.jpg",
 
-    sameAs: [
-      "https://www.google.com/search?q=lappy+care+laptop+repair+shop+wakad",
-    ],
+      description:
+        "Lappy Care provides professional laptop repair services, computer repair, refurbished laptop sales, motherboard repair, SSD upgrades, RAM upgrades, data recovery and doorstep pickup & drop service across Pune.",
 
-    hasOfferCatalog: {
-      "@type": "OfferCatalog",
-      name: "Laptop Repair Services",
+      telephone: "+91-9595057006",
 
-      itemListElement: [
+      email: "info@lappycare.in",
+
+      priceRange: "₹₹",
+
+      slogan: "Professional Laptop Repair & Refurbished Laptop Store",
+
+      foundingLocation: {
+        "@type": "Place",
+        name: "Wakad, Pune",
+      },
+
+      address: {
+        "@type": "PostalAddress",
+
+        streetAddress: "Datta Mandir Road, Janoba Chowk",
+
+        addressLocality: "Wakad",
+
+        addressRegion: "Maharashtra",
+
+        postalCode: "411057",
+
+        addressCountry: "IN",
+      },
+
+      contactPoint: {
+        "@type": "ContactPoint",
+
+        telephone: "+91-9595057006",
+
+        contactType: "customer support",
+
+        areaServed: "IN",
+
+        availableLanguage: [
+          "English",
+          "Hindi",
+          "Marathi",
+        ],
+      },
+
+      areaServed: [
         {
-          "@type": "Offer",
-          itemOffered: {
-            "@type": "Service",
-            name: "Laptop Repair",
-          },
+          "@type": "City",
+          name: "Pune",
         },
         {
-          "@type": "Offer",
-          itemOffered: {
-            "@type": "Service",
-            name: "Computer Repair",
-          },
+          "@type": "City",
+          name: "Wakad",
         },
         {
-          "@type": "Offer",
-          itemOffered: {
-            "@type": "Service",
-            name: "Refurbished Laptop Sales",
-          },
+          "@type": "City",
+          name: "Hinjawadi",
         },
         {
-          "@type": "Offer",
-          itemOffered: {
-            "@type": "Service",
-            name: "Laptop Screen Replacement",
-          },
+          "@type": "City",
+          name: "Baner",
         },
         {
-          "@type": "Offer",
-          itemOffered: {
-            "@type": "Service",
-            name: "Motherboard Repair",
-          },
+          "@type": "City",
+          name: "Balewadi",
         },
         {
-          "@type": "Offer",
-          itemOffered: {
-            "@type": "Service",
-            name: "SSD Upgrade",
-          },
+          "@type": "City",
+          name: "Bavdhan",
         },
         {
-          "@type": "Offer",
-          itemOffered: {
-            "@type": "Service",
-            name: "RAM Upgrade",
-          },
+          "@type": "City",
+          name: "Pashan",
         },
         {
-          "@type": "Offer",
-          itemOffered: {
-            "@type": "Service",
-            name: "Data Recovery",
-          },
+          "@type": "City",
+          name: "Aundh",
         },
         {
-          "@type": "Offer",
-          itemOffered: {
-            "@type": "Service",
-            name: "Laptop Keyboard Replacement",
-          },
+          "@type": "City",
+          name: "Punawale",
         },
         {
-          "@type": "Offer",
-          itemOffered: {
-            "@type": "Service",
-            name: "Laptop Battery Replacement",
-          },
+          "@type": "City",
+          name: "Tathawade",
+        },
+        {
+          "@type": "City",
+          name: "Ravet",
+        },
+        {
+          "@type": "City",
+          name: "Pimple Saudagar",
+        },
+        {
+          "@type": "City",
+          name: "Chinchwad",
         },
       ],
-    },
 
-    potentialAction: {
-      "@type": "SearchAction",
-      target: "https://lappycarepune.in/?q={search_term_string}",
-      "query-input": "required name=search_term_string",
+      knowsAbout: [
+        "Laptop Repair",
+        "Computer Repair",
+        "Motherboard Repair",
+        "Laptop Screen Replacement",
+        "Laptop Battery Replacement",
+        "Laptop Keyboard Replacement",
+        "SSD Upgrade",
+        "RAM Upgrade",
+        "Data Recovery",
+        "Refurbished Laptops",
+        "Laptop AMC",
+        "Windows Installation",
+      ],
+
+      sameAs: [
+        "https://www.facebook.com/lappycare1/",
+        "https://www.instagram.com/lappycarewakad/",
+      ],
     },
-  };
+        {
+      "@context": "https://schema.org",
+
+      "@type": "WebSite",
+
+      "@id": "https://lappycarepune.in/#website",
+
+      url: "https://lappycarepune.in",
+
+      name: "Lappy Care",
+
+      alternateName: "Lappy Care Pune",
+
+      publisher: {
+        "@id": "https://lappycarepune.in/#organization",
+      },
+
+      inLanguage: "en-IN",
+
+      potentialAction: {
+        "@type": "SearchAction",
+
+       
+
+        "query-input": "required name=search_term_string",
+      },
+    },
+  ];
 
   return (
     <script
       type="application/ld+json"
       dangerouslySetInnerHTML={{
-        __html: JSON.stringify(schema),
+        __html: JSON.stringify({
+          "@context": "https://schema.org",
+          "@graph": schema,
+        }),
       }}
     />
   );
