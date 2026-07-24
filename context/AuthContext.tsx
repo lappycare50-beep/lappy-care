@@ -5,6 +5,7 @@ import {
   useContext,
   useEffect,
   useState,
+  useCallback,
   ReactNode,
 } from "react";
 
@@ -27,11 +28,8 @@ type Props = {
   children: ReactNode;
 };
 
-export function AuthProvider({
-  children,
-}: Props) {
+export function AuthProvider({ children }: Props) {
   const [user, setUser] = useState<User | null>(null);
-
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -40,12 +38,13 @@ export function AuthProvider({
       setLoading(false);
     });
 
-    return () => unsubscribe();
+    return unsubscribe;
   }, []);
 
-  async function logoutUser() {
+  const logoutUser = useCallback(async () => {
     await logout();
-  }  
+  }, []);
+
   return (
     <AuthContext.Provider
       value={{
@@ -63,9 +62,7 @@ export function useAuth() {
   const context = useContext(AuthContext);
 
   if (!context) {
-    throw new Error(
-      "useAuth must be used inside AuthProvider."
-    );
+    throw new Error("useAuth must be used inside AuthProvider.");
   }
 
   return context;

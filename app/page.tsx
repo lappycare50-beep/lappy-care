@@ -1,19 +1,67 @@
+import Script from "next/script";
+import dynamic from "next/dynamic";
+
 import Navbar from "@/components/Navbar";
 import Hero from "@/components/Hero";
 import Stats from "@/components/Stats";
-import Brands from "@/components/Brands";
-import Services from "@/components/Services";
-import WhyChoose from "@/components/WhyChoose";
-import Products from "@/components/Products";
-import Reviews from "@/components/Reviews";
-import Process from "@/components/Process";
-import Booking from "@/components/Booking";
-import FAQ from "@/components/FAQ";
-import CTA from "@/components/CTA";
-import Contact from "@/components/Contact";
-import GoogleMap from "@/components/GoogleMap";
-import Footer from "@/components/Footer";
-import FloatingWhatsapp from "@/components/FloatingWhatsapp";
+
+const SectionLoader = ({
+  height = "h-64",
+}: {
+  height?: string;
+}) => (
+  <section className={`w-full ${height} animate-pulse bg-[#0B0B0B]`} />
+);
+
+const Brands = dynamic(() => import("@/components/Brands"), {
+  loading: () => <SectionLoader height="h-32" />,
+});
+
+const Services = dynamic(() => import("@/components/Services"), {
+  loading: () => <SectionLoader />,
+});
+
+const WhyChoose = dynamic(() => import("@/components/WhyChoose"), {
+  loading: () => <SectionLoader />,
+});
+
+const Products = dynamic(() => import("@/components/Products"), {
+  loading: () => <SectionLoader height="h-[500px]" />,
+});
+
+const Reviews = dynamic(() => import("@/components/Reviews"), {
+  loading: () => <SectionLoader height="h-[450px]" />,
+});
+
+const Process = dynamic(() => import("@/components/Process"), {
+  loading: () => <SectionLoader />,
+});
+
+const Booking = dynamic(() => import("@/components/Booking"), {
+  loading: () => <SectionLoader height="h-[650px]" />,
+});
+
+const FAQ = dynamic(() => import("@/components/FAQ"), {
+  loading: () => <SectionLoader />,
+});
+
+const CTA = dynamic(() => import("@/components/CTA"), {
+  loading: () => <SectionLoader height="h-56" />,
+});
+
+const Contact = dynamic(() => import("@/components/Contact"), {
+  loading: () => <SectionLoader height="h-[500px]" />,
+});
+
+const GoogleMap = dynamic(() => import("@/components/GoogleMap"), {
+  loading: () => (
+    <SectionLoader height="h-[450px]" />
+  ),
+});
+
+const Footer = dynamic(() => import("@/components/Footer"), {
+  loading: () => <SectionLoader height="h-40" />,
+});
 
 const localBusinessSchema = {
   "@context": "https://schema.org",
@@ -62,16 +110,21 @@ const localBusinessSchema = {
 export default function Home() {
   return (
     <>
-      <script
+      <Script
+        id="local-business-schema"
         type="application/ld+json"
+        strategy="afterInteractive"
         dangerouslySetInnerHTML={{
           __html: JSON.stringify(localBusinessSchema),
         }}
       />
 
+      {/* Above the Fold */}
       <Navbar />
       <Hero />
       <Stats />
+
+      {/* Below the Fold */}
       <Brands />
       <Services />
       <WhyChoose />
@@ -84,7 +137,6 @@ export default function Home() {
       <Contact />
       <GoogleMap />
       <Footer />
-      <FloatingWhatsapp />
     </>
   );
 }
