@@ -8,7 +8,7 @@ import {
 
 export default function Footer() {
   return (
-    <footer className="bg-black border-t border-yellow-500/20">
+    <footer className="border-t border-yellow-500/20 bg-black">
       <div className="mx-auto max-w-7xl px-6 py-16">
 
         <div className="grid gap-10 md:grid-cols-2 lg:grid-cols-4">
@@ -20,8 +20,11 @@ export default function Footer() {
             </h2>
 
             <p className="mt-4 leading-7 text-gray-400">
-              Professional Laptop Repair, Refurbished Laptop Sales,
-              SSD Upgrade, Data Recovery and Laptop Accessories.
+              Professional Laptop Repair,
+              Refurbished Laptop Sales,
+              SSD Upgrade,
+              Data Recovery and
+              Laptop Accessories.
             </p>
           </div>
 
@@ -33,49 +36,103 @@ export default function Footer() {
 
             <ul className="space-y-3">
               <li>
-                <Link href="/" className="text-gray-400 hover:text-yellow-400">
+                <Link
+                  href="/"
+                  className="text-gray-400 transition hover:text-yellow-400"
+                >
                   Home
                 </Link>
               </li>
 
               <li>
-                <a href="#services" className="text-gray-400 hover:text-yellow-400">
+                <a
+                  href="#services"
+                  className="text-gray-400 transition hover:text-yellow-400"
+                >
                   Services
                 </a>
               </li>
 
               <li>
-                <a href="#products" className="text-gray-400 hover:text-yellow-400">
+                <a
+                  href="#products"
+                  className="text-gray-400 transition hover:text-yellow-400"
+                >
                   Refurbished Laptops
                 </a>
               </li>
 
               <li>
-                <a href="#booking" className="text-gray-400 hover:text-yellow-400">
+                <a
+                  href="#booking"
+                  className="text-gray-400 transition hover:text-yellow-400"
+                >
                   Book Repair
                 </a>
               </li>
 
               <li>
-                <a href="#contact" className="text-gray-400 hover:text-yellow-400">
+                <a
+                  href="#contact"
+                  className="text-gray-400 transition hover:text-yellow-400"
+                >
                   Contact
                 </a>
               </li>
             </ul>
           </div>
 
-          {/* Services */}
+          {/* Our Services */}
           <div>
             <h3 className="mb-5 text-xl font-semibold text-white">
               Our Services
             </h3>
 
-            <ul className="space-y-3 text-gray-400">
-              <li>Laptop Repair</li>
-              <li>Screen Replacement</li>
-              <li>SSD Upgrade</li>
-              <li>RAM Upgrade</li>
-              <li>Data Recovery</li>
+            <ul className="space-y-3">
+              <li>
+                <Link
+                  href="/services/laptop-repair"
+                  className="text-gray-400 transition hover:text-yellow-400"
+                >
+                  Laptop Repair
+                </Link>
+              </li>
+
+              <li>
+                <Link
+                  href="/services/laptop-screen-replacement"
+                  className="text-gray-400 transition hover:text-yellow-400"
+                >
+                  Screen Replacement
+                </Link>
+              </li>
+
+              <li>
+                <Link
+                  href="/services/ssd-upgrade"
+                  className="text-gray-400 transition hover:text-yellow-400"
+                >
+                  SSD Upgrade
+                </Link>
+              </li>
+
+              <li>
+                <Link
+                  href="/services/ram-upgrade"
+                  className="text-gray-400 transition hover:text-yellow-400"
+                >
+                  RAM Upgrade
+                </Link>
+              </li>
+
+              <li>
+                <Link
+                  href="/services/data-recovery"
+                  className="text-gray-400 transition hover:text-yellow-400"
+                >
+                  Data Recovery
+                </Link>
+              </li>
             </ul>
           </div>
 
@@ -100,25 +157,23 @@ export default function Footer() {
               <div className="flex items-start gap-3 text-gray-400">
                 <MapPin size={18} className="mt-1 text-yellow-400" />
                 <span>
-                  Janoba Chowk,<br />
-                  Datta Mandir Road,<br />
+                  Janoba Chowk,
+                  <br />
+                  Datta Mandir Road,
+                  <br />
                   Wakad, Pune - 411057
                 </span>
               </div>
 
-              <div className="flex gap-4 pt-4">
-
+              <div className="pt-4">
                 <a
                   href="https://wa.me/919595057006"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="rounded-full bg-yellow-400 p-3 text-black transition hover:scale-110"
+                  className="inline-flex rounded-full bg-yellow-400 p-3 text-black transition hover:scale-110"
                 >
                   <MessageCircle size={20} />
                 </a>
-
-                
-
               </div>
 
             </div>

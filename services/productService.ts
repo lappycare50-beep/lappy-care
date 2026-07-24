@@ -2,6 +2,7 @@ import {
   collection,
   addDoc,
   getDocs,
+  getDoc,
   updateDoc,
   deleteDoc,
   doc,
@@ -13,7 +14,9 @@ import { Product } from "@/types/product";
 
 const productsCollection = collection(db, "products");
 
+// ==============================
 // Get All Products
+// ==============================
 export async function getProducts(): Promise<Product[]> {
   const snapshot = await getDocs(productsCollection);
 
@@ -23,7 +26,29 @@ export async function getProducts(): Promise<Product[]> {
   }));
 }
 
+// ==============================
+// Get Single Product
+// ==============================
+export async function getProductById(
+  id: string
+): Promise<Product | null> {
+  const productRef = doc(db, "products", id);
+
+  const snapshot = await getDoc(productRef);
+
+  if (!snapshot.exists()) {
+    return null;
+  }
+
+  return {
+    id: snapshot.id,
+    ...(snapshot.data() as Omit<Product, "id">),
+  };
+}
+
+// ==============================
 // Live Products
+// ==============================
 export function subscribeProducts(
   callback: (products: Product[]) => void
 ) {
@@ -37,14 +62,18 @@ export function subscribeProducts(
   });
 }
 
+// ==============================
 // Add Product
+// ==============================
 export async function addProduct(
   product: Omit<Product, "id">
 ) {
   return await addDoc(productsCollection, product);
 }
 
+// ==============================
 // Update Product
+// ==============================
 export async function updateProduct(
   id: string,
   product: Partial<Product>
@@ -54,7 +83,9 @@ export async function updateProduct(
   await updateDoc(productRef, product);
 }
 
+// ==============================
 // Delete Product
+// ==============================
 export async function deleteProduct(id: string) {
   const productRef = doc(db, "products", id);
 

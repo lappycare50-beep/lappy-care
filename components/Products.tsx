@@ -3,6 +3,7 @@
 
 import { useEffect, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 
 import { getProducts } from "@/services/productService";
 import { Product } from "@/types/product";
@@ -223,22 +224,16 @@ if (loading) {
 
                 </div>
                                 {/* Buttons */}
-                <div className="mt-8 flex gap-3">
-
-                  <button className="flex-1 rounded-xl bg-yellow-400 py-3 font-bold text-black transition duration-300 hover:scale-105 hover:bg-yellow-300">
-                    View Details
-                  </button>
-
-                  <a
-                    href="https://wa.me/919595057006"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex-1 rounded-xl border border-yellow-400 py-3 text-center font-bold text-yellow-400 transition duration-300 hover:bg-yellow-400 hover:text-black"
-                  >
-                    💬 WhatsApp
-                  </a>
-
-                </div>
+                <div className="mt-8">
+  <a
+    href="https://wa.me/919595057006"
+    target="_blank"
+    rel="noopener noreferrer"
+    className="block w-full rounded-xl bg-green-600 py-3 text-center font-bold text-white transition duration-300 hover:bg-green-700"
+  >
+    💬 Enquire on WhatsApp
+  </a>
+</div>
 
               </div>
             </div>

@@ -1,3 +1,4 @@
+import Link from "next/link";
 import {
   Laptop,
   Monitor,
@@ -5,6 +6,7 @@ import {
   Cpu,
   Database,
   ShieldCheck,
+  ArrowRight,
 } from "lucide-react";
 
 import { services } from "@/data/services";
@@ -31,7 +33,7 @@ export default function Services() {
             Professional Laptop Repair Solutions
           </h2>
 
-          <p className="mt-4 text-gray-400">
+          <p className="mt-4 text-lg text-gray-400">
             Fast • Reliable • Affordable
           </p>
         </div>
@@ -42,26 +44,28 @@ export default function Services() {
               icons[service.icon as keyof typeof icons];
 
             return (
-              <div
+              <Link
                 key={service.title}
-                className="group rounded-2xl border border-yellow-500/20 bg-[#111111] p-8 transition-all duration-300 hover:-translate-y-2 hover:border-yellow-400"
+                href={service.href}
+                className="group flex min-h-[320px] flex-col rounded-2xl border border-yellow-500/20 bg-[#111111] p-8 transition-all duration-300 hover:-translate-y-2 hover:border-yellow-400 hover:shadow-2xl hover:shadow-yellow-500/10"
               >
-                <div className="mb-6 inline-flex rounded-xl bg-yellow-400/10 p-4 text-yellow-400 transition-all group-hover:bg-yellow-400 group-hover:text-black">
+                <div className="mb-6 inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-yellow-400/10 text-yellow-400 transition-all duration-300 group-hover:bg-yellow-400 group-hover:text-black">
                   <Icon size={34} />
                 </div>
 
-                <h3 className="mb-3 text-2xl font-bold text-white">
+                <h3 className="mb-3 text-2xl font-bold text-white transition-colors duration-300 group-hover:text-yellow-400">
                   {service.title}
                 </h3>
 
-                <p className="mb-6 text-gray-400">
+                <p className="flex-1 text-gray-400">
                   {service.description}
                 </p>
 
-                <button className="font-semibold text-yellow-400">
-                  Learn More →
-                </button>
-              </div>
+                <div className="mt-8 inline-flex items-center font-semibold text-yellow-400">
+                  Learn More
+                  <ArrowRight className="ml-2 h-5 w-5 transition-transform duration-300 group-hover:translate-x-1" />
+                </div>
+              </Link>
             );
           })}
         </div>
