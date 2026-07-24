@@ -92,11 +92,11 @@ export default function SupportCard({
           <span>📧</span>
 
           <a
-            href="mailto:info@lappycarepune.in"
+            href="mailto:lappycarepune@gmail.com"
             className="text-gray-700 hover:text-green-600"
           >
 
-            info@lappycarepune.in
+            lappycarepune@gmail.com
 
           </a>
 

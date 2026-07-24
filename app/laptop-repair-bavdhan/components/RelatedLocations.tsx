@@ -26,10 +26,7 @@ const locations = [
     name: "Laptop Repair Hinjawadi",
     href: "/laptop-repair-hinjawadi",
   },
-  {
-    name: "Laptop Repair Kothrud",
-    href: "/laptop-repair-kothrud",
-  },
+  
   {
     name: "Laptop Repair Tathawade",
     href: "/laptop-repair-tathawade",

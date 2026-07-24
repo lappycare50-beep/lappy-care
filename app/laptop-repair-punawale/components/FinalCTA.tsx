@@ -78,7 +78,7 @@ export default function FinalCTA() {
 
           <div className="mt-14">
             <Link
-              href="/contact"
+              href="/#contact"
               className="inline-flex items-center text-lg font-semibold text-yellow-400 transition hover:text-yellow-300"
             >
               Contact Lappy Care Today

@@ -128,14 +128,14 @@ export default function FAQ() {
           <div className="mt-8 flex flex-wrap justify-center gap-4">
 
             <a
-              href="tel:+919999999999"
+              href="tel:+919595057006"
               className="rounded-xl bg-yellow-400 px-8 py-4 font-bold text-black transition hover:bg-yellow-300"
             >
               Call Now
             </a>
 
             <a
-              href="https://wa.me/919999999999"
+              href="https://wa.me/919595057006"
               target="_blank"
               rel="noopener noreferrer"
               className="rounded-xl bg-green-600 px-8 py-4 font-bold text-white transition hover:bg-green-500"

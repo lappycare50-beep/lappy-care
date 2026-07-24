@@ -8,8 +8,8 @@ export default function ServiceSchema() {
         name: "Lappy Care",
         url: "https://lappycarepune.in",
         image: "https://lappycarepune.in/logo.png",
-        telephone: "+91XXXXXXXXXX", // Replace with your number
-        email: "info@lappycarepune.in", // Replace if available
+        telephone: "+919595057006",
+        email: "lappycarepune@gmail.com",
         address: {
           "@type": "PostalAddress",
           streetAddress: "Datta Mandir Road, Janoba Chowk",

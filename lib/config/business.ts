@@ -8,7 +8,7 @@ export const BUSINESS = {
 
   phone: "+919595057006",
 
-  email: "info@lappycarepune.in",
+  email: "lappycarepune@gmail.com",
 
   website: "https://lappycarepune.in",
 

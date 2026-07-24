@@ -54,7 +54,7 @@ export default function FinalCTA() {
 
               <div className="mt-10 flex flex-wrap gap-4">
                 <Link
-                  href="/contact"
+                  href="/#contact"
                   className="inline-flex items-center rounded-xl bg-black px-6 py-4 font-semibold text-white transition hover:bg-gray-900"
                 >
                   Book Keyboard Service

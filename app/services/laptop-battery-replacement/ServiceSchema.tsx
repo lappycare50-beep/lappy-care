@@ -21,7 +21,7 @@ export default function ServiceSchema() {
 
       telephone: "+91-9595057006",
 
-      email: "support@lappycarepune.in",
+      email: "lappycarepune@gmail.com",
 
       address: {
         "@type": "PostalAddress",

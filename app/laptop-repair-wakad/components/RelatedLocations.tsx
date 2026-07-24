@@ -37,11 +37,7 @@ const locations = [
     area: "Pimple Saudagar",
     href: "/laptop-repair-pimple-saudagar",
   },
-  {
-    name: "Laptop Repair Pimpri",
-    area: "Pimpri",
-    href: "/laptop-repair-pimpri",
-  },
+  
   {
     name: "Laptop Repair Chinchwad",
     area: "Chinchwad",

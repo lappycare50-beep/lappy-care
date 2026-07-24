@@ -399,7 +399,7 @@ export default function InvoicePrint({
           </p>
 
           <p>
-            ✉️ support@lappycarepune.in
+            ✉️ lappycarepune@gmail.com
           </p>
 
           <p>

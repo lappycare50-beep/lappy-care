@@ -43,7 +43,7 @@ export default function FinalCTA() {
               </Link>
 
               <Link
-                href="tel:+919876543210"
+                href="tel:+919595057006"
                 className="inline-flex items-center justify-center rounded-xl border border-gray-700 px-8 py-4 font-semibold text-white transition hover:border-yellow-400 hover:text-yellow-400"
               >
                 <Phone className="mr-2 h-5 w-5" />

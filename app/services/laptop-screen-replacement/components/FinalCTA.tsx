@@ -77,7 +77,7 @@ export default function FinalCTA() {
                 </Link>
 
                 <Link
-                  href="tel:+919876543210"
+                  href="tel:+919595057006"
                   className="flex w-full items-center justify-center gap-3 rounded-xl border border-yellow-400 px-6 py-4 text-lg font-semibold text-yellow-400 transition hover:bg-yellow-400 hover:text-black"
                 >
                   <PhoneCall size={22} />
@@ -85,7 +85,7 @@ export default function FinalCTA() {
                 </Link>
 
                 <Link
-                  href="https://wa.me/919876543210"
+                  href="https://wa.me/919595057006"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex w-full items-center justify-center gap-3 rounded-xl border border-green-500 bg-green-600 px-6 py-4 text-lg font-semibold text-white transition hover:bg-green-500"

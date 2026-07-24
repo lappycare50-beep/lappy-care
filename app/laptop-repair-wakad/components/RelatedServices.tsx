@@ -16,56 +16,56 @@ const services = [
     title: "Laptop Screen Replacement",
     description:
       "Professional LCD and LED screen replacement for all major laptop brands.",
-    href: "/laptop-screen-replacement-pune",
+    href: "/services/laptop-screen-replacement",
     icon: Monitor,
   },
   {
     title: "Motherboard Repair",
     description:
       "Advanced chip-level motherboard repair using professional diagnostic equipment.",
-    href: "/motherboard-repair-pune",
+    href: "/services/motherboard-repair",
     icon: Cpu,
   },
   {
     title: "SSD Upgrade",
     description:
       "Upgrade your laptop with a high-speed SSD for faster boot and better performance.",
-    href: "/ssd-upgrade-pune",
+    href: "/services/ssd-upgrade",
     icon: HardDrive,
   },
   {
     title: "Keyboard Replacement",
     description:
       "Replacement and repair for damaged, broken or non-working laptop keyboards.",
-    href: "/keyboard-repair-pune",
+    href: "/services/keyboard-replacement",
     icon: Keyboard,
   },
   {
     title: "Battery Replacement",
     description:
       "Original quality laptop battery replacement for longer backup and reliability.",
-    href: "/battery-replacement-pune",
+    href: "/services/laptop-battery-replacement",
     icon: BatteryCharging,
   },
   {
     title: "Data Recovery",
     description:
       "Recover important data from damaged HDDs, SSDs and external storage devices.",
-    href: "/data-recovery-pune",
+    href: "/services/data-recovery",
     icon: Database,
   },
   {
     title: "Laptop Cleaning",
     description:
       "Complete internal cleaning, thermal paste replacement and overheating solutions.",
-    href: "/laptop-servicing-pune",
+    href: "/services/laptop-repair",
     icon: Fan,
   },
   {
     title: "Wi-Fi & Network Repair",
     description:
       "Resolve Wi-Fi connectivity, network adapter and internet-related laptop issues.",
-    href: "/wifi-repair-pune",
+    href: "/services/laptop-repair",
     icon: Wifi,
   },
 ];

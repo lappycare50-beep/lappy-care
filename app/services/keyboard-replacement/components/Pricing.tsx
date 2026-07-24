@@ -164,7 +164,7 @@ export default function Pricing() {
                     ))}
                   </div>
                                     <Link
-                    href="/contact"
+                    href="/#contact"
                     className={`mt-auto inline-flex w-full items-center justify-center rounded-xl px-6 py-4 font-semibold transition-all duration-300 ${
                       plan.featured
                         ? "bg-yellow-400 text-black hover:bg-yellow-300"
@@ -211,7 +211,7 @@ export default function Pricing() {
                 </Link>
 
                 <Link
-                  href="/contact"
+                  href="/#contact"
                   className="inline-flex items-center rounded-xl border border-yellow-400 px-6 py-4 font-semibold text-yellow-400 transition hover:bg-yellow-400 hover:text-black"
                 >
                   Get Free Quote

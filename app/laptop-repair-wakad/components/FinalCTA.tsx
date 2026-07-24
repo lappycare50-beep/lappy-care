@@ -71,7 +71,7 @@ export default function FinalCTA() {
                 {/* CTA Buttons */}
                 <div className="mt-8 space-y-4">
                   <a
-                    href="tel:+919999999999"
+                    href="tel:+919595057006"
                     className="flex w-full items-center justify-center gap-2 rounded-xl bg-black py-4 font-bold text-white transition hover:bg-zinc-800"
                   >
                     <Phone size={20} />
@@ -79,7 +79,7 @@ export default function FinalCTA() {
                   </a>
 
                   <a
-                    href="https://wa.me/919999999999"
+                    href="https://wa.me/919595057006"
                     target="_blank"
                     rel="noopener noreferrer"
                     className="flex w-full items-center justify-center gap-2 rounded-xl bg-green-600 py-4 font-bold text-white transition hover:bg-green-500"

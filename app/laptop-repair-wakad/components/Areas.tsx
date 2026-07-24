@@ -30,10 +30,7 @@ const areas = [
     name: "Pimple Saudagar",
     href: "/laptop-repair-pimple-saudagar",
   },
-  {
-    name: "Pimpri",
-    href: "/laptop-repair-pimpri",
-  },
+  
   {
     name: "Chinchwad",
     href: "/laptop-repair-chinchwad",

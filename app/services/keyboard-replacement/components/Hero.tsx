@@ -44,7 +44,7 @@ export default function Hero() {
 
             <div className="mt-10 flex flex-wrap gap-4">
               <Link
-                href="/contact"
+                href="/#contact"
                 className="inline-flex items-center rounded-xl bg-yellow-400 px-6 py-4 font-semibold text-black transition hover:bg-yellow-300"
               >
                 Book Keyboard Repair
