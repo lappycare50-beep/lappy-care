@@ -42,7 +42,7 @@ const services = [
     title: "Battery Replacement",
     description:
       "Replace weak or damaged laptop batteries with reliable replacements.",
-    href: "/services/battery-replacement",
+    href: "/services/laptop-battery-replacement",
     icon: BatteryCharging,
   },
   {

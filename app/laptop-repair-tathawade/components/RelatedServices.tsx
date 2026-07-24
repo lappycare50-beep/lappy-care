@@ -30,7 +30,7 @@ const services = [
   {
     title: "SSD & RAM Upgrade",
     description: "Boost laptop speed with SSD installation and RAM upgrades.",
-    href: "/services/ssd-ram-upgrade",
+    href: "/services/ram-upgrade",
     icon: HardDrive,
   },
   {

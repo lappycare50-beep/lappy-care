@@ -34,14 +34,14 @@ const services = [
     title: "SSD & RAM Upgrade",
     description:
       "Upgrade your laptop with high-speed SSDs and additional RAM for better performance.",
-    href: "/services/ssd-ram-upgrade",
+    href: "/services/ram-upgrade",
     icon: HardDrive,
   },
   {
     title: "Keyboard Repair",
     description:
       "Repair or replace faulty laptop keyboards, touchpads and power buttons.",
-    href: "/services/laptop-keyboard-repair",
+    href: "/services/keyboard-repair",
     icon: Keyboard,
   },
   {

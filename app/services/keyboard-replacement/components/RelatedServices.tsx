@@ -20,7 +20,7 @@ const services = [
     title: "Battery Replacement",
     description:
       "Replace old, swollen or fast-draining laptop batteries with quality replacements.",
-    href: "/services/battery-replacement",
+    href: "/services/laptop-battery-replacement",
     icon: BatteryCharging,
   },
   {
