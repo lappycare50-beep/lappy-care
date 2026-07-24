@@ -177,7 +177,7 @@ export default function Contact() {
             </h3>
 
             <p className="text-gray-400">
-              info@lappycare.in
+              lappycarepune@gmail.com
             </p>
           </div>
         </div>
