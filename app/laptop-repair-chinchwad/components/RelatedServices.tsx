@@ -42,7 +42,7 @@ const services = [
     title: "Keyboard Repair",
     description:
       "Repair or replace faulty laptop keyboards and touchpads.",
-    href: "/services/keyboard-repair",
+    href: "/services/",
     icon: Keyboard,
   },
   {
