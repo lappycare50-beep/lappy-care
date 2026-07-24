@@ -36,7 +36,7 @@ const services = [
   {
     title: "Keyboard Repair",
     description: "Repair or replace faulty keyboards, touchpads and power buttons.",
-    href: "/services/laptop-keyboard-repair",
+    href: "/services/keyboard-replacement",
     icon: Keyboard,
   },
   {
