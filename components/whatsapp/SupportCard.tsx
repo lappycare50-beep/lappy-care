@@ -1,145 +1,63 @@
 "use client";
 
-type Props = {
-  isOpen: boolean;
-};
+import { Phone } from "lucide-react";
 
-export default function SupportCard({
-  isOpen,
-}: Props) {
-
+export default function SupportCard() {
   return (
-
-    <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-
-      {/* ==========================================
-          Header
-      ========================================== */}
-
+    <div
+      className="
+        rounded-xl
+        border
+        border-green-100
+        bg-green-50
+        p-3
+      "
+    >
       <div className="flex items-center gap-3">
 
-        {/* Avatar */}
-
-        <div className="flex h-14 w-14 items-center justify-center rounded-full bg-[#25D366] text-2xl text-white">
-
-          👨‍💼
-
+        <div
+          className="
+            flex
+            h-10
+            w-10
+            items-center
+            justify-center
+            rounded-full
+            bg-[#25D366]
+            text-white
+            text-lg
+          "
+        >
+          👨‍💻
         </div>
-
-        {/* Details */}
 
         <div className="flex-1">
 
-          <h3 className="font-bold text-gray-900">
-
-            Lappy Care Support
-
+          <h3 className="text-sm font-semibold text-gray-900">
+            Laptop Support
           </h3>
 
-          <div className="mt-1 flex items-center gap-2">
-
-            <span
-              className={`h-2.5 w-2.5 rounded-full ${
-                isOpen
-                  ? "animate-pulse bg-green-500"
-                  : "bg-red-500"
-              }`}
-            />
-
-            <span
-              className={`text-sm font-medium ${
-                isOpen
-                  ? "text-green-600"
-                  : "text-red-600"
-              }`}
-            >
-
-              {isOpen
-                ? "Online"
-                : "Offline"}
-
-            </span>
-
-          </div>
+          <p className="mt-1 text-xs text-gray-600">
+            Repairs • Upgrades • Refurbished Laptops
+          </p>
 
         </div>
 
       </div>
 
-      {/* ==========================================
-          Contact
-      ========================================== */}
+      <div className="mt-3 flex items-center gap-2 text-xs text-gray-700">
 
-      <div className="mt-5 space-y-2 text-sm">
+        <Phone
+          size={14}
+          className="text-[#25D366]"
+        />
 
-        <div className="flex items-center gap-2">
-
-          <span>📞</span>
-
-          <a
-            href="tel:+919595057006"
-            className="text-gray-700 hover:text-green-600"
-          >
-
-            +91 95950 57006
-
-          </a>
-
-        </div>
-
-        <div className="flex items-center gap-2">
-
-          <span>📧</span>
-
-          <a
-            href="mailto:lappycarepune@gmail.com"
-            className="text-gray-700 hover:text-green-600"
-          >
-
-            lappycarepune@gmail.com
-
-          </a>
-
-        </div>
-
-        <div className="flex items-center gap-2">
-
-          <span>📍</span>
-
-          <span className="text-gray-700">
-
-            Datta Mandir Road,
-            Wakad, Pune
-
-          </span>
-
-        </div>
-
-      </div>
-
-      {/* ==========================================
-          Footer
-      ========================================== */}
-
-      <div className="mt-5 rounded-lg bg-green-50 p-3">
-
-        <p className="text-sm font-semibold text-green-700">
-
-          ⭐ Usually replies within 2 minutes
-
-        </p>
-
-        <p className="mt-1 text-xs text-green-600">
-
-          We're happy to help you with laptop repair,
-          upgrades, refurbished laptops and technical support.
-
-        </p>
+        <span>
+          +91 95950 57006
+        </span>
 
       </div>
 
     </div>
-
   );
-
 }

@@ -1,138 +1,124 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
+import { MessageCircle, X } from "lucide-react";
 
 import WhatsAppBubble from "./WhatsAppBubble";
 
-const PHONE = "919595057006";
-
-const MESSAGE =
-  "Hello Lappy Care, I need help regarding my laptop.";
-
 export default function FloatingWhatsApp() {
+  const [isOpen, setIsOpen] = useState(false);
 
-  const [showBubble, setShowBubble] =
-    useState(false);
-
-  const [isOpen, setIsOpen] =
-    useState(false);
+  const containerRef =
+    useRef<HTMLDivElement>(null);
 
   useEffect(() => {
+    function handleClickOutside(
+      event: MouseEvent
+    ) {
+      if (
+        containerRef.current &&
+        !containerRef.current.contains(
+          event.target as Node
+        )
+      ) {
+        setIsOpen(false);
+      }
+    }
 
-    // ==========================
-    // Show / Hide Bubble
-    // ==========================
-
-    const showTimer = setTimeout(() => {
-
-      setShowBubble(true);
-
-    }, 1000);
-
-    const hideTimer = setTimeout(() => {
-
-      setShowBubble(false);
-
-    }, 8000);
-
-    // ==========================
-    // Business Hours
-    // Monday - Saturday
-    // 10 AM - 8 PM
-    // ==========================
-
-    const now = new Date();
-
-    const day = now.getDay();
-
-    const hour = now.getHours();
-
-    const open =
-      day >= 1 &&
-      day <= 6 &&
-      hour >= 10 &&
-      hour < 20;
-
-    setIsOpen(open);
+    document.addEventListener(
+      "mousedown",
+      handleClickOutside
+    );
 
     return () => {
-
-      clearTimeout(showTimer);
-
-      clearTimeout(hideTimer);
-
+      document.removeEventListener(
+        "mousedown",
+        handleClickOutside
+      );
     };
-
   }, []);
 
-  const whatsappUrl =
-    `https://wa.me/${PHONE}?text=${encodeURIComponent(
-      MESSAGE
-    )}`;
-
   return (
-
     <div
-      className="fixed bottom-6 right-6"
-      style={{
-        zIndex: 999999,
-      }}
+      ref={containerRef}
+      className="
+        fixed
+        bottom-4
+        right-4
+        z-[999]
+
+        sm:bottom-5
+        sm:right-5
+      "
     >
+      <WhatsAppBubble
+        isOpen={isOpen}
+        onClose={() => setIsOpen(false)}
+      />
 
-      {/* ==========================
-          Welcome Bubble
-      ========================== */}
-
-      {showBubble && (
-
-        <WhatsAppBubble
-          isOpen={isOpen}
-          onClose={() =>
-            setShowBubble(false)
-          }
-        />
-
-      )}
-
-      {/* ==========================
-          Pulse Ring
-      ========================== */}
-
-      <span className="absolute inset-0 animate-ping rounded-full bg-[#25D366] opacity-30" />
-
-      {/* ==========================
-          Floating Button
-      ========================== */}
-
-      <Link
-        href={whatsappUrl}
-        target="_blank"
-        rel="noopener noreferrer"
+      <button
+        type="button"
+        aria-label={
+          isOpen
+            ? "Close WhatsApp"
+            : "Open WhatsApp"
+        }
+        aria-expanded={isOpen}
+        onClick={() =>
+          setIsOpen((previous) => !previous)
+        }
         className="
-          relative
           flex
-          h-16
-          w-16
+          h-14
+          w-14
           items-center
           justify-center
+
           rounded-full
+
           bg-[#25D366]
-          text-3xl
-          shadow-2xl
-          transition
-          duration-300
-          hover:scale-110
+          text-white
+
+          shadow-[0_8px_30px_rgba(37,211,102,0.35)]
+
+          transition-all
+          duration-200
+
+          hover:scale-105
+          hover:bg-[#1EBE5D]
+
           active:scale-95
+
+          sm:h-auto
+          sm:w-auto
+          sm:gap-2
+          sm:px-5
+          sm:py-3
         "
       >
+        {isOpen ? (
+          <X
+            size={23}
+            strokeWidth={2.5}
+          />
+        ) : (
+          <MessageCircle
+            size={25}
+            strokeWidth={2.4}
+            className="animate-pulse"
+          />
+        )}
 
-        💬
+        <div className="hidden text-left sm:block">
+          <p className="text-sm font-bold leading-4">
+            Chat with Expert
+          </p>
 
-      </Link>
-
+          <p className="mt-0.5 text-[10px] leading-3 text-white/90">
+            Lappy Care Support
+          </p>
+        </div>
+      </button>
     </div>
-
   );
-
 }

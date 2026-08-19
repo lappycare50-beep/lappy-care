@@ -2,90 +2,91 @@
 
 import Link from "next/link";
 
+import {
+  CalendarPlus,
+  MessageCircle,
+  Phone,
+  Search,
+} from "lucide-react";
+
 const PHONE = "919595057006";
 
+const MESSAGE =
+  "Hello Lappy Care, I need help regarding my laptop.";
+
+const actions = [
+  {
+    title: "WhatsApp",
+    href: `https://wa.me/${PHONE}?text=${encodeURIComponent(
+      MESSAGE
+    )}`,
+    icon: MessageCircle,
+    className:
+      "bg-[#25D366] hover:bg-[#1EBE5D] text-white",
+    target: "_blank",
+  },
+  {
+    title: "Call",
+    href: `tel:+${PHONE}`,
+    icon: Phone,
+    className:
+      "bg-blue-600 hover:bg-blue-700 text-white",
+  },
+  {
+    title: "Book Repair",
+    href: "/book-repair",
+    icon: CalendarPlus,
+    className:
+      "bg-yellow-400 hover:bg-yellow-500 text-black",
+  },
+  {
+    title: "Track Repair",
+    href: "/track",
+    icon: Search,
+    className:
+      "bg-zinc-800 hover:bg-black text-white",
+  },
+];
+
 export default function QuickActions() {
-  const whatsappUrl = `https://wa.me/${PHONE}`;
-
   return (
-    <div className="space-y-3">
-      {/* ==========================================
-          Section Title
-      ========================================== */}
+    <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+      {actions.map((action) => {
+        const Icon = action.icon;
 
-      <h3 className="text-sm font-bold uppercase tracking-wide text-gray-700">
-        Quick Actions
-      </h3>
+        return (
+          <Link
+            key={action.title}
+            href={action.href}
+            target={action.target}
+            rel={
+              action.target === "_blank"
+                ? "noopener noreferrer"
+                : undefined
+            }
+            className={`
+              flex
+              items-center
+              justify-center
+              gap-2
+              rounded-xl
+              px-4
+              py-3
+              text-sm
+              font-semibold
+              transition-all
+              duration-200
+              hover:scale-[1.02]
+              active:scale-95
+              ${action.className}
+            `}
+          >
+            <Icon size={18} />
 
-      {/* ==========================================
-          Buttons
-      ========================================== */}
-
-      <div className="grid grid-cols-2 gap-3">
-
-        {/* Book Repair */}
-
-        <Link
-          href="/#booking"
-          className="flex flex-col items-center justify-center rounded-xl border border-gray-200 bg-white p-4 text-center shadow-sm transition hover:-translate-y-1 hover:border-green-500 hover:shadow-lg"
-        >
-          <span className="text-3xl">
-            🔧
-          </span>
-
-          <span className="mt-2 text-sm font-semibold text-gray-800">
-            Book Repair
-          </span>
-        </Link>
-
-        {/* Track Repair */}
-
-        <Link
-          href="/track"
-          className="flex flex-col items-center justify-center rounded-xl border border-gray-200 bg-white p-4 text-center shadow-sm transition hover:-translate-y-1 hover:border-blue-500 hover:shadow-lg"
-        >
-          <span className="text-3xl">
-            📦
-          </span>
-
-          <span className="mt-2 text-sm font-semibold text-gray-800">
-            Track Repair
-          </span>
-        </Link>
-
-        {/* Call */}
-
-        <a
-          href="tel:+919595057006"
-          className="flex flex-col items-center justify-center rounded-xl border border-gray-200 bg-white p-4 text-center shadow-sm transition hover:-translate-y-1 hover:border-yellow-500 hover:shadow-lg"
-        >
-          <span className="text-3xl">
-            📞
-          </span>
-
-          <span className="mt-2 text-sm font-semibold text-gray-800">
-            Call Now
-          </span>
-        </a>
-
-        {/* WhatsApp */}
-
-        <a
-          href={whatsappUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          className="flex flex-col items-center justify-center rounded-xl border border-gray-200 bg-white p-4 text-center shadow-sm transition hover:-translate-y-1 hover:border-green-500 hover:shadow-lg"
-        >
-          <span className="text-3xl">
-            💬
-          </span>
-
-          <span className="mt-2 text-sm font-semibold text-gray-800">
-            WhatsApp
-          </span>
-        </a>
-
-      </div>
+            <span>{action.title}</span>
+          </Link>
+        );
+      })}
     </div>
   );
 }
