@@ -11,23 +11,131 @@ import {
   AI_MODELS,
 } from "@/lib/ai/models";
 
-import {
-  AIServiceError,
-} from "@/lib/ai/errors";
+type ReviewResponse = {
+  review: string;
+};
+
+function createFallbackReview(
+  experience: string
+): string {
+  return experience
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function isQuotaError(
+  error: unknown
+): boolean {
+  const err =
+    error as {
+      status?: number;
+      code?: string;
+      type?: string;
+      message?: string;
+      error?: {
+        code?: string;
+        type?: string;
+        message?: string;
+      };
+    };
+
+  const status =
+    err?.status;
+
+  const code =
+    String(
+      err?.code ??
+      err?.error?.code ??
+      ""
+    ).toLowerCase();
+
+  const type =
+    String(
+      err?.type ??
+      err?.error?.type ??
+      ""
+    ).toLowerCase();
+
+  const message =
+    String(
+      err?.message ??
+      err?.error?.message ??
+      ""
+    ).toLowerCase();
+
+  return (
+    status === 429 ||
+    code === "insufficient_quota" ||
+    type === "insufficient_quota" ||
+    message.includes(
+      "insufficient_quota"
+    ) ||
+    message.includes(
+      "exceeded your current quota"
+    )
+  );
+}
+
+function parseAIResponse(
+  content: string
+): ReviewResponse | null {
+  const cleaned =
+    content
+      .replace(
+        /^```json\s*/i,
+        ""
+      )
+      .replace(
+        /^```\s*/i,
+        ""
+      )
+      .replace(
+        /\s*```$/i,
+        ""
+      )
+      .trim();
+
+  try {
+    const parsed =
+      JSON.parse(cleaned);
+
+    if (
+      parsed &&
+      typeof parsed.review ===
+        "string" &&
+      parsed.review.trim()
+    ) {
+      return {
+        review:
+          parsed.review.trim(),
+      };
+    }
+
+    return null;
+  } catch {
+    return null;
+  }
+}
 
 export async function POST(
   req: NextRequest
 ) {
   try {
-    const body = await req.json();
+    // ----------------------------------------
+    // 1. Read request
+    // ----------------------------------------
+
+    const body =
+      await req.json();
 
     const experience =
-      typeof body.experience === "string"
+      typeof body?.experience ===
+      "string"
         ? body.experience.trim()
         : "";
 
     // ----------------------------------------
-    // Validation
+    // 2. Validate experience
     // ----------------------------------------
 
     if (!experience) {
@@ -70,13 +178,22 @@ export async function POST(
     }
 
     // ----------------------------------------
-    // AI Prompt
+    // 3. Prepare safe fallback
+    // ----------------------------------------
+
+    const fallbackReview =
+      createFallbackReview(
+        experience
+      );
+
+    // ----------------------------------------
+    // 4. AI Prompt
     // ----------------------------------------
 
     const prompt = `
 You are a professional customer review writing assistant for Lappy Care.
 
-Create a natural Google review using ONLY the customer's own experience below.
+Create a natural Google review using ONLY the customer's own experience.
 
 IMPORTANT RULES:
 
@@ -87,15 +204,16 @@ IMPORTANT RULES:
 - Do not invent staff names.
 - Do not invent guarantees.
 - Do not exaggerate the experience.
-- Keep the review honest and believable.
 - Preserve the customer's actual meaning.
 - Improve grammar and readability.
+- Keep the review honest and believable.
 - Keep the review suitable for Google.
 - Keep "Lappy Care" unchanged.
-- If the customer writes in Marathi, generate the review in Marathi.
-- If the customer writes in Hindi, generate the review in Hindi.
-- If the customer writes in English, generate the review in English.
+- If the customer writes in Marathi, respond in Marathi.
+- If the customer writes in Hindi, respond in Hindi.
+- If the customer writes in English, respond in English.
 - Otherwise, respond in the same language used by the customer.
+- Keep the review natural and concise.
 - Return ONLY valid JSON.
 - Do not use markdown.
 - Do not add explanations.
@@ -112,7 +230,7 @@ ${experience}
 `;
 
     // ----------------------------------------
-    // OpenAI
+    // 5. Try OpenAI
     // ----------------------------------------
 
     try {
@@ -120,177 +238,105 @@ ${experience}
         getOpenAIClient();
 
       const completion =
-        await client.chat.completions.create({
-          model: AI_MODELS.DEFAULT,
+        await client.chat.completions.create(
+          {
+            model:
+              AI_MODELS.DEFAULT,
 
-          temperature: 0.5,
+            temperature: 0.5,
 
-          messages: [
-            {
-              role: "system",
-              content:
-                "You are an honest multilingual customer review assistant. Return ONLY valid JSON.",
-            },
-            {
-              role: "user",
-              content: prompt,
-            },
-          ],
-        });
+            messages: [
+              {
+                role: "system",
+                content:
+                  "You are an honest multilingual customer review assistant. Return ONLY valid JSON.",
+              },
+              {
+                role: "user",
+                content: prompt,
+              },
+            ],
+          }
+        );
 
       const content =
-        completion.choices?.[0]?.message?.content;
+        completion
+          .choices?.[0]
+          ?.message?.content;
 
-      if (!content) {
-        throw new AIServiceError(
-          "AI returned an empty review.",
-          500
-        );
-      }
-
-      let parsed: {
-        review?: string;
-      };
-
-      try {
-        parsed = JSON.parse(content);
-      } catch {
-        throw new AIServiceError(
-          "AI returned an invalid response.",
-          500
-        );
-      }
-
-      if (
-        !parsed.review ||
-        typeof parsed.review !== "string"
-      ) {
-        throw new AIServiceError(
-          "AI returned an invalid review.",
-          500
-        );
-      }
-
-      return NextResponse.json({
-        success: true,
-
-        data: {
-          review:
-            parsed.review.trim(),
-
-          source: "ai",
-        },
-      });
-
-    } catch (error: any) {
-
-      // ----------------------------------------
-      // OpenAI Quota Fallback
-      // ----------------------------------------
-
-      const isQuotaError =
-        error?.status === 429 ||
-        error?.code ===
-          "insufficient_quota" ||
-        error?.error?.code ===
-          "insufficient_quota";
-
-      if (isQuotaError) {
-        console.warn(
-          "OpenAI quota unavailable. Using development fallback."
-        );
-
-        const fallbackReview =
-          createFallbackReview(
-            experience
+      if (content) {
+        const parsed =
+          parseAIResponse(
+            content
           );
 
-        return NextResponse.json({
-          success: true,
-
-          data: {
-            review:
-              fallbackReview,
-
-            source:
-              "fallback",
-          },
-        });
+        if (parsed) {
+          return NextResponse.json({
+            success: true,
+            data: {
+              review:
+                parsed.review,
+              source: "ai",
+            },
+          });
+        }
       }
 
-      throw error;
+      console.warn(
+        "OpenAI returned an empty or invalid review. Using fallback."
+      );
+
+    } catch (aiError) {
+      // --------------------------------------
+      // IMPORTANT:
+      // Never break the customer review flow
+      // because of an AI failure.
+      // --------------------------------------
+
+      if (isQuotaError(aiError)) {
+        console.warn(
+          "OpenAI quota unavailable. Using fallback review."
+        );
+      } else {
+        console.error(
+          "OpenAI review generation failed. Using fallback review:",
+          aiError
+        );
+      }
     }
 
+    // ----------------------------------------
+    // 6. Safe fallback
+    // ----------------------------------------
+
+    return NextResponse.json({
+      success: true,
+      data: {
+        review:
+          fallbackReview,
+        source: "fallback",
+      },
+    });
+
   } catch (error) {
+    // ----------------------------------------
+    // 7. Request / unexpected error
+    // ----------------------------------------
 
     console.error(
       "Review Generation API Error:",
       error
     );
 
-    if (
-      error instanceof AIServiceError
-    ) {
-      return NextResponse.json(
-        {
-          success: false,
-          error:
-            error.message,
-        },
-        {
-          status:
-            error.statusCode,
-        }
-      );
-    }
-
     return NextResponse.json(
       {
         success: false,
         error:
-          "Unable to generate review.",
+          "Unable to process your review.",
       },
       {
         status: 500,
       }
     );
   }
-}
-
-// ----------------------------------------
-// Development Fallback
-// ----------------------------------------
-
-function createFallbackReview(
-  experience: string
-): string {
-
-  const cleaned =
-    experience
-      .replace(/\s+/g, " ")
-      .trim();
-
-  // Marathi indicators
-  const isMarathi =
-    /[ळऱ]/.test(cleaned) ||
-    /\b(माझा|माझी|माझे|आहे|होता|होती|सेवा|अनुभव|लॅपटॉप|दुरुस्ती)\b/.test(
-      cleaned
-    );
-
-  if (isMarathi) {
-    return `Lappy Care मधील माझा अनुभव चांगला होता. ${cleaned}`;
-  }
-
-  // Hindi indicators
-  const isHindi =
-    /\b(मेरा|मेरी|मेरे|था|थी|सेवा|अनुभव|लैपटॉप|मरम्मत)\b/.test(
-      cleaned
-    );
-
-  if (isHindi) {
-    return `Lappy Care के साथ मेरा अनुभव अच्छा रहा। ${cleaned}`;
-  }
-
-  // English fallback
-  return `I had a good experience with Lappy Care. ${cleaned}`;
 }
