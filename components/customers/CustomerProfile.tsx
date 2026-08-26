@@ -12,6 +12,10 @@ import {
   MessageCircle,
   Wrench,
   Receipt,
+  QrCode,
+  ExternalLink,
+  Download,
+  Copy,
 } from "lucide-react";
 
 import AddRepairModal from "@/components/admin/AddRepairModal";
@@ -19,6 +23,13 @@ import AddRepairModal from "@/components/admin/AddRepairModal";
 import {
   getRepairsByCustomerId,
 } from "@/services/repairService";
+
+import {
+  ensureCustomerQrToken,
+  getCustomerQrUrl,
+} from "@/services/customerQrService";
+
+import QRCode from "react-qr-code";
 
 type Props = {
   customer: Customer;
@@ -44,6 +55,18 @@ export default function CustomerProfile({
   const [openRepairModal, setOpenRepairModal] =
     useState(false);
 
+  const [qrToken, setQrToken] =
+    useState(customer.qrToken ?? "");
+
+  const [qrLoading, setQrLoading] =
+    useState(false);
+
+  const [qrError, setQrError] =
+    useState("");
+
+  const [copied, setCopied] =
+    useState(false);
+
   // ==========================================
   // Load Repair History
   // ==========================================
@@ -67,9 +90,9 @@ export default function CustomerProfile({
       }
 
       const data =
-  await getRepairsByCustomerId(
-    customer.customerId
-  );
+        await getRepairsByCustomerId(
+          customer.customerId
+        );
 
       setRepairs(data);
 
@@ -80,6 +103,127 @@ export default function CustomerProfile({
     } finally {
 
       setLoadingRepairs(false);
+
+    }
+
+  }
+
+  // ==========================================
+  // Generate Customer QR
+  // ==========================================
+
+  async function handleGenerateQr() {
+
+    try {
+
+      setQrLoading(true);
+      setQrError("");
+
+      const token =
+        await ensureCustomerQrToken(
+          customer
+        );
+
+      setQrToken(token);
+
+    } catch (error) {
+
+      console.error(error);
+
+      setQrError(
+        error instanceof Error
+          ? error.message
+          : "Unable to generate customer QR."
+      );
+
+    } finally {
+
+      setQrLoading(false);
+
+    }
+
+  }
+
+  // ==========================================
+  // Customer QR URL
+  // ==========================================
+
+  const qrUrl =
+    qrToken
+      ? getCustomerQrUrl(qrToken)
+      : "";
+
+  // ==========================================
+  // Download QR
+  // ==========================================
+
+  function handleDownloadQr() {
+
+    const svg =
+      document.getElementById(
+        "customer-qr-code"
+      ) as SVGElement | null;
+
+    if (!svg) return;
+
+    const serializer =
+      new XMLSerializer();
+
+    const source =
+      serializer.serializeToString(svg);
+
+    const blob =
+      new Blob(
+        [source],
+        {
+          type: "image/svg+xml;charset=utf-8",
+        }
+      );
+
+    const url =
+      URL.createObjectURL(blob);
+
+    const link =
+      document.createElement("a");
+
+    link.href = url;
+
+    link.download =
+      `${customer.customerId}-customer-qr.svg`;
+
+    document.body.appendChild(link);
+
+    link.click();
+
+    document.body.removeChild(link);
+
+    URL.revokeObjectURL(url);
+
+  }
+
+  // ==========================================
+  // Copy QR URL
+  // ==========================================
+
+  async function handleCopyUrl() {
+
+    if (!qrUrl) return;
+
+    try {
+
+      await navigator.clipboard.writeText(
+        qrUrl
+      );
+
+      setCopied(true);
+
+      setTimeout(() => {
+        setCopied(false);
+      }, 2000);
+
+    } catch (error) {
+
+      console.error(error);
 
     }
 
@@ -109,7 +253,7 @@ export default function CustomerProfile({
 
       <div className="rounded-3xl border border-yellow-500/20 bg-[#181818] p-8">
 
-        <div className="flex items-center justify-between">
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
 
           <div>
 
@@ -123,7 +267,7 @@ export default function CustomerProfile({
 
           </div>
 
-          <div className="rounded-full bg-yellow-400 px-6 py-3 font-bold text-black">
+          <div className="rounded-full bg-yellow-400 px-6 py-3 text-center font-bold text-black">
 
             {customer.totalRepairs} Repairs
 
@@ -221,7 +365,161 @@ export default function CustomerProfile({
         </div>
 
       </div>
-            {/* ==========================
+
+      {/* ==========================
+          Customer QR Code
+      ========================== */}
+
+      <div className="rounded-3xl border border-yellow-500/20 bg-[#181818] p-8">
+
+        <div className="mb-6 flex items-center gap-3">
+
+          <QrCode
+            size={26}
+            className="text-yellow-400"
+          />
+
+          <div>
+
+            <h2 className="text-2xl font-bold text-white">
+              Customer QR Code
+            </h2>
+
+            <p className="mt-1 text-sm text-gray-400">
+              Scan this QR code to open the customer care profile.
+            </p>
+
+          </div>
+
+        </div>
+
+        {!qrToken ? (
+
+          <div className="rounded-2xl border border-dashed border-gray-700 bg-[#202020] p-8 text-center">
+
+            <QrCode
+              size={48}
+              className="mx-auto mb-4 text-gray-500"
+            />
+
+            <p className="text-gray-300">
+              QR code has not been generated yet.
+            </p>
+
+            <button
+              type="button"
+              onClick={handleGenerateQr}
+              disabled={qrLoading}
+              className="mt-5 rounded-xl bg-yellow-400 px-6 py-3 font-semibold text-black transition hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+
+              {qrLoading
+                ? "Generating QR..."
+                : "Generate Customer QR"}
+
+            </button>
+
+          </div>
+
+        ) : (
+
+          <div className="grid gap-8 lg:grid-cols-[280px_1fr]">
+
+            {/* QR */}
+
+            <div className="flex justify-center">
+
+              <div className="rounded-2xl bg-white p-5">
+
+                <QRCode
+                  id="customer-qr-code"
+                  value={qrUrl}
+                  size={230}
+                  bgColor="#ffffff"
+                  fgColor="#000000"
+                />
+
+              </div>
+
+            </div>
+
+            {/* QR Details */}
+
+            <div className="flex flex-col justify-center">
+
+              <p className="text-sm font-semibold text-gray-300">
+                Customer Profile URL
+              </p>
+
+              <div className="mt-2 break-all rounded-xl bg-[#202020] p-4 text-sm text-gray-300">
+                {qrUrl}
+              </div>
+
+              <div className="mt-5 flex flex-wrap gap-3">
+
+                <a
+                  href={qrUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center gap-2 rounded-xl bg-yellow-400 px-5 py-3 font-semibold text-black"
+                >
+
+                  <ExternalLink size={18} />
+
+                  Open Profile
+
+                </a>
+
+                <button
+                  type="button"
+                  onClick={handleDownloadQr}
+                  className="flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white"
+                >
+
+                  <Download size={18} />
+
+                  Download QR
+
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleCopyUrl}
+                  className="flex items-center gap-2 rounded-xl bg-gray-700 px-5 py-3 font-semibold text-white"
+                >
+
+                  <Copy size={18} />
+
+                  {copied
+                    ? "Copied"
+                    : "Copy URL"}
+
+                </button>
+
+              </div>
+
+              <p className="mt-5 text-xs leading-5 text-gray-500">
+                This QR code uses a secure customer token.
+                Customer mobile number is not stored inside the QR code.
+              </p>
+
+            </div>
+
+          </div>
+
+        )}
+
+        {qrError && (
+
+          <div className="mt-5 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
+            {qrError}
+          </div>
+
+        )}
+
+      </div>
+
+      {/* ==========================
           Summary Cards
       ========================== */}
 
@@ -368,18 +666,14 @@ export default function CustomerProfile({
                   <div className="text-right">
 
                     <span className="rounded-full bg-yellow-500/20 px-4 py-1 text-sm font-semibold text-yellow-400">
-
                       {repair.status}
-
                     </span>
 
                     <p className="mt-3 text-sm text-gray-500">
-
                       ₹
                       {repair.estimate.totalAmount.toLocaleString(
                         "en-IN"
                       )}
-
                     </p>
 
                   </div>
@@ -395,7 +689,8 @@ export default function CustomerProfile({
         )}
 
       </div>
-            {/* ==========================
+
+      {/* ==========================
           Invoice History
       ========================== */}
 
@@ -415,9 +710,7 @@ export default function CustomerProfile({
         </div>
 
         <div className="rounded-xl bg-[#202020] p-6 text-center text-gray-400">
-
           Invoice Module Coming Soon
-
         </div>
 
       </div>
@@ -435,9 +728,7 @@ export default function CustomerProfile({
         <div className="rounded-xl bg-[#202020] p-5">
 
           <p className="leading-7 text-gray-300">
-
             {customer.notes || "No notes available."}
-
           </p>
 
         </div>
@@ -547,19 +838,20 @@ export default function CustomerProfile({
       </div>
 
       <AddRepairModal
-  open={openRepairModal}
-  repair={selectedRepair}
-  onClose={() => {
-    setOpenRepairModal(false);
-    setSelectedRepair(null);
-  }}
-  onSuccess={() => {
-    loadRepairs();
-    setOpenRepairModal(false);
-    setSelectedRepair(null);
-  }}
-/>
-            {/* ==========================
+        open={openRepairModal}
+        repair={selectedRepair}
+        onClose={() => {
+          setOpenRepairModal(false);
+          setSelectedRepair(null);
+        }}
+        onSuccess={() => {
+          loadRepairs();
+          setOpenRepairModal(false);
+          setSelectedRepair(null);
+        }}
+      />
+
+      {/* ==========================
           Customer Statistics
       ========================== */}
 
@@ -582,9 +874,7 @@ export default function CustomerProfile({
           </p>
 
           <p className="mt-2 text-sm text-gray-500">
-
             {customer.totalRepairs} Repairs Completed
-
           </p>
 
         </div>
@@ -622,9 +912,9 @@ export default function CustomerProfile({
           </h3>
 
           <p className="mt-4 text-3xl font-bold text-blue-400">
-
-            {new Date(customer.createdAt).getFullYear()}
-
+            {new Date(
+              customer.createdAt
+            ).getFullYear()}
           </p>
 
           <p className="mt-2 text-sm text-gray-500">
@@ -650,5 +940,4 @@ export default function CustomerProfile({
     </div>
 
   );
-
 }
