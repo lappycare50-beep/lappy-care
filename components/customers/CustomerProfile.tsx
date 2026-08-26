@@ -56,7 +56,7 @@ export default function CustomerProfile({
     useState(false);
 
   const [qrToken, setQrToken] =
-    useState(customer.qrToken ?? "");
+    useState("");
 
   const [qrLoading, setQrLoading] =
     useState(false);
