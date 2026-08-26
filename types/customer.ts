@@ -4,10 +4,12 @@
 
 export interface Customer {
   id?: string;
-
   customerId: string;
 
+  // ==========================================
   // Basic Details
+  // ==========================================
+
   name: string;
   mobile: string;
   alternateMobile?: string;
@@ -19,21 +21,35 @@ export interface Customer {
   gstNumber?: string;
   companyName?: string;
 
+  // ==========================================
   // Statistics
+  // ==========================================
+
   totalRepairs: number;
   totalInvoices: number;
   totalSpent: number;
   pendingAmount: number;
 
+  // ==========================================
   // References
+  // ==========================================
+
   lastRepairId?: string;
   lastInvoiceId?: string;
   lastVisit?: string;
 
+  // ==========================================
+  // Customer QR / Public Profile
+  // ==========================================
+
+  qrToken?: string;
+
+  // ==========================================
   // Other
+  // ==========================================
+
   notes?: string;
   isActive: boolean;
-
   createdAt: string;
   updatedAt: string;
 }
