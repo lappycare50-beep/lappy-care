@@ -1,31 +1,79 @@
 import { NextRequest, NextResponse } from "next/server";
 
-import {
-  getGoogleBusinessAccounts,
-  getGoogleBusinessLocations,
-} from "@/services/server/googleBusinessApi";
-
-import { saveGoogleBusinessProfile } from "@/services/server/googleBusinessProfileService";
-
 import { saveGoogleToken } from "@/services/server/oauthAdminService";
+
+/* =========================================================
+   GOOGLE OAUTH CALLBACK
+
+   Responsibilities:
+   1. Receive Google authorization code
+   2. Exchange code for OAuth token
+   3. Verify business.manage scope
+   4. Get Google user profile
+   5. Save OAuth token
+   6. Redirect to Social Accounts
+
+   IMPORTANT:
+   This route does NOT call:
+   - getGoogleBusinessAccounts()
+   - getGoogleBusinessLocations()
+   - saveGoogleBusinessProfile()
+
+   Business Profile discovery is handled separately.
+========================================================= */
+
+const BUSINESS_MANAGE_SCOPE =
+  "https://www.googleapis.com/auth/business.manage";
 
 export async function GET(
   request: NextRequest
 ) {
+  /* =======================================================
+     1. READ OAUTH PARAMETERS
+  ======================================================= */
+
   const code =
     request.nextUrl.searchParams.get("code");
 
-  if (!code) {
-    return NextResponse.json(
-      {
-        error:
-          "Authorization code not found.",
-      },
-      {
-        status: 400,
-      }
+  const oauthError =
+    request.nextUrl.searchParams.get("error");
+
+  /* =======================================================
+     2. HANDLE GOOGLE OAUTH ERROR
+  ======================================================= */
+
+  if (oauthError) {
+    console.error(
+      "Google OAuth Error:",
+      oauthError
+    );
+
+    return NextResponse.redirect(
+      new URL(
+        `/admin/marketing/social-accounts?google=error&reason=${encodeURIComponent(
+          oauthError
+        )}`,
+        request.url
+      )
     );
   }
+
+  /* =======================================================
+     3. VALIDATE AUTHORIZATION CODE
+  ======================================================= */
+
+  if (!code) {
+    return NextResponse.redirect(
+      new URL(
+        "/admin/marketing/social-accounts?google=missing-code",
+        request.url
+      )
+    );
+  }
+
+  /* =======================================================
+     4. ENVIRONMENT VARIABLES
+  ======================================================= */
 
   const clientId =
     process.env.GOOGLE_CLIENT_ID;
@@ -41,21 +89,22 @@ export async function GET(
     !clientSecret ||
     !redirectUri
   ) {
-    return NextResponse.json(
-      {
-        error:
-          "Google OAuth environment variables are missing.",
-      },
-      {
-        status: 500,
-      }
+    console.error(
+      "Google OAuth environment variables are missing."
+    );
+
+    return NextResponse.redirect(
+      new URL(
+        "/admin/marketing/social-accounts?google=config-error",
+        request.url
+      )
     );
   }
 
   try {
-    /* ==========================================
-       1. Exchange OAuth Code
-    ========================================== */
+    /* =====================================================
+       5. EXCHANGE AUTHORIZATION CODE FOR TOKEN
+    ===================================================== */
 
     const tokenResponse =
       await fetch(
@@ -78,6 +127,8 @@ export async function GET(
             grant_type:
               "authorization_code",
           }),
+
+          cache: "no-store",
         }
       );
 
@@ -85,26 +136,98 @@ export async function GET(
       await tokenResponse.json();
 
     if (!tokenResponse.ok) {
-      return NextResponse.json(
-        token,
-        {
-          status:
-            tokenResponse.status,
-        }
+      console.error(
+        "Google Token Exchange Error:",
+        token
+      );
+
+      return NextResponse.redirect(
+        new URL(
+          `/admin/marketing/social-accounts?google=token-error&reason=${encodeURIComponent(
+            token?.error_description ??
+              token?.error ??
+              "Token exchange failed."
+          )}`,
+          request.url
+        )
       );
     }
 
-    /* ==========================================
-       2. Get Google Profile
-    ========================================== */
+    if (!token.access_token) {
+      throw new Error(
+        "Google access token was not returned."
+      );
+    }
+
+    console.log(
+      "Google OAuth token received."
+    );
+
+    /* =====================================================
+       6. VERIFY GRANTED GOOGLE SCOPES
+    ===================================================== */
+
+    const grantedScope =
+      typeof token.scope === "string"
+        ? token.scope
+        : "";
+
+    console.log(
+      "Google OAuth Granted Scope:",
+      grantedScope ||
+        "(scope not returned)"
+    );
+
+    const grantedScopes =
+      grantedScope
+        .split(" ")
+        .map(
+          (scope: string) =>
+            scope.trim()
+        )
+        .filter(Boolean);
+
+    const hasBusinessManageScope =
+      grantedScopes.includes(
+        BUSINESS_MANAGE_SCOPE
+      );
+
+    if (!hasBusinessManageScope) {
+      console.error(
+        "Google OAuth ERROR: business.manage scope was NOT granted.",
+        {
+          scope:
+            grantedScope ||
+            "(scope not returned)",
+        }
+      );
+
+      return NextResponse.redirect(
+        new URL(
+          "/admin/marketing/social-accounts?google=missing-business-scope",
+          request.url
+        )
+      );
+    }
+
+    console.log(
+      "Google Business Profile scope verified."
+    );
+
+    /* =====================================================
+       7. GET GOOGLE USER PROFILE
+    ===================================================== */
 
     const profileResponse =
       await fetch(
         "https://openidconnect.googleapis.com/v1/userinfo",
         {
           headers: {
-            Authorization: `Bearer ${token.access_token}`,
+            Authorization:
+              `Bearer ${token.access_token}`,
           },
+
+          cache: "no-store",
         }
       );
 
@@ -112,21 +235,43 @@ export async function GET(
       await profileResponse.json();
 
     if (!profileResponse.ok) {
-      return NextResponse.json(
-        {
-          error:
-            "Unable to fetch Google profile.",
-        },
-        {
-          status:
-            profileResponse.status,
-        }
+      console.error(
+        "Google User Profile Error:",
+        profile
+      );
+
+      return NextResponse.redirect(
+        new URL(
+          `/admin/marketing/social-accounts?google=profile-error&reason=${encodeURIComponent(
+            profile?.error_description ??
+              profile?.error ??
+              "Unable to fetch Google profile."
+          )}`,
+          request.url
+        )
       );
     }
 
-    /* ==========================================
-       3. Save OAuth Token
-    ========================================== */
+    console.log(
+      "Google OAuth connected:",
+      profile.email
+    );
+
+    /* =====================================================
+       8. CALCULATE TOKEN EXPIRY
+    ===================================================== */
+
+    const expiresIn =
+      Number(token.expires_in) ||
+      3600;
+
+    const expiresAt =
+      Date.now() +
+      expiresIn * 1000;
+
+    /* =====================================================
+       9. SAVE OAUTH TOKEN
+    ===================================================== */
 
     const oauthTokenId =
       await saveGoogleToken({
@@ -142,99 +287,26 @@ export async function GET(
           token.refresh_token ?? "",
 
         tokenType:
-          token.token_type,
+          token.token_type ?? "Bearer",
 
         scope:
-          token.scope,
+          grantedScope,
 
-        expiresIn:
-          token.expires_in,
+        expiresIn,
 
-        expiresAt:
-          Date.now() +
-          token.expires_in *
-            1000,
+        expiresAt,
 
         connected: true,
       });
 
-    /* ==========================================
-       4. Get Business Accounts
-    ========================================== */
+    console.log(
+      "Google OAuth token saved:",
+      oauthTokenId
+    );
 
-    const accounts =
-      await getGoogleBusinessAccounts({
-        accessToken:
-          token.access_token,
-      });
-
-    if (accounts.length === 0) {
-      return NextResponse.redirect(
-        new URL(
-          "/admin/marketing/social-accounts?google=connected-no-business",
-          request.url
-        )
-      );
-    }
-
-    /* ==========================================
-       5. Find Business Location
-    ========================================== */
-
-    let businessSaved =
-      false;
-
-    for (const account of accounts) {
-      if (!account.name) {
-        continue;
-      }
-
-      const locations =
-        await getGoogleBusinessLocations(
-          account.name,
-          {
-            accessToken:
-              token.access_token,
-          }
-        );
-
-      if (locations.length === 0) {
-        continue;
-      }
-
-      /* ========================================
-         6. Save First Business Location
-      ======================================== */
-
-      await saveGoogleBusinessProfile({
-        oauthTokenId,
-
-        accountEmail:
-          profile.email ?? "",
-
-        account,
-
-        location:
-          locations[0],
-      });
-
-      businessSaved = true;
-
-      break;
-    }
-
-    /* ==========================================
-       7. Redirect
-    ========================================== */
-
-    if (!businessSaved) {
-      return NextResponse.redirect(
-        new URL(
-          "/admin/marketing/social-accounts?google=connected-no-location",
-          request.url
-        )
-      );
-    }
+    /* =====================================================
+       10. REDIRECT
+    ===================================================== */
 
     return NextResponse.redirect(
       new URL(
@@ -242,8 +314,7 @@ export async function GET(
         request.url
       )
     );
-
-        } catch (error) {
+  } catch (error) {
     console.error(
       "Google OAuth Callback Error:",
       error
@@ -254,15 +325,13 @@ export async function GET(
         ? error.message
         : String(error);
 
-    return NextResponse.json(
-      {
-        error:
-          "Failed to complete Google OAuth.",
-        details,
-      },
-      {
-        status: 500,
-      }
+    return NextResponse.redirect(
+      new URL(
+        `/admin/marketing/social-accounts?google=error&reason=${encodeURIComponent(
+          details
+        )}`,
+        request.url
+      )
     );
   }
 }
