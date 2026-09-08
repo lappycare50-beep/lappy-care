@@ -10,9 +10,10 @@ import {
   orderBy,
   query,
   serverTimestamp,
+  setDoc,
+  Timestamp,
   updateDoc,
   where,
-  setDoc,
 } from "firebase/firestore";
 
 import { db } from "@/lib/firebase";
@@ -26,6 +27,10 @@ import {
 
 const COLLECTION = "generated_posts";
 
+/* =========================================================
+   GET ALL GENERATED POSTS
+========================================================= */
+
 export async function getGeneratedPosts(): Promise<
   GeneratedPost[]
 > {
@@ -37,29 +42,34 @@ export async function getGeneratedPosts(): Promise<
 
     const snapshot = await getDocs(q);
 
-    return snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...(doc.data() as Omit<
+    return snapshot.docs.map((document) => ({
+      id: document.id,
+      ...(document.data() as Omit<
         GeneratedPost,
         "id"
       >),
     }));
   } catch (error) {
     console.error(
-      "Failed to fetch generated posts",
+      "Failed to fetch generated posts:",
       error
     );
+
     throw error;
   }
 }
+
+/* =========================================================
+   GET SINGLE GENERATED POST
+========================================================= */
 
 export async function getGeneratedPost(
   id: string
 ): Promise<GeneratedPost | null> {
   try {
-    const ref = doc(db, COLLECTION, id);
-
-    const snapshot = await getDoc(ref);
+    const snapshot = await getDoc(
+      doc(db, COLLECTION, id)
+    );
 
     if (!snapshot.exists()) {
       return null;
@@ -74,12 +84,17 @@ export async function getGeneratedPost(
     };
   } catch (error) {
     console.error(
-      "Failed to fetch generated post",
+      "Failed to fetch generated post:",
       error
     );
+
     throw error;
   }
 }
+
+/* =========================================================
+   CREATE GENERATED POST
+========================================================= */
 
 export async function createGeneratedPost(
   post: Omit<
@@ -100,12 +115,17 @@ export async function createGeneratedPost(
     return ref.id;
   } catch (error) {
     console.error(
-      "Failed to create generated post",
+      "Failed to create generated post:",
       error
     );
+
     throw error;
   }
 }
+
+/* =========================================================
+   UPDATE GENERATED POST
+========================================================= */
 
 export async function updateGeneratedPost(
   id: string,
@@ -121,12 +141,17 @@ export async function updateGeneratedPost(
     );
   } catch (error) {
     console.error(
-      "Failed to update generated post",
+      "Failed to update generated post:",
       error
     );
+
     throw error;
   }
 }
+
+/* =========================================================
+   DELETE GENERATED POST
+========================================================= */
 
 export async function deleteGeneratedPost(
   id: string
@@ -137,12 +162,17 @@ export async function deleteGeneratedPost(
     );
   } catch (error) {
     console.error(
-      "Failed to delete generated post",
+      "Failed to delete generated post:",
       error
     );
+
     throw error;
   }
 }
+
+/* =========================================================
+   GET POSTS BY PLATFORM
+========================================================= */
 
 export async function getPostsByPlatform(
   platform: Platform
@@ -156,21 +186,26 @@ export async function getPostsByPlatform(
 
     const snapshot = await getDocs(q);
 
-    return snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...(doc.data() as Omit<
+    return snapshot.docs.map((document) => ({
+      id: document.id,
+      ...(document.data() as Omit<
         GeneratedPost,
         "id"
       >),
     }));
   } catch (error) {
     console.error(
-      "Failed to fetch posts by platform",
+      "Failed to fetch posts by platform:",
       error
     );
+
     throw error;
   }
 }
+
+/* =========================================================
+   GET POSTS BY STATUS
+========================================================= */
 
 export async function getPostsByStatus(
   status: PostStatus
@@ -184,32 +219,134 @@ export async function getPostsByStatus(
 
     const snapshot = await getDocs(q);
 
-    return snapshot.docs.map((doc) => ({
-      id: doc.id,
-      ...(doc.data() as Omit<
+    return snapshot.docs.map((document) => ({
+      id: document.id,
+      ...(document.data() as Omit<
         GeneratedPost,
         "id"
       >),
     }));
   } catch (error) {
     console.error(
-      "Failed to fetch posts by status",
+      "Failed to fetch posts by status:",
       error
     );
+
     throw error;
   }
 }
+
+/* =========================================================
+   GET SCHEDULED POSTS
+========================================================= */
+
+export async function getScheduledPosts(): Promise<
+  GeneratedPost[]
+> {
+  try {
+    const q = query(
+      collection(db, COLLECTION),
+      where(
+        "status",
+        "==",
+        "Scheduled"
+      ),
+      orderBy(
+        "scheduledAt",
+        "asc"
+      )
+    );
+
+    const snapshot = await getDocs(q);
+
+    return snapshot.docs.map((document) => ({
+      id: document.id,
+      ...(document.data() as Omit<
+        GeneratedPost,
+        "id"
+      >),
+    }));
+  } catch (error) {
+    console.error(
+      "Failed to fetch scheduled posts:",
+      error
+    );
+
+    throw error;
+  }
+}
+
+/* =========================================================
+   GET DUE SCHEDULED POSTS
+========================================================= */
+
+export async function getDueScheduledPosts(): Promise<
+  GeneratedPost[]
+> {
+  try {
+    const now =
+      Timestamp.now();
+
+    const q = query(
+      collection(db, COLLECTION),
+      where(
+        "status",
+        "==",
+        "Scheduled"
+      ),
+      where(
+        "scheduledAt",
+        "<=",
+        now
+      ),
+      orderBy(
+        "scheduledAt",
+        "asc"
+      )
+    );
+
+    const snapshot = await getDocs(q);
+
+    return snapshot.docs.map((document) => ({
+      id: document.id,
+      ...(document.data() as Omit<
+        GeneratedPost,
+        "id"
+      >),
+    }));
+  } catch (error) {
+    console.error(
+      "Failed to fetch due scheduled posts:",
+      error
+    );
+
+    throw error;
+  }
+}
+
+/* =========================================================
+   DUPLICATE GENERATED POST
+========================================================= */
+
 export async function duplicateGeneratedPost(
   id: string
 ): Promise<string> {
   try {
-    const source = await getGeneratedPost(id);
+    const source =
+      await getGeneratedPost(id);
 
     if (!source) {
-      throw new Error("Post not found.");
+      throw new Error(
+        "Post not found."
+      );
     }
 
-    const { id: _, ...postData } = source;
+    const {
+      id: _,
+      scheduledAt: __,
+      publishedAt: ___,
+      ...postData
+    } = source;
 
     const newRef = doc(
       collection(db, COLLECTION)
@@ -220,14 +357,258 @@ export async function duplicateGeneratedPost(
 
       status: "Draft",
 
-      createdAt: serverTimestamp(),
-      updatedAt: serverTimestamp(),
+      scheduledAt: null,
+
+      publishedAt: null,
+
+      createdAt:
+        serverTimestamp(),
+
+      updatedAt:
+        serverTimestamp(),
     });
 
     return newRef.id;
   } catch (error) {
     console.error(
-      "Failed to duplicate generated post",
+      "Failed to duplicate generated post:",
+      error
+    );
+
+    throw error;
+  }
+}
+
+/* =========================================================
+   SCHEDULE GENERATED POST
+========================================================= */
+
+export async function scheduleGeneratedPost(
+  id: string,
+  scheduledAt: Date
+): Promise<void> {
+  try {
+    if (!(scheduledAt instanceof Date)) {
+      throw new Error(
+        "A valid schedule date is required."
+      );
+    }
+
+    if (
+      Number.isNaN(
+        scheduledAt.getTime()
+      )
+    ) {
+      throw new Error(
+        "Invalid schedule date."
+      );
+    }
+
+    if (
+      scheduledAt.getTime() <=
+      Date.now()
+    ) {
+      throw new Error(
+        "Scheduled time must be in the future."
+      );
+    }
+
+    await updateDoc(
+      doc(db, COLLECTION, id),
+      {
+        scheduledAt:
+          Timestamp.fromDate(
+            scheduledAt
+          ),
+
+        status:
+          "Scheduled",
+
+        publishedAt: null,
+
+        updatedAt:
+          serverTimestamp(),
+      }
+    );
+  } catch (error) {
+    console.error(
+      "Failed to schedule generated post:",
+      error
+    );
+
+    throw error;
+  }
+}
+
+/* =========================================================
+   RESCHEDULE GENERATED POST
+========================================================= */
+
+export async function rescheduleGeneratedPost(
+  id: string,
+  scheduledAt: Date
+): Promise<void> {
+  try {
+    if (!(scheduledAt instanceof Date)) {
+      throw new Error(
+        "A valid schedule date is required."
+      );
+    }
+
+    if (
+      Number.isNaN(
+        scheduledAt.getTime()
+      )
+    ) {
+      throw new Error(
+        "Invalid schedule date."
+      );
+    }
+
+    if (
+      scheduledAt.getTime() <=
+      Date.now()
+    ) {
+      throw new Error(
+        "Scheduled time must be in the future."
+      );
+    }
+
+    await updateDoc(
+      doc(db, COLLECTION, id),
+      {
+        scheduledAt:
+          Timestamp.fromDate(
+            scheduledAt
+          ),
+
+        status:
+          "Scheduled",
+
+        updatedAt:
+          serverTimestamp(),
+      }
+    );
+  } catch (error) {
+    console.error(
+      "Failed to reschedule generated post:",
+      error
+    );
+
+    throw error;
+  }
+}
+
+/* =========================================================
+   CANCEL SCHEDULE
+========================================================= */
+
+export async function cancelScheduledPost(
+  id: string
+): Promise<void> {
+  try {
+    await updateDoc(
+      doc(db, COLLECTION, id),
+      {
+        scheduledAt: null,
+
+        status:
+          "Draft",
+
+        updatedAt:
+          serverTimestamp(),
+      }
+    );
+  } catch (error) {
+    console.error(
+      "Failed to cancel scheduled post:",
+      error
+    );
+
+    throw error;
+  }
+}
+
+/* =========================================================
+   MARK POST AS PUBLISHING
+========================================================= */
+
+export async function markPostAsPublishing(
+  id: string
+): Promise<void> {
+  try {
+    await updateDoc(
+      doc(db, COLLECTION, id),
+      {
+        status:
+          "Publishing",
+
+        updatedAt:
+          serverTimestamp(),
+      }
+    );
+  } catch (error) {
+    console.error(
+      "Failed to mark post as publishing:",
+      error
+    );
+
+    throw error;
+  }
+}
+
+/* =========================================================
+   MARK POST AS PUBLISHED
+========================================================= */
+
+export async function markPostAsPublished(
+  id: string
+): Promise<void> {
+  try {
+    await updateDoc(
+      doc(db, COLLECTION, id),
+      {
+        status:
+          "Published",
+
+        publishedAt:
+          serverTimestamp(),
+
+        updatedAt:
+          serverTimestamp(),
+      }
+    );
+  } catch (error) {
+    console.error(
+      "Failed to mark post as published:",
+      error
+    );
+
+    throw error;
+  }
+}
+
+/* =========================================================
+   MARK POST AS FAILED
+========================================================= */
+
+export async function markPostAsFailed(
+  id: string
+): Promise<void> {
+  try {
+    await updateDoc(
+      doc(db, COLLECTION, id),
+      {
+        status:
+          "Failed",
+
+        updatedAt:
+          serverTimestamp(),
+      }
+    );
+  } catch (error) {
+    console.error(
+      "Failed to mark post as failed:",
       error
     );
 

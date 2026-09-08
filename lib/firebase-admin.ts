@@ -7,6 +7,8 @@ import {
 
 import { getFirestore } from "firebase-admin/firestore";
 
+import serviceAccount from "../firebase-service-account.json";
+
 function getFirebaseAdminApp(): App {
   const existingApps = getApps();
 
@@ -14,32 +16,14 @@ function getFirebaseAdminApp(): App {
     return existingApps[0];
   }
 
-  const projectId =
-    process.env.FIREBASE_PROJECT_ID;
-
-  const clientEmail =
-    process.env.FIREBASE_CLIENT_EMAIL;
-
-  const privateKey =
-    process.env.FIREBASE_PRIVATE_KEY
-      ?.replace(/\\n/g, "\n")
-      .trim();
-
-  if (
-    !projectId ||
-    !clientEmail ||
-    !privateKey
-  ) {
-    throw new Error(
-      "Firebase Admin environment variables are missing."
-    );
-  }
-
   return initializeApp({
     credential: cert({
-      projectId,
-      clientEmail,
-      privateKey,
+      projectId: serviceAccount.project_id,
+      clientEmail: serviceAccount.client_email,
+      privateKey: serviceAccount.private_key.replace(
+        /\\n/g,
+        "\n"
+      ),
     }),
   });
 }

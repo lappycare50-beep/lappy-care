@@ -1,8 +1,17 @@
+
 import "server-only";
+
+/* =========================================================
+   GOOGLE API OPTIONS
+========================================================= */
 
 export interface GoogleApiOptions {
   accessToken: string;
 }
+
+/* =========================================================
+   GOOGLE API ERROR
+========================================================= */
 
 export interface GoogleApiErrorResponse {
   error?: {
@@ -13,7 +22,7 @@ export interface GoogleApiErrorResponse {
 }
 
 /* =========================================================
-   Google Business Profile Types
+   GOOGLE BUSINESS PROFILE TYPES
 ========================================================= */
 
 export interface GoogleBusinessAccount {
@@ -47,7 +56,64 @@ export interface GoogleBusinessLocation {
 }
 
 /* =========================================================
-   Google API Request Helper
+   GOOGLE LOCAL POST TYPES
+========================================================= */
+
+export type GoogleLocalPostActionType =
+  | "BOOK"
+  | "ORDER"
+  | "SHOP"
+  | "LEARN_MORE"
+  | "SIGN_UP"
+  | "CALL";
+
+export interface GoogleLocalPostCallToAction {
+  actionType: GoogleLocalPostActionType;
+  url?: string;
+}
+
+export interface GoogleLocalPostMedia {
+  sourceUrl: string;
+}
+
+export interface GoogleLocalPost {
+  name?: string;
+
+  languageCode?: string;
+
+  summary: string;
+
+  callToAction?: GoogleLocalPostCallToAction;
+
+  media?: GoogleLocalPostMedia[];
+
+  topicType: "STANDARD";
+
+  state?: string;
+
+  searchUrl?: string;
+
+  createTime?: string;
+
+  updateTime?: string;
+}
+
+/* =========================================================
+   GOOGLE REVIEW REPLY TYPES
+========================================================= */
+
+export interface GoogleReviewReply {
+  comment?: string;
+
+  updateTime?: string;
+
+  reviewReplyState?: string;
+
+  policyViolation?: string;
+}
+
+/* =========================================================
+   GENERIC GOOGLE REQUEST
 ========================================================= */
 
 async function googleRequest<T>(
@@ -61,35 +127,59 @@ async function googleRequest<T>(
     );
   }
 
-  const response = await fetch(url, {
-    ...init,
+  const response =
+    await fetch(
+      url,
+      {
+        ...init,
 
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      Accept: "application/json",
-      "Content-Type": "application/json",
-      ...(init?.headers ?? {}),
-    },
+        headers: {
+          Authorization:
+            `Bearer ${accessToken}`,
 
-    cache: "no-store",
-  });
+          Accept:
+            "application/json",
 
-  const data =
-    (await response.json()) as T &
-      GoogleApiErrorResponse;
+          "Content-Type":
+            "application/json",
+
+          ...(init?.headers ?? {}),
+        },
+
+        cache: "no-store",
+      }
+    );
+
+  const text =
+    await response.text();
+
+  let data:
+    | (T & GoogleApiErrorResponse)
+    | null = null;
+
+  try {
+    data = text
+      ? JSON.parse(text)
+      : null;
+  } catch {
+    data = null;
+  }
 
   if (!response.ok) {
+    const message =
+      data?.error?.message ||
+      `Google API request failed with status ${response.status}.`;
+
     throw new Error(
-      data?.error?.message ??
-        "Google API request failed."
+      message
     );
   }
 
-  return data;
+  return data as T;
 }
 
 /* =========================================================
-   Google Profile
+   GOOGLE PROFILE
 ========================================================= */
 
 export async function getGoogleProfile(
@@ -102,7 +192,7 @@ export async function getGoogleProfile(
 }
 
 /* =========================================================
-   Generic Business API GET
+   GENERIC BUSINESS API GET
 ========================================================= */
 
 export async function getBusinessResource<T>(
@@ -116,7 +206,7 @@ export async function getBusinessResource<T>(
 }
 
 /* =========================================================
-   Generic Business API POST
+   GENERIC BUSINESS API POST
 ========================================================= */
 
 export async function postBusinessResource<T>(
@@ -129,13 +219,15 @@ export async function postBusinessResource<T>(
     options.accessToken,
     {
       method: "POST",
-      body: JSON.stringify(body),
+
+      body:
+        JSON.stringify(body),
     }
   );
 }
 
 /* =========================================================
-   Google Business Profile Accounts
+   GOOGLE BUSINESS ACCOUNTS
 ========================================================= */
 
 export async function getGoogleBusinessAccounts(
@@ -147,6 +239,7 @@ export async function getGoogleBusinessAccounts(
   const data =
     await googleRequest<{
       accounts?: GoogleBusinessAccount[];
+
       nextPageToken?: string;
     }>(
       url,
@@ -157,7 +250,7 @@ export async function getGoogleBusinessAccounts(
 }
 
 /* =========================================================
-   Google Business Profile Locations
+   GOOGLE BUSINESS LOCATIONS
 ========================================================= */
 
 export async function getGoogleBusinessLocations(
@@ -188,7 +281,9 @@ export async function getGoogleBusinessLocations(
   const data =
     await googleRequest<{
       locations?: GoogleBusinessLocation[];
+
       nextPageToken?: string;
+
       totalSize?: number;
     }>(
       url,
@@ -199,13 +294,14 @@ export async function getGoogleBusinessLocations(
 }
 
 /* =========================================================
-   Find First Available Business Location
+   FIND FIRST GOOGLE BUSINESS LOCATION
 ========================================================= */
 
 export async function findGoogleBusinessLocation(
   options: GoogleApiOptions
 ): Promise<{
   account: GoogleBusinessAccount;
+
   location: GoogleBusinessLocation;
 } | null> {
   const accounts =
@@ -213,7 +309,9 @@ export async function findGoogleBusinessLocation(
       options
     );
 
-  for (const account of accounts) {
+  for (
+    const account of accounts
+  ) {
     if (!account.name) {
       continue;
     }
@@ -227,7 +325,9 @@ export async function findGoogleBusinessLocation(
     if (locations.length > 0) {
       return {
         account,
-        location: locations[0],
+
+        location:
+          locations[0],
       };
     }
   }
@@ -236,7 +336,7 @@ export async function findGoogleBusinessLocation(
 }
 
 /* =========================================================
-   Business Manage OAuth Scope
+   BUSINESS MANAGE SCOPE
 ========================================================= */
 
 export function hasBusinessManageScope(
@@ -252,3 +352,225 @@ export function hasBusinessManageScope(
       "https://www.googleapis.com/auth/business.manage"
     );
 }
+
+/* =========================================================
+   BUILD GOOGLE CALL TO ACTION
+========================================================= */
+
+function buildGoogleCallToAction(
+  callToAction?: string
+):
+  | GoogleLocalPostCallToAction
+  | undefined {
+  if (!callToAction) {
+    return undefined;
+  }
+
+  const value =
+    callToAction.trim();
+
+  if (!value) {
+    return undefined;
+  }
+
+  /* -------------------------------------------------------
+     CALL ACTION
+  ------------------------------------------------------- */
+
+  if (
+    value
+      .toLowerCase()
+      .includes("call")
+  ) {
+    return {
+      actionType:
+        "CALL",
+    };
+  }
+
+  /* -------------------------------------------------------
+     URL ACTION
+  ------------------------------------------------------- */
+
+  const urlMatch =
+    value.match(
+      /https?:\/\/[^\s]+/i
+    );
+
+  if (urlMatch?.[0]) {
+    return {
+      actionType:
+        "LEARN_MORE",
+
+      url:
+        urlMatch[0],
+    };
+  }
+
+  return undefined;
+}
+
+/* =========================================================
+   PUBLISH GOOGLE BUSINESS POST
+========================================================= */
+
+export interface PublishGoogleBusinessPostInput {
+  locationName: string;
+
+  summary: string;
+
+  languageCode?: string;
+
+  callToAction?: string;
+
+  imageUrl?: string;
+}
+
+export async function publishGoogleBusinessPost(
+  input: PublishGoogleBusinessPostInput,
+  options: GoogleApiOptions
+): Promise<GoogleLocalPost> {
+  if (!input.locationName) {
+    throw new Error(
+      "Google Business location name is required."
+    );
+  }
+
+  if (!input.summary?.trim()) {
+    throw new Error(
+      "Google Business post content is required."
+    );
+  }
+
+  if (!options.accessToken) {
+    throw new Error(
+      "Google access token is missing."
+    );
+  }
+
+  /* -------------------------------------------------------
+     GOOGLE LOCAL POST ENDPOINT
+  ------------------------------------------------------- */
+
+  const parent =
+    input.locationName;
+
+  const url =
+    `https://mybusiness.googleapis.com/v4/${parent}/localPosts`;
+
+  /* -------------------------------------------------------
+     BUILD REQUEST BODY
+  ------------------------------------------------------- */
+
+  const body:
+    GoogleLocalPost = {
+    languageCode:
+      input.languageCode ||
+      "en-US",
+
+    summary:
+      input.summary.trim(),
+
+    topicType:
+      "STANDARD",
+  };
+
+  /* -------------------------------------------------------
+     CTA
+  ------------------------------------------------------- */
+
+  const cta =
+    buildGoogleCallToAction(
+      input.callToAction
+    );
+
+  if (cta) {
+    body.callToAction =
+      cta;
+  }
+
+  /* -------------------------------------------------------
+     IMAGE
+  ------------------------------------------------------- */
+
+  if (input.imageUrl) {
+    body.media = [
+      {
+        sourceUrl:
+          input.imageUrl,
+      },
+    ];
+  }
+
+  /* -------------------------------------------------------
+     CREATE GOOGLE BUSINESS POST
+  ------------------------------------------------------- */
+
+  return postBusinessResource<GoogleLocalPost>(
+    url,
+    body,
+    options
+  );
+}
+
+/* =========================================================
+   REPLY TO GOOGLE REVIEW
+========================================================= */
+
+export interface ReplyToGoogleReviewInput {
+  reviewName: string;
+
+  comment: string;
+}
+
+export async function replyToGoogleReview(
+  input: ReplyToGoogleReviewInput,
+  options: GoogleApiOptions
+): Promise<GoogleReviewReply> {
+  if (!input.reviewName?.trim()) {
+    throw new Error(
+      "Google review name is required."
+    );
+  }
+
+  if (!input.comment?.trim()) {
+    throw new Error(
+      "Review reply cannot be empty."
+    );
+  }
+
+  if (!options.accessToken) {
+    throw new Error(
+      "Google access token is missing."
+    );
+  }
+
+  /*
+   * Google Review resource:
+   *
+   * accounts/{accountId}/locations/{locationId}/reviews/{reviewId}
+   *
+   * Reply endpoint:
+   *
+   * PUT
+   * /v4/{reviewName}/reply
+   */
+
+  const url =
+    `https://mybusiness.googleapis.com/v4/${input.reviewName}/reply`;
+
+  return googleRequest<GoogleReviewReply>(
+    url,
+    options.accessToken,
+    {
+      method: "PUT",
+
+      body:
+        JSON.stringify({
+          comment:
+            input.comment.trim(),
+        }),
+    }
+  );
+}
+

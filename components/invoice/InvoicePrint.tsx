@@ -1,325 +1,291 @@
-"use client";
-
 import { Invoice } from "@/types/invoice";
 
 type Props = {
   invoice: Invoice;
 };
 
-export default function InvoicePrint({
-  invoice,
-}: Props) {
+function formatInvoiceDate(value: unknown) {
+  if (!value) return "-";
+
+  const date = new Date(String(value));
+
+  if (Number.isNaN(date.getTime())) {
+    return "-";
+  }
+
+  const day = String(date.getDate()).padStart(2, "0");
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const year = date.getFullYear();
+
+  return `${day}/${month}/${year}`;
+}
+
+function money(value: unknown) {
+  return Number(value || 0).toLocaleString("en-IN", {
+    maximumFractionDigits: 2,
+  });
+}
+
+export default function InvoicePrint({ invoice }: Props) {
+  const invoiceDate = formatInvoiceDate(invoice.createdAt);
+
+  const subTotal = Number(invoice.subTotal || 0);
+  const discount = Number(invoice.discount || 0);
+  const gst = Number(invoice.gst || 0);
+
+  const gstAmount = (subTotal * gst) / 100;
+
+  const grandTotal = Number(invoice.grandTotal || 0);
+
   return (
     <div
       id="invoice-print"
-      className="mx-auto max-w-5xl bg-white p-10 text-black"
+      className="mx-auto w-full max-w-[794px] bg-white px-6 py-5 text-black"
     >
+      {/* =====================================================
+          HEADER
+      ===================================================== */}
 
-      {/* ==========================
-          Header
-      ========================== */}
+      <div className="border-b-2 border-black pb-2">
+        <div className="flex items-start justify-between gap-8">
 
-      <div className="mb-8 border-b-2 border-black pb-6">
+          {/* LEFT */}
 
-        <div className="flex items-start justify-between">
-
-          <div>
-
-            <h1 className="text-4xl font-bold">
+          <div className="min-w-0">
+            <h1 className="text-[20px] font-black leading-none">
               LAPPY CARE
             </h1>
 
-            <p className="mt-1 text-gray-700">
-              Laptop Repair & Services
+            <p className="mt-1 text-[8px] leading-tight text-gray-700">
+              Laptop Repair &amp; Services
             </p>
 
-            <p className="text-sm text-gray-600">
+            <p className="text-[10px] leading-tight">
               Wakad, Pune
             </p>
 
-            <p className="text-sm text-gray-600">
+            <p className="text-[10px] leading-tight">
               Mobile : +91 9595057006
             </p>
-
           </div>
 
-          <div className="text-right">
+          {/* RIGHT */}
 
-            <h2 className="text-3xl font-bold">
+          <div className="w-[255px] shrink-0 text-right">
+            <h2 className="text-[18px] font-black leading-none">
               TAX INVOICE
             </h2>
 
-            <p className="mt-3">
-              <strong>Invoice No :</strong>{" "}
-              {invoice.invoiceNo}
-            </p>
+            <div className="mt-1.5 space-y-0.5 text-[10px] leading-tight">
+              <p>
+                <strong>Invoice No:</strong>{" "}
+                {invoice.invoiceNo || "-"}
+              </p>
 
-            <p>
-              <strong>Date :</strong>{" "}
-              {new Date(
-                invoice.createdAt
-              ).toLocaleDateString("en-IN")}
-            </p>
+              <p>
+                <strong>Date:</strong>{" "}
+                {invoiceDate}
+              </p>
 
-            <p>
-              <strong>Repair ID :</strong>{" "}
-              {invoice.repairId || "-"}
-            </p>
-
+              <p>
+                <strong>Repair ID:</strong>{" "}
+                {invoice.repairId || "-"}
+              </p>
+            </div>
           </div>
 
         </div>
-
       </div>
 
-      {/* ==========================
-          Customer Details
-      ========================== */}
+      {/* =====================================================
+          CUSTOMER
+      ===================================================== */}
 
-      <div className="mb-8 rounded border border-black p-5">
-
-        <h3 className="mb-4 text-xl font-bold">
+      <div className="mt-2 rounded border border-black px-3 py-2">
+        <h3 className="mb-1 text-[9px] font-black uppercase">
           Bill To
         </h3>
 
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-2 gap-x-10 gap-y-1 text-[10px] leading-tight">
 
           <div>
-
             <strong>Customer Name</strong>
-
-            <p className="mt-1">
-              {invoice.customerName}
-            </p>
-
+            <p>{invoice.customerName || "-"}</p>
           </div>
 
           <div>
-
             <strong>Mobile</strong>
-
-            <p className="mt-1">
-              {invoice.mobile}
-            </p>
-
+            <p>{invoice.mobile || "-"}</p>
           </div>
 
           <div className="col-span-2">
-
             <strong>Email</strong>
-
-            <p className="mt-1">
-              {invoice.email || "-"}
-            </p>
-
+            <p>{invoice.email || "-"}</p>
           </div>
 
         </div>
-
       </div>
-            {/* ==========================
-          Invoice Items
-      ========================== */}
 
-      <div className="mb-8">
+      {/* =====================================================
+          ITEMS
+      ===================================================== */}
 
-        <h3 className="mb-4 text-xl font-bold">
+      <div className="mt-2">
+        <h3 className="mb-1 text-[9px] font-black uppercase">
           Invoice Items
         </h3>
 
-        <table className="w-full border border-black border-collapse">
-
+        <table className="w-full border-collapse border border-black text-[10px]">
           <thead>
-
             <tr className="bg-gray-200">
 
-              <th className="border border-black p-3 text-left">
+              <th className="w-[30px] border border-black px-2 py-1 text-left">
                 #
               </th>
 
-              <th className="border border-black p-3 text-left">
+              <th className="border border-black px-2 py-1 text-left">
                 Item Description
               </th>
 
-              <th className="border border-black p-3 text-center">
+              <th className="w-[55px] border border-black px-2 py-1 text-center">
                 Qty
               </th>
 
-              <th className="border border-black p-3 text-right">
+              <th className="w-[100px] border border-black px-2 py-1 text-right">
                 Price
               </th>
 
-              <th className="border border-black p-3 text-right">
+              <th className="w-[110px] border border-black px-2 py-1 text-right">
                 Amount
               </th>
 
             </tr>
-
           </thead>
 
           <tbody>
+            {invoice.items?.map((item, index) => (
+              <tr key={item.id || index}>
 
-            {invoice.items.map((item, index) => (
-
-              <tr key={item.id}>
-
-                <td className="border border-black p-3">
+                <td className="border border-black px-2 py-1">
                   {index + 1}
                 </td>
 
-                <td className="border border-black p-3">
-                  {item.name}
+                <td className="border border-black px-2 py-1">
+                  {item.name || "-"}
                 </td>
 
-                <td className="border border-black p-3 text-center">
+                <td className="border border-black px-2 py-1 text-center">
                   {item.qty}
                 </td>
 
-                <td className="border border-black p-3 text-right">
-                  ₹{item.price.toLocaleString("en-IN")}
+                <td className="border border-black px-2 py-1 text-right">
+                  ₹{money(item.price)}
                 </td>
 
-                <td className="border border-black p-3 text-right font-semibold">
-                  ₹{item.total.toLocaleString("en-IN")}
+                <td className="border border-black px-2 py-1 text-right font-bold">
+                  ₹{money(item.total)}
                 </td>
 
               </tr>
-
             ))}
+          </tbody>
+        </table>
+      </div>
+
+      {/* =====================================================
+          SUMMARY
+      ===================================================== */}
+
+      <div className="mt-2 flex justify-end">
+        <table className="w-[260px] border-collapse border border-black text-[10px]">
+
+          <tbody>
+
+            <tr>
+              <td className="border border-black px-2 py-1 font-semibold">
+                Sub Total
+              </td>
+
+              <td className="border border-black px-2 py-1 text-right">
+                ₹{money(subTotal)}
+              </td>
+            </tr>
+
+            <tr>
+              <td className="border border-black px-2 py-1 font-semibold">
+                Discount
+              </td>
+
+              <td className="border border-black px-2 py-1 text-right">
+                ₹{money(discount)}
+              </td>
+            </tr>
+
+            <tr>
+              <td className="border border-black px-2 py-1 font-semibold">
+                GST ({gst}%)
+              </td>
+
+              <td className="border border-black px-2 py-1 text-right">
+                ₹{money(gstAmount)}
+              </td>
+            </tr>
+
+            <tr className="bg-gray-200">
+              <td className="border border-black px-2 py-1 font-black">
+                Grand Total
+              </td>
+
+              <td className="border border-black px-2 py-1 text-right font-black">
+                ₹{money(grandTotal)}
+              </td>
+            </tr>
 
           </tbody>
-
         </table>
-
-      </div>
-            {/* ==========================
-          Invoice Summary
-      ========================== */}
-
-      <div className="mb-8 flex justify-end">
-
-        <div className="w-full max-w-md">
-
-          <table className="w-full border border-black border-collapse">
-
-            <tbody>
-
-              <tr>
-
-                <td className="border border-black p-3 font-medium">
-                  Sub Total
-                </td>
-
-                <td className="border border-black p-3 text-right">
-                  ₹{invoice.subTotal.toLocaleString("en-IN")}
-                </td>
-
-              </tr>
-
-              <tr>
-
-                <td className="border border-black p-3 font-medium">
-                  Discount
-                </td>
-
-                <td className="border border-black p-3 text-right">
-                  ₹{invoice.discount.toLocaleString("en-IN")}
-                </td>
-
-              </tr>
-
-              <tr>
-
-                <td className="border border-black p-3 font-medium">
-                  GST ({invoice.gst}%)
-                </td>
-
-                <td className="border border-black p-3 text-right">
-                  ₹{(
-                    (invoice.subTotal * invoice.gst) / 100
-                  ).toLocaleString("en-IN")}
-                </td>
-
-              </tr>
-
-              <tr className="bg-gray-200">
-
-                <td className="border border-black p-3 text-lg font-bold">
-                  Grand Total
-                </td>
-
-                <td className="border border-black p-3 text-right text-lg font-bold">
-                  ₹{invoice.grandTotal.toLocaleString("en-IN")}
-                </td>
-
-              </tr>
-
-            </tbody>
-
-          </table>
-
-        </div>
-
       </div>
 
-      {/* ==========================
-          Payment Details
-      ========================== */}
+      {/* =====================================================
+          PAYMENT DETAILS
+      ===================================================== */}
 
-      <div className="mb-8 rounded border border-black p-5">
+      <div className="mt-2 rounded border border-black px-3 py-1.5">
 
-        <h3 className="mb-4 text-xl font-bold">
+        <h3 className="mb-0.5 text-[8px] font-black uppercase">
           Payment Details
         </h3>
 
-        <div className="grid grid-cols-2 gap-6">
+        <div className="grid grid-cols-2 gap-x-10 text-[9px] leading-tight">
 
           <div>
-
             <strong>Payment Method</strong>
-
-            <p className="mt-1">
-              {invoice.paymentMethod}
-            </p>
-
+            <p>{invoice.paymentMethod || "-"}</p>
           </div>
 
           <div>
-
             <strong>Invoice Date</strong>
-
-            <p className="mt-1">
-              {new Date(
-                invoice.createdAt
-              ).toLocaleDateString("en-IN")}
-            </p>
-
+            <p>{invoiceDate}</p>
           </div>
 
-          <div className="col-span-2">
-
+          <div className="col-span-2 mt-0.5">
             <strong>Remarks</strong>
-
-            <p className="mt-1">
-              {invoice.remarks || "-"}
-            </p>
-
+            <p>{invoice.remarks || "-"}</p>
           </div>
 
         </div>
-
       </div>
-            {/* ==========================
-          Terms & Conditions
-      ========================== */}
 
-      <div className="mb-10">
+      {/* =====================================================
+          TERMS
+      ===================================================== */}
 
-        <h3 className="mb-4 text-xl font-bold">
-          Terms & Conditions
+      <div className="mt-2">
+
+        <h3 className="mb-0.5 text-[8px] font-black uppercase">
+          Terms &amp; Conditions
         </h3>
 
-        <ul className="list-disc space-y-2 pl-6 text-sm">
+        <ul className="list-disc space-y-0 pl-4 text-[8px] leading-tight">
 
           <li>
             Goods once sold will not be taken back or exchanged.
@@ -342,72 +308,50 @@ export default function InvoicePrint({
           </li>
 
         </ul>
-
       </div>
 
-      {/* ==========================
-          Signatures
-      ========================== */}
+      {/* =====================================================
+          SIGNATURES
+      ===================================================== */}
 
-      <div className="mt-16 grid grid-cols-2 gap-20">
+      <div className="mt-5 grid grid-cols-2 gap-12">
 
         <div className="text-center">
-
-          <div className="h-16"></div>
-
-          <div className="border-t border-black pt-2 font-semibold">
+          <div className="border-t border-black pt-1 text-[9px] font-semibold">
             Customer Signature
           </div>
-
         </div>
 
         <div className="text-center">
-
-          <div className="h-16"></div>
-
-          <div className="border-t border-black pt-2 font-semibold">
+          <div className="border-t border-black pt-1 text-[9px] font-semibold">
             Authorized Signature
           </div>
-
         </div>
 
       </div>
 
-      {/* ==========================
-          Footer
-      ========================== */}
+      {/* =====================================================
+          FOOTER
+      ===================================================== */}
 
-      <div className="mt-12 border-t-2 border-black pt-6 text-center">
+      <div className="mt-2 border-t border-black pt-1.5 text-center">
 
-        <h2 className="text-2xl font-bold">
+        <h2 className="text-[10px] font-black">
           Thank You for Choosing Lappy Care!
         </h2>
 
-        <p className="mt-2 text-gray-700">
-          We appreciate your business and look
-          forward to serving you again.
+        <p className="mt-0.5 text-[8px] text-gray-700">
+          We appreciate your business and look forward to serving you again.
         </p>
 
-        <div className="mt-6 space-y-1 text-sm text-gray-600">
+        <div className="mt-1 space-y-0 text-[7px] text-gray-600">
 
-          <p>
-            📍 Lappy Care, Wakad, Pune
-          </p>
-
-          <p>
-            📞 +91 9595057006
-          </p>
-
-          <p>
-            ✉️ lappycarepune@gmail.com
-          </p>
-
-          <p>
-            🌐 www.lappycarepune.in
-          </p>
+          <p>📍 Lappy Care, Wakad, Pune</p>
+          <p>📞 +91 9595057006</p>
+          <p>✉️ lappycarepune@gmail.com</p>
+          <p>🌐 www.lappycarepune.in</p>
 
         </div>
-
       </div>
 
     </div>

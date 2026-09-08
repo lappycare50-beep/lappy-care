@@ -9,8 +9,7 @@ import {
   GoogleBusinessLocation,
 } from "@/services/server/googleBusinessApi";
 
-const COLLECTION =
-  "google_business_profiles";
+const COLLECTION = "google_business_profiles";
 
 export interface GoogleBusinessProfile {
   id: string;
@@ -39,25 +38,37 @@ export interface GoogleBusinessProfile {
 
   connected: boolean;
 
-  createdAt?: any;
+  createdAt?: unknown;
 
-  updatedAt?: any;
+  updatedAt?: unknown;
 }
+
+/* =========================================================
+   Helpers
+========================================================= */
 
 function getAccountId(
   account: GoogleBusinessAccount
 ): string {
-  return account.name
-    .split("/")
-    .pop() ?? "";
+  if (!account.name) {
+    return "";
+  }
+
+  return (
+    account.name.split("/").pop() ?? ""
+  );
 }
 
 function getLocationId(
   location: GoogleBusinessLocation
 ): string {
-  return location.name
-    .split("/")
-    .pop() ?? "";
+  if (!location.name) {
+    return "";
+  }
+
+  return (
+    location.name.split("/").pop() ?? ""
+  );
 }
 
 function formatAddress(
@@ -81,6 +92,10 @@ function formatAddress(
     .join(", ");
 }
 
+/* =========================================================
+   SAVE GOOGLE BUSINESS PROFILE
+========================================================= */
+
 export async function saveGoogleBusinessProfile(
   data: {
     oauthTokenId: string;
@@ -89,13 +104,25 @@ export async function saveGoogleBusinessProfile(
     location: GoogleBusinessLocation;
   }
 ): Promise<string> {
-  const adminDb = getAdminDb();
+  const db = getAdminDb();
 
   const accountId =
     getAccountId(data.account);
 
   const locationId =
     getLocationId(data.location);
+
+  if (!accountId) {
+    throw new Error(
+      "Google Business account ID is missing."
+    );
+  }
+
+  if (!locationId) {
+    throw new Error(
+      "Google Business location ID is missing."
+    );
+  }
 
   const profile = {
     provider: "google" as const,
@@ -133,96 +160,166 @@ export async function saveGoogleBusinessProfile(
 
     connected: true,
 
-    createdAt:
-      FieldValue.serverTimestamp(),
-
     updatedAt:
       FieldValue.serverTimestamp(),
   };
 
-  const existingSnapshot =
-    await adminDb
+  /*
+   * First search by provider only.
+   *
+   * This avoids requiring a Firestore composite index.
+   */
+
+  const snapshot =
+    await db
       .collection(COLLECTION)
       .where(
         "provider",
         "==",
         "google"
       )
-      .where(
-        "accountEmail",
-        "==",
-        data.accountEmail
-      )
-      .where(
-        "locationId",
-        "==",
-        locationId
-      )
-      .limit(1)
       .get();
 
-  if (!existingSnapshot.empty) {
-    const document =
-      existingSnapshot.docs[0];
+  /*
+   * Find an existing matching location
+   * in application code.
+   */
 
-    await document.ref.update({
+  const existing =
+    snapshot.docs.find(
+      (doc) => {
+        const current =
+          doc.data();
+
+        return (
+          current.accountEmail ===
+            data.accountEmail &&
+          current.locationId ===
+            locationId
+        );
+      }
+    );
+
+  if (existing) {
+    await existing.ref.update({
       ...profile,
+
       updatedAt:
         FieldValue.serverTimestamp(),
     });
 
-    return document.id;
+    console.log(
+      "Google Business Profile updated:",
+      existing.id
+    );
+
+    return existing.id;
   }
 
-  const document =
-    await adminDb
-      .collection(COLLECTION)
-      .add(profile);
+  /*
+   * Create new profile.
+   */
 
-  return document.id;
+  const newProfile =
+    await db
+      .collection(COLLECTION)
+      .add({
+        ...profile,
+
+        createdAt:
+          FieldValue.serverTimestamp(),
+
+        updatedAt:
+          FieldValue.serverTimestamp(),
+      });
+
+  console.log(
+    "Google Business Profile created:",
+    newProfile.id
+  );
+
+  return newProfile.id;
 }
 
-export async function getGoogleBusinessProfile() {
-  const adminDb = getAdminDb();
+/* =========================================================
+   GET CONNECTED GOOGLE BUSINESS PROFILE
+========================================================= */
+
+export async function getGoogleBusinessProfile(): Promise<
+  GoogleBusinessProfile | null
+> {
+  const db = getAdminDb();
+
+  /*
+   * Only query by provider.
+   * This avoids composite-index problems.
+   */
 
   const snapshot =
-    await adminDb
+    await db
       .collection(COLLECTION)
       .where(
         "provider",
         "==",
         "google"
       )
-      .where(
-        "connected",
-        "==",
-        true
-      )
-      .limit(1)
       .get();
 
   if (snapshot.empty) {
+    console.log(
+      "No Google Business Profile documents found."
+    );
+
     return null;
   }
 
-  const document =
-    snapshot.docs[0];
+  /*
+   * Find the first connected profile.
+   */
+
+  const connectedDoc =
+    snapshot.docs.find(
+      (doc) =>
+        doc.data().connected === true
+    );
+
+  if (!connectedDoc) {
+    console.log(
+      "Google Business Profile documents exist, but none are connected."
+    );
+
+    return null;
+  }
+
+  const data =
+    connectedDoc.data();
 
   return {
-    id: document.id,
-    ...(document.data() as Omit<
+    id: connectedDoc.id,
+
+    ...(data as Omit<
       GoogleBusinessProfile,
       "id"
     >),
   };
 }
 
+/* =========================================================
+   DISCONNECT GOOGLE BUSINESS PROFILE
+========================================================= */
+
 export async function disconnectGoogleBusinessProfile(
   id: string
 ): Promise<void> {
-  const adminDb = getAdminDb();
+  if (!id) {
+    throw new Error(
+      "Google Business Profile ID is required."
+    );
+  }
 
-  await adminDb
+  const db = getAdminDb();
+
+  await db
     .collection(COLLECTION)
     .doc(id)
     .update({
@@ -231,4 +328,9 @@ export async function disconnectGoogleBusinessProfile(
       updatedAt:
         FieldValue.serverTimestamp(),
     });
+
+  console.log(
+    "Google Business Profile disconnected:",
+    id
+  );
 }

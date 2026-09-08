@@ -1,6 +1,5 @@
 import Link from "next/link";
 
-import MarketingSidebar from "@/components/marketing/MarketingSidebar";
 import CampaignTable from "@/components/marketing/campaigns/CampaignTable";
 
 export const metadata = {
@@ -10,8 +9,6 @@ export const metadata = {
 export default function CampaignsPage() {
   return (
     <div className="flex min-h-screen bg-zinc-950">
-
-      <MarketingSidebar />
 
       <main className="flex-1 overflow-y-auto p-8">
 

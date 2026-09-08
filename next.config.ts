@@ -5,6 +5,9 @@ const nextConfig: NextConfig = {
 
   poweredByHeader: false,
 
+  // Allow local-network mobile testing during development
+  allowedDevOrigins: ["192.168.1.35"],
+
   images: {
     formats: ["image/avif", "image/webp"],
 

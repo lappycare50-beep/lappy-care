@@ -1,8 +1,16 @@
+// ==========================================
+// Invoice Types
+// ==========================================
+
 export type PaymentMethod =
   | "Cash"
   | "UPI"
   | "Card"
   | "Bank Transfer";
+
+// ==========================================
+// Invoice Item
+// ==========================================
 
 export interface InvoiceItem {
   id: string;
@@ -16,13 +24,22 @@ export interface InvoiceItem {
   total: number;
 }
 
-export interface Invoice {
+// ==========================================
+// Invoice
+// ==========================================
 
+export interface Invoice {
+  // Firestore Document ID
   id?: string;
 
+  // Invoice Number
   invoiceNo: string;
 
-  repairId?: string;
+  // ==========================================
+  // Customer Reference
+  // ==========================================
+
+  customerId?: string;
 
   customerName: string;
 
@@ -30,7 +47,21 @@ export interface Invoice {
 
   email?: string;
 
+  // ==========================================
+  // Repair Reference
+  // ==========================================
+
+  repairId?: string;
+
+  // ==========================================
+  // Invoice Items
+  // ==========================================
+
   items: InvoiceItem[];
+
+  // ==========================================
+  // Amounts
+  // ==========================================
 
   subTotal: number;
 
@@ -40,9 +71,21 @@ export interface Invoice {
 
   grandTotal: number;
 
+  // ==========================================
+  // Payment
+  // ==========================================
+
   paymentMethod: PaymentMethod;
 
+  // ==========================================
+  // Date
+  // ==========================================
+
   createdAt: string;
+
+  // ==========================================
+  // Other
+  // ==========================================
 
   remarks?: string;
 }

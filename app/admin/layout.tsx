@@ -1,17 +1,17 @@
-import ProtectedRoute from "@/components/auth/ProtectedRoute";
-import FloatingWhatsApp from "@/components/common/FloatingWhatsApp";
-
-type Props = {
-  children: React.ReactNode;
-};
+import Sidebar from "@/components/admin/Sidebar";
 
 export default function AdminLayout({
   children,
-}: Props) {
+}: {
+  children: React.ReactNode;
+}) {
   return (
-    <ProtectedRoute>
-      {children}
-      <FloatingWhatsApp />
-    </ProtectedRoute>
+    <div className="flex min-h-screen bg-black text-white">
+      <Sidebar />
+
+      <main className="min-h-screen flex-1 overflow-y-auto">
+        {children}
+      </main>
+    </div>
   );
 }

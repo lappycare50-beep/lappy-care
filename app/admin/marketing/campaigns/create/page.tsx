@@ -4,7 +4,6 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 
-import MarketingSidebar from "@/components/marketing/MarketingSidebar";
 
 import { createCampaign } from "@/services/campaignService";
 
@@ -105,8 +104,6 @@ export default function CreateCampaignPage() {
 
   return (
     <div className="flex min-h-screen bg-zinc-950">
-
-      <MarketingSidebar />
 
       <main className="flex-1 overflow-y-auto p-8">
 

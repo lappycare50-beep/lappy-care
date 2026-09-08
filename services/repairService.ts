@@ -81,10 +81,12 @@ export async function addRepair(
   try {
     const { id, ...data } = repair;
 
-    return await addDoc(
+    const repairRef = await addDoc(
       collection(db, COLLECTION),
       data
     );
+
+    return repairRef;
   } catch (error) {
     console.error("Error adding repair:", error);
     throw error;
@@ -137,9 +139,16 @@ export async function getRepairsByMobile(
   mobile: string
 ): Promise<Repair[]> {
   try {
+    const normalizedMobile =
+      mobile.replace(/\D/g, "");
+
     const q = query(
       collection(db, COLLECTION),
-      where("customer.mobile", "==", mobile),
+      where(
+        "customer.mobile",
+        "==",
+        normalizedMobile
+      ),
       orderBy("createdAt", "desc"),
       limit(20)
     );
@@ -155,6 +164,7 @@ export async function getRepairsByMobile(
       "Error getting repairs by mobile:",
       error
     );
+
     return [];
   }
 }
@@ -184,9 +194,11 @@ export async function getRepairsByStatus(
       "Error getting repairs by status:",
       error
     );
+
     return [];
   }
 }
+
 // ==========================================
 // Search Repairs
 // ==========================================
@@ -197,55 +209,42 @@ export async function searchRepairs(
   try {
     const repairs = await getRepairs();
 
-    const search = keyword
-      .trim()
-      .toLowerCase();
+    const search =
+      keyword.trim().toLowerCase();
 
     if (!search) {
       return repairs;
     }
 
-    return repairs.filter((repair) =>
+    return repairs.filter(
+      (repair) =>
+        (repair.repairId ?? "")
+          .toLowerCase()
+          .includes(search) ||
 
-      (repair.repairId ?? "")
-        .toLowerCase()
-        .includes(search)
+        (repair.customer?.name ?? "")
+          .toLowerCase()
+          .includes(search) ||
 
-      ||
+        (repair.customer?.mobile ?? "")
+          .toLowerCase()
+          .includes(search) ||
 
-      (repair.customer?.name ?? "")
-        .toLowerCase()
-        .includes(search)
+        (repair.device?.brand ?? "")
+          .toLowerCase()
+          .includes(search) ||
 
-      ||
-
-      (repair.customer?.mobile ?? "")
-        .toLowerCase()
-        .includes(search)
-
-      ||
-
-      (repair.device?.brand ?? "")
-        .toLowerCase()
-        .includes(search)
-
-      ||
-
-      (repair.device?.model ?? "")
-        .toLowerCase()
-        .includes(search)
-
+        (repair.device?.model ?? "")
+          .toLowerCase()
+          .includes(search)
     );
-
   } catch (error) {
-
     console.error(
       "Error searching repairs:",
       error
     );
 
     return [];
-
   }
 }
 
@@ -256,9 +255,7 @@ export async function searchRepairs(
 export async function getRepairsByCustomerId(
   customerId: string
 ): Promise<Repair[]> {
-
   try {
-
     const q = query(
       collection(db, COLLECTION),
       where(
@@ -266,40 +263,24 @@ export async function getRepairsByCustomerId(
         "==",
         customerId
       ),
-      orderBy(
-        "createdAt",
-        "desc"
-      ),
+      orderBy("createdAt", "desc"),
       limit(50)
     );
 
-    const snapshot =
-      await getDocs(q);
+    const snapshot = await getDocs(q);
 
-    return snapshot.docs.map(
-      (document) => ({
-
-        id: document.id,
-
-        ...(document.data() as Omit<
-          Repair,
-          "id"
-        >),
-
-      })
-    );
-
+    return snapshot.docs.map((document) => ({
+      id: document.id,
+      ...(document.data() as Omit<Repair, "id">),
+    }));
   } catch (error) {
-
     console.error(
       "Error getting customer repairs:",
       error
     );
 
     return [];
-
   }
-
 }
 
 // ==========================================
@@ -309,9 +290,7 @@ export async function getRepairsByCustomerId(
 export async function getRepairByRepairId(
   repairId: string
 ): Promise<Repair | null> {
-
   try {
-
     const q = query(
       collection(db, COLLECTION),
       where(
@@ -322,36 +301,24 @@ export async function getRepairByRepairId(
       limit(1)
     );
 
-    const snapshot =
-      await getDocs(q);
+    const snapshot = await getDocs(q);
 
     if (snapshot.empty) {
       return null;
     }
 
-    const document =
-      snapshot.docs[0];
+    const document = snapshot.docs[0];
 
     return {
-
       id: document.id,
-
-      ...(document.data() as Omit<
-        Repair,
-        "id"
-      >),
-
+      ...(document.data() as Omit<Repair, "id">),
     };
-
   } catch (error) {
-
     console.error(
       "Error getting repair by Repair ID:",
       error
     );
 
     return null;
-
   }
-
 }

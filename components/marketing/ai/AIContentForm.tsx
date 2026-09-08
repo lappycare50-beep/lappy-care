@@ -19,6 +19,18 @@ const initialForm: AIContentRequest = {
   offer: "",
 };
 
+const LANGUAGES = [
+  { value: "English", label: "🇬🇧 English" },
+  { value: "Marathi", label: "🇮🇳 Marathi (मराठी)" },
+  { value: "Hindi", label: "🇮🇳 Hindi (हिंदी)" },
+  { value: "Gujarati", label: "🇮🇳 Gujarati (ગુજરાતી)" },
+  { value: "Kannada", label: "🇮🇳 Kannada (ಕನ್ನಡ)" },
+  { value: "Telugu", label: "🇮🇳 Telugu (తెలుగు)" },
+  { value: "Tamil", label: "🇮🇳 Tamil (தமிழ்)" },
+  { value: "Bengali", label: "🇮🇳 Bengali (বাংলা)" },
+  { value: "Punjabi", label: "🇮🇳 Punjabi (ਪੰਜਾਬੀ)" },
+] as const;
+
 export default function AIContentForm() {
   const [form, setForm] =
     useState<AIContentRequest>(initialForm);
@@ -41,6 +53,7 @@ export default function AIContentForm() {
 
   async function handleGenerate() {
     console.log("Generate Button Clicked");
+    console.log("Selected Language:", form.language);
 
     try {
       setLoading(true);
@@ -66,9 +79,7 @@ export default function AIContentForm() {
       const data = JSON.parse(text);
 
       setResult(data.data);
-
     } catch (error) {
-
       console.error(error);
 
       alert(
@@ -76,19 +87,18 @@ export default function AIContentForm() {
           ? error.message
           : "Unknown Error"
       );
-
     } finally {
-
       setLoading(false);
-
     }
   }
 
   return (
     <div className="max-w-5xl rounded-xl border border-zinc-800 bg-zinc-900 p-8">
 
+      {/* FORM */}
       <div className="grid gap-6 md:grid-cols-2">
 
+        {/* Platform */}
         <div>
           <label className="mb-2 block text-sm text-zinc-400">
             Platform
@@ -102,16 +112,31 @@ export default function AIContentForm() {
                 e.target.value as AIContentRequest["platform"]
               )
             }
-            className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3 text-white"
+            className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3 text-white outline-none focus:border-yellow-500"
           >
-            <option>Google Business</option>
-            <option>Facebook</option>
-            <option>Instagram</option>
-            <option>LinkedIn</option>
-            <option>X</option>
+            <option value="Google Business">
+              Google Business
+            </option>
+
+            <option value="Facebook">
+              Facebook
+            </option>
+
+            <option value="Instagram">
+              Instagram
+            </option>
+
+            <option value="LinkedIn">
+              LinkedIn
+            </option>
+
+            <option value="X">
+              X
+            </option>
           </select>
         </div>
 
+        {/* Category */}
         <div>
           <label className="mb-2 block text-sm text-zinc-400">
             Category
@@ -120,13 +145,44 @@ export default function AIContentForm() {
           <input
             value={form.category}
             onChange={(e) =>
-              updateField("category", e.target.value)
+              updateField(
+                "category",
+                e.target.value
+              )
             }
-            className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3 text-white"
+            className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3 text-white outline-none focus:border-yellow-500"
             placeholder="Battery Replacement"
           />
         </div>
 
+        {/* Language */}
+        <div>
+          <label className="mb-2 block text-sm text-zinc-400">
+            Language
+          </label>
+
+          <select
+            value={form.language}
+            onChange={(e) =>
+              updateField(
+                "language",
+                e.target.value as AIContentRequest["language"]
+              )
+            }
+            className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3 text-white outline-none focus:border-yellow-500"
+          >
+            {LANGUAGES.map((language) => (
+              <option
+                key={language.value}
+                value={language.value}
+              >
+                {language.label}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        {/* Location */}
         <div>
           <label className="mb-2 block text-sm text-zinc-400">
             Location
@@ -135,13 +191,17 @@ export default function AIContentForm() {
           <input
             value={form.location}
             onChange={(e) =>
-              updateField("location", e.target.value)
+              updateField(
+                "location",
+                e.target.value
+              )
             }
-            className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3 text-white"
+            className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3 text-white outline-none focus:border-yellow-500"
             placeholder="Wakad"
           />
         </div>
 
+        {/* Offer */}
         <div>
           <label className="mb-2 block text-sm text-zinc-400">
             Offer
@@ -150,15 +210,19 @@ export default function AIContentForm() {
           <input
             value={form.offer}
             onChange={(e) =>
-              updateField("offer", e.target.value)
+              updateField(
+                "offer",
+                e.target.value
+              )
             }
-            className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3 text-white"
+            className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3 text-white outline-none focus:border-yellow-500"
             placeholder="Starting ₹1499"
           />
         </div>
 
       </div>
 
+      {/* Keywords */}
       <div className="mt-6">
 
         <label className="mb-2 block text-sm text-zinc-400">
@@ -166,9 +230,8 @@ export default function AIContentForm() {
         </label>
 
         <input
-          className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3 text-white"
+          className="w-full rounded-lg border border-zinc-700 bg-zinc-950 px-4 py-3 text-white outline-none focus:border-yellow-500"
           placeholder="Laptop Repair Wakad, Battery Replacement Pune"
-
           onChange={(e) =>
             updateField(
               "keywords",
@@ -182,13 +245,14 @@ export default function AIContentForm() {
 
       </div>
 
+      {/* Generate Button */}
       <div className="mt-8">
 
         <button
           type="button"
           onClick={handleGenerate}
           disabled={loading}
-          className="rounded-lg bg-yellow-500 px-8 py-3 font-semibold text-black transition hover:bg-yellow-400 disabled:opacity-50"
+          className="rounded-lg bg-yellow-500 px-8 py-3 font-semibold text-black transition hover:bg-yellow-400 disabled:cursor-not-allowed disabled:opacity-50"
         >
           {loading
             ? "Generating..."
@@ -197,8 +261,8 @@ export default function AIContentForm() {
 
       </div>
 
+      {/* Generated Result */}
       {result && (
-
         <div className="mt-10">
 
           <GeneratedContent
@@ -206,7 +270,6 @@ export default function AIContentForm() {
           />
 
         </div>
-
       )}
 
     </div>

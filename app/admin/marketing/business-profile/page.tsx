@@ -1,10 +1,8 @@
-import MarketingSidebar from "@/components/marketing/MarketingSidebar";
 import BusinessProfileForm from "@/components/marketing/business-profile/BusinessProfileForm";
 
 export default function BusinessProfilePage() {
   return (
     <div className="flex min-h-screen bg-zinc-950">
-      <MarketingSidebar />
 
       <main className="flex-1 p-8">
         <div className="mb-8">

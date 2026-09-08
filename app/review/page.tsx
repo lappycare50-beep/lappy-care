@@ -25,20 +25,19 @@ export default function ReviewPage() {
         {/* Card */}
         <div className="rounded-2xl border border-zinc-800 bg-zinc-900 p-8 shadow-2xl">
 
+          {/* Icon */}
           <div className="mb-6 text-5xl">
             ⭐
           </div>
 
-          <h2 className="text-2xl font-bold text-white">
-            Thank You!
-          </h2>
-
-          <p className="mt-4 text-lg text-zinc-300">
+          {/* Heading */}
+          <h2 className="text-2xl font-bold leading-8 text-white">
             तुमचा अनुभव आमच्यासोबत
             <br />
             share करा.
-          </p>
+          </h2>
 
+          {/* Description */}
           <p className="mt-3 text-sm leading-6 text-zinc-500">
             तुमचा feedback आम्हाला आमची service
             आणखी चांगली करण्यास मदत करतो.
@@ -49,18 +48,14 @@ export default function ReviewPage() {
             href="/review/assistant"
             className="mt-8 block w-full rounded-xl bg-yellow-500 px-6 py-4 text-base font-bold text-black transition hover:bg-yellow-400"
           >
-            Share Your Experience ⭐
+            Share Your Experience
           </Link>
-
-          <p className="mt-5 text-xs text-zinc-600">
-            Takes less than a minute
-          </p>
 
         </div>
 
         {/* Footer */}
-        <p className="mt-8 text-xs text-zinc-600">
-          © {new Date().getFullYear()} Lappy Care
+        <p className="mt-6 text-xs text-zinc-600">
+          Thank you for choosing Lappy Care ❤️
         </p>
 
       </div>

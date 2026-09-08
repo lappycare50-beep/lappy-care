@@ -1,32 +1,125 @@
-// src/types/review.ts
+/* =========================================================
+   REVIEW TYPES
+========================================================= */
 
-import { Timestamp } from "firebase/firestore";
+export type ReviewSource =
+  | "Google";
 
 export type ReviewStatus =
-  | "Started"
-  | "Experience Submitted"
-  | "Suggestion Generated"
-  | "Accepted"
-  | "Completed";
+  | "New"
+  | "Reply Generated"
+  | "Pending Approval"
+  | "Approved"
+  | "Replied"
+  | "Ignored";
+
+/* =========================================================
+   CUSTOMER REVIEW
+========================================================= */
 
 export interface CustomerReview {
   id: string;
 
   businessProfileId?: string;
 
-  customerName?: string;
+  source: ReviewSource;
 
-  experience: string;
+  /*
+   * Google review identifiers
+   */
+  googleReviewId?: string;
 
-  suggestedReview?: string;
+  /*
+   * Full Google review resource name.
+   *
+   * Example:
+   * accounts/{accountId}/locations/{locationId}/reviews/{reviewId}
+   */
+  googleReviewName?: string;
 
-  finalReview?: string;
+  customerName: string;
+
+  rating: number;
+
+  reviewText: string;
+
+  reviewDate?: string;
+
+  /*
+   * Google original reply
+   */
+  reviewReply?: string;
+
+  /*
+   * AI generated / edited reply
+   */
+  aiReply?: string;
 
   status: ReviewStatus;
 
-  source: "QR" | "Website";
+  repliedAt?: string;
 
-  createdAt?: Timestamp | Date;
+  createdAt: string;
 
-  updatedAt?: Timestamp | Date;
+  updatedAt: string;
+
+  firestoreCreatedAt?: unknown;
+
+  firestoreUpdatedAt?: unknown;
+}
+
+/* =========================================================
+   CREATE REVIEW INPUT
+========================================================= */
+
+export interface CreateCustomerReviewInput {
+  businessProfileId?: string;
+
+  source: ReviewSource;
+
+  googleReviewId?: string;
+
+  googleReviewName?: string;
+
+  customerName: string;
+
+  rating: number;
+
+  reviewText: string;
+
+  reviewDate?: string;
+
+  reviewReply?: string;
+
+  aiReply?: string;
+
+  status?: ReviewStatus;
+
+  repliedAt?: string;
+}
+
+/* =========================================================
+   UPDATE REVIEW INPUT
+========================================================= */
+
+export interface UpdateCustomerReviewInput {
+  googleReviewId?: string;
+
+  googleReviewName?: string;
+
+  customerName?: string;
+
+  rating?: number;
+
+  reviewText?: string;
+
+  reviewDate?: string;
+
+  reviewReply?: string;
+
+  aiReply?: string;
+
+  status?: ReviewStatus;
+
+  repliedAt?: string;
 }

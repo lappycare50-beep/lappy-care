@@ -1,4 +1,3 @@
-import MarketingSidebar from "@/components/marketing/MarketingSidebar";
 
 import CampaignStats from "@/components/marketing/campaigns/CampaignStats";
 import CampaignBudget from "@/components/marketing/campaigns/CampaignBudget";
@@ -19,8 +18,6 @@ export default async function CampaignDashboardPage() {
 
   return (
     <div className="flex min-h-screen bg-zinc-950">
-
-      <MarketingSidebar />
 
       <main className="flex-1 overflow-y-auto p-8">
 

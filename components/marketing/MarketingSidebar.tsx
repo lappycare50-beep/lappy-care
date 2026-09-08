@@ -2,15 +2,16 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Building2 } from "lucide-react";
 
 import {
+  Building2,
   LayoutDashboard,
   Sparkles,
   FileText,
   CalendarDays,
   Megaphone,
   Share2,
+  MessageSquare,
   BarChart3,
   Settings,
 } from "lucide-react";
@@ -53,15 +54,20 @@ const menu: SidebarItem[] = [
     icon: Share2,
   },
   {
+    title: "Reviews",
+    href: "/admin/marketing/reviews",
+    icon: MessageSquare,
+  },
+  {
     title: "Analytics",
     href: "/admin/marketing/analytics",
     icon: BarChart3,
   },
   {
-  title: "Business Profile",
-  href: "/admin/marketing/business-profile",
-  icon: Building2, 
-},
+    title: "Business Profile",
+    href: "/admin/marketing/business-profile",
+    icon: Building2,
+  },
   {
     title: "Settings",
     href: "/admin/marketing/settings",
@@ -73,18 +79,20 @@ export default function MarketingSidebar() {
   const pathname = usePathname();
 
   return (
-    <aside className="w-72 min-h-screen bg-zinc-950 border-r border-zinc-800">
-      <div className="p-6 border-b border-zinc-800">
+    <aside className="fixed inset-y-0 left-0 z-50 flex w-72 flex-col border-r border-zinc-800 bg-zinc-950">
+      {/* BRAND */}
+      <div className="border-b border-zinc-800 px-5 py-5">
         <h2 className="text-xl font-bold text-yellow-400">
           Marketing Hub
         </h2>
 
-        <p className="text-sm text-zinc-400 mt-1">
+        <p className="mt-1 text-xs text-zinc-400">
           AI Marketing Suite
         </p>
       </div>
 
-      <nav className="p-4 space-y-2">
+      {/* MENU */}
+      <nav className="flex-1 space-y-1 overflow-y-auto p-3">
         {menu.map((item) => {
           const Icon = item.icon;
 
@@ -96,18 +104,27 @@ export default function MarketingSidebar() {
             <Link
               key={item.href}
               href={item.href}
-              className={`flex items-center gap-3 rounded-lg px-4 py-3 transition-colors ${
+              className={[
+                "flex items-center gap-3 rounded-xl px-4 py-3 text-sm transition-all",
                 active
-                  ? "bg-yellow-500 text-black font-semibold"
-                  : "text-zinc-300 hover:bg-zinc-900 hover:text-white"
-              }`}
+                  ? "bg-yellow-500 font-semibold text-black"
+                  : "text-zinc-300 hover:bg-zinc-900 hover:text-white",
+              ].join(" ")}
             >
-              <Icon size={20} />
+              <Icon size={19} />
+
               <span>{item.title}</span>
             </Link>
           );
         })}
       </nav>
+
+      {/* FOOTER */}
+      <div className="border-t border-zinc-800 px-4 py-4">
+        <p className="text-xs text-zinc-600">
+          Lappy Care Marketing Hub
+        </p>
+      </div>
     </aside>
   );
 }

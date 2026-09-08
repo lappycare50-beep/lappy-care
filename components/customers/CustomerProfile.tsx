@@ -1,9 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-
-import { Customer } from "@/types/customer";
-import { Repair } from "@/types/repair";
+import { useRouter } from "next/navigation";
 
 import {
   Phone,
@@ -16,7 +14,14 @@ import {
   ExternalLink,
   Download,
   Copy,
+  Printer,
 } from "lucide-react";
+
+import QRCode from "react-qr-code";
+
+import { Customer } from "@/types/customer";
+import { Repair } from "@/types/repair";
+import { Invoice } from "@/types/invoice";
 
 import AddRepairModal from "@/components/admin/AddRepairModal";
 
@@ -25,11 +30,13 @@ import {
 } from "@/services/repairService";
 
 import {
+  getInvoicesByMobile,
+} from "@/services/invoiceService";
+
+import {
   ensureCustomerQrToken,
   getCustomerQrUrl,
 } from "@/services/customerQrService";
-
-import QRCode from "react-qr-code";
 
 type Props = {
   customer: Customer;
@@ -38,6 +45,7 @@ type Props = {
 export default function CustomerProfile({
   customer,
 }: Props) {
+  const router = useRouter();
 
   // ==========================================
   // State
@@ -46,7 +54,13 @@ export default function CustomerProfile({
   const [repairs, setRepairs] =
     useState<Repair[]>([]);
 
+  const [invoices, setInvoices] =
+    useState<Invoice[]>([]);
+
   const [loadingRepairs, setLoadingRepairs] =
+    useState(true);
+
+  const [loadingInvoices, setLoadingInvoices] =
     useState(true);
 
   const [selectedRepair, setSelectedRepair] =
@@ -68,25 +82,25 @@ export default function CustomerProfile({
     useState(false);
 
   // ==========================================
-  // Load Repair History
+  // Load Customer History
   // ==========================================
 
   useEffect(() => {
-
     loadRepairs();
+    loadInvoices();
+  }, [customer.id, customer.customerId, customer.mobile]);
 
-  }, [customer.id]);
+  // ==========================================
+  // Load Repairs
+  // ==========================================
 
   async function loadRepairs() {
-
     try {
+      setLoadingRepairs(true);
 
-      if (!customer.id) {
-
+      if (!customer.customerId) {
         setRepairs([]);
-
         return;
-
       }
 
       const data =
@@ -95,27 +109,55 @@ export default function CustomerProfile({
         );
 
       setRepairs(data);
-
     } catch (error) {
+      console.error(
+        "Unable to load repair history:",
+        error
+      );
 
-      console.error(error);
-
+      setRepairs([]);
     } finally {
-
       setLoadingRepairs(false);
-
     }
-
   }
 
   // ==========================================
-  // Generate Customer QR
+  // Load Invoices
+  // ==========================================
+
+  async function loadInvoices() {
+    try {
+      setLoadingInvoices(true);
+
+      if (!customer.mobile) {
+        setInvoices([]);
+        return;
+      }
+
+      const data =
+        await getInvoicesByMobile(
+          customer.mobile
+        );
+
+      setInvoices(data);
+    } catch (error) {
+      console.error(
+        "Unable to load invoice history:",
+        error
+      );
+
+      setInvoices([]);
+    } finally {
+      setLoadingInvoices(false);
+    }
+  }
+
+  // ==========================================
+  // Generate QR
   // ==========================================
 
   async function handleGenerateQr() {
-
     try {
-
       setQrLoading(true);
       setQrError("");
 
@@ -125,9 +167,7 @@ export default function CustomerProfile({
         );
 
       setQrToken(token);
-
     } catch (error) {
-
       console.error(error);
 
       setQrError(
@@ -135,17 +175,13 @@ export default function CustomerProfile({
           ? error.message
           : "Unable to generate customer QR."
       );
-
     } finally {
-
       setQrLoading(false);
-
     }
-
   }
 
   // ==========================================
-  // Customer QR URL
+  // QR URL
   // ==========================================
 
   const qrUrl =
@@ -158,7 +194,6 @@ export default function CustomerProfile({
   // ==========================================
 
   function handleDownloadQr() {
-
     const svg =
       document.getElementById(
         "customer-qr-code"
@@ -198,7 +233,6 @@ export default function CustomerProfile({
     document.body.removeChild(link);
 
     URL.revokeObjectURL(url);
-
   }
 
   // ==========================================
@@ -206,11 +240,9 @@ export default function CustomerProfile({
   // ==========================================
 
   async function handleCopyUrl() {
-
     if (!qrUrl) return;
 
     try {
-
       await navigator.clipboard.writeText(
         qrUrl
       );
@@ -220,13 +252,9 @@ export default function CustomerProfile({
       setTimeout(() => {
         setCopied(false);
       }, 2000);
-
     } catch (error) {
-
       console.error(error);
-
     }
-
   }
 
   // ==========================================
@@ -236,27 +264,76 @@ export default function CustomerProfile({
   function handleOpenRepair(
     repair: Repair
   ) {
-
     setSelectedRepair(repair);
-
     setOpenRepairModal(true);
-
   }
 
-  return (
+  // ==========================================
+  // Print Invoice
+  // ==========================================
 
+  function handlePrintInvoice() {
+    if (invoices.length > 0) {
+      const invoice = invoices[0];
+
+      if (invoice.id) {
+        router.push(
+          `/admin/invoices/${invoice.id}`
+        );
+        return;
+      }
+    }
+
+    router.push("/admin/invoices");
+  }
+
+  // ==========================================
+  // Print Job Card
+  // ==========================================
+
+  function handlePrintJobCard() {
+    if (repairs.length > 0) {
+      const repair = repairs[0];
+
+      if (repair.id) {
+        router.push(
+          `/admin/repairs/${repair.id}`
+        );
+        return;
+      }
+    }
+
+    router.push("/admin/repairs");
+  }
+
+  // ==========================================
+  // Format Currency
+  // ==========================================
+
+  function formatCurrency(
+    amount: number
+  ) {
+    return `₹${Number(amount || 0).toLocaleString(
+      "en-IN"
+    )}`;
+  }
+
+  // ==========================================
+  // Render
+  // ==========================================
+
+  return (
     <div className="space-y-8">
 
-      {/* ==========================
+      {/* ==========================================
           Customer Card
-      ========================== */}
+      ========================================== */}
 
       <div className="rounded-3xl border border-yellow-500/20 bg-[#181818] p-8">
 
         <div className="flex flex-col gap-6 lg:flex-row lg:items-center lg:justify-between">
 
           <div>
-
             <h1 className="text-3xl font-bold text-white">
               {customer.name}
             </h1>
@@ -264,13 +341,10 @@ export default function CustomerProfile({
             <p className="mt-2 text-gray-400">
               Customer ID : {customer.customerId}
             </p>
-
           </div>
 
           <div className="rounded-full bg-yellow-400 px-6 py-3 text-center font-bold text-black">
-
-            {customer.totalRepairs} Repairs
-
+            {repairs.length} Repairs
           </div>
 
         </div>
@@ -280,7 +354,6 @@ export default function CustomerProfile({
         <div className="mt-8 grid gap-5 md:grid-cols-2">
 
           <div className="flex items-center gap-3">
-
             <Phone
               size={20}
               className="text-yellow-400"
@@ -289,11 +362,9 @@ export default function CustomerProfile({
             <span className="text-white">
               {customer.mobile}
             </span>
-
           </div>
 
           <div className="flex items-center gap-3">
-
             <Mail
               size={20}
               className="text-yellow-400"
@@ -302,18 +373,15 @@ export default function CustomerProfile({
             <span className="text-white">
               {customer.email || "-"}
             </span>
-
           </div>
 
           <div className="flex items-center gap-3 md:col-span-2">
-
             <MapPin
               size={20}
               className="text-yellow-400"
             />
 
             <span className="text-white">
-
               {customer.address || "-"}
 
               {customer.city
@@ -327,9 +395,7 @@ export default function CustomerProfile({
               {customer.pincode
                 ? ` - ${customer.pincode}`
                 : ""}
-
             </span>
-
           </div>
 
         </div>
@@ -342,11 +408,8 @@ export default function CustomerProfile({
             href={`tel:${customer.mobile}`}
             className="flex items-center gap-2 rounded-xl bg-green-600 px-5 py-3 font-semibold text-white"
           >
-
             <Phone size={18} />
-
             Call
-
           </a>
 
           <a
@@ -355,20 +418,17 @@ export default function CustomerProfile({
             rel="noopener noreferrer"
             className="flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 font-semibold text-white"
           >
-
             <MessageCircle size={18} />
-
             WhatsApp
-
           </a>
 
         </div>
 
       </div>
 
-      {/* ==========================
-          Customer QR Code
-      ========================== */}
+      {/* ==========================================
+          Customer QR
+      ========================================== */}
 
       <div className="rounded-3xl border border-yellow-500/20 bg-[#181818] p-8">
 
@@ -380,7 +440,6 @@ export default function CustomerProfile({
           />
 
           <div>
-
             <h2 className="text-2xl font-bold text-white">
               Customer QR Code
             </h2>
@@ -388,7 +447,6 @@ export default function CustomerProfile({
             <p className="mt-1 text-sm text-gray-400">
               Scan this QR code to open the customer care profile.
             </p>
-
           </div>
 
         </div>
@@ -410,13 +468,11 @@ export default function CustomerProfile({
               type="button"
               onClick={handleGenerateQr}
               disabled={qrLoading}
-              className="mt-5 rounded-xl bg-yellow-400 px-6 py-3 font-semibold text-black transition hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-60"
+              className="mt-5 rounded-xl bg-yellow-400 px-6 py-3 font-semibold text-black hover:bg-yellow-300 disabled:cursor-not-allowed disabled:opacity-60"
             >
-
               {qrLoading
                 ? "Generating QR..."
                 : "Generate Customer QR"}
-
             </button>
 
           </div>
@@ -424,8 +480,6 @@ export default function CustomerProfile({
         ) : (
 
           <div className="grid gap-8 lg:grid-cols-[280px_1fr]">
-
-            {/* QR */}
 
             <div className="flex justify-center">
 
@@ -442,8 +496,6 @@ export default function CustomerProfile({
               </div>
 
             </div>
-
-            {/* QR Details */}
 
             <div className="flex flex-col justify-center">
 
@@ -463,11 +515,8 @@ export default function CustomerProfile({
                   rel="noopener noreferrer"
                   className="flex items-center gap-2 rounded-xl bg-yellow-400 px-5 py-3 font-semibold text-black"
                 >
-
                   <ExternalLink size={18} />
-
                   Open Profile
-
                 </a>
 
                 <button
@@ -475,11 +524,8 @@ export default function CustomerProfile({
                   onClick={handleDownloadQr}
                   className="flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white"
                 >
-
                   <Download size={18} />
-
                   Download QR
-
                 </button>
 
                 <button
@@ -487,46 +533,34 @@ export default function CustomerProfile({
                   onClick={handleCopyUrl}
                   className="flex items-center gap-2 rounded-xl bg-gray-700 px-5 py-3 font-semibold text-white"
                 >
-
                   <Copy size={18} />
-
                   {copied
                     ? "Copied"
                     : "Copy URL"}
-
                 </button>
 
               </div>
 
-              <p className="mt-5 text-xs leading-5 text-gray-500">
-                This QR code uses a secure customer token.
-                Customer mobile number is not stored inside the QR code.
-              </p>
-
             </div>
 
           </div>
-
         )}
 
         {qrError && (
-
           <div className="mt-5 rounded-xl border border-red-500/30 bg-red-500/10 p-4 text-sm text-red-300">
             {qrError}
           </div>
-
         )}
 
       </div>
 
-      {/* ==========================
+      {/* ==========================================
           Summary Cards
-      ========================== */}
+      ========================================== */}
 
       <div className="grid gap-6 md:grid-cols-4">
 
         <div className="rounded-2xl bg-[#181818] p-6">
-
           <Wrench
             className="mb-3 text-yellow-400"
             size={26}
@@ -537,13 +571,11 @@ export default function CustomerProfile({
           </p>
 
           <h2 className="mt-2 text-3xl font-bold text-white">
-            {customer.totalRepairs}
+            {repairs.length}
           </h2>
-
         </div>
 
         <div className="rounded-2xl bg-[#181818] p-6">
-
           <Receipt
             className="mb-3 text-blue-400"
             size={26}
@@ -554,13 +586,11 @@ export default function CustomerProfile({
           </p>
 
           <h2 className="mt-2 text-3xl font-bold text-white">
-            {customer.totalInvoices}
+            {invoices.length}
           </h2>
-
         </div>
 
         <div className="rounded-2xl bg-[#181818] p-6">
-
           <Receipt
             className="mb-3 text-green-400"
             size={26}
@@ -571,13 +601,13 @@ export default function CustomerProfile({
           </p>
 
           <h2 className="mt-2 text-3xl font-bold text-green-400">
-            ₹{customer.totalSpent.toLocaleString("en-IN")}
+            {formatCurrency(
+              customer.totalSpent
+            )}
           </h2>
-
         </div>
 
         <div className="rounded-2xl bg-[#181818] p-6">
-
           <Receipt
             className="mb-3 text-red-400"
             size={26}
@@ -588,46 +618,51 @@ export default function CustomerProfile({
           </p>
 
           <h2 className="mt-2 text-3xl font-bold text-red-400">
-            ₹{customer.pendingAmount.toLocaleString("en-IN")}
+            {formatCurrency(
+              customer.pendingAmount
+            )}
           </h2>
-
         </div>
 
       </div>
 
-      {/* ==========================
+      {/* ==========================================
           Repair History
-      ========================== */}
+      ========================================== */}
 
       <div className="rounded-3xl border border-yellow-500/20 bg-[#181818] p-8">
 
-        <div className="mb-6 flex items-center gap-3">
+        <div className="mb-6 flex items-center justify-between gap-4">
 
-          <Wrench
-            size={24}
-            className="text-yellow-400"
-          />
+          <div className="flex items-center gap-3">
 
-          <h2 className="text-2xl font-bold text-white">
-            Repair History
-          </h2>
+            <Wrench
+              size={24}
+              className="text-yellow-400"
+            />
+
+            <h2 className="text-2xl font-bold text-white">
+              Repair History
+            </h2>
+
+          </div>
+
+          <span className="rounded-full bg-yellow-500/20 px-4 py-2 text-sm font-semibold text-yellow-400">
+            {repairs.length} Repairs
+          </span>
 
         </div>
 
         {loadingRepairs ? (
 
           <div className="rounded-xl bg-[#202020] p-8 text-center text-gray-400">
-
             Loading Repair History...
-
           </div>
 
         ) : repairs.length === 0 ? (
 
           <div className="rounded-xl bg-[#202020] p-8 text-center text-gray-400">
-
             No Repair History Found
-
           </div>
 
         ) : (
@@ -637,14 +672,14 @@ export default function CustomerProfile({
             {repairs.map((repair) => (
 
               <div
-                key={repair.id}
+                key={repair.id || repair.repairId}
                 onClick={() =>
                   handleOpenRepair(repair)
                 }
                 className="cursor-pointer rounded-xl border border-transparent bg-[#202020] p-5 transition hover:border-yellow-400"
               >
 
-                <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between gap-4">
 
                   <div>
 
@@ -653,12 +688,13 @@ export default function CustomerProfile({
                     </h3>
 
                     <p className="mt-1 text-gray-400">
-                      {repair.device.brand}{" "}
-                      {repair.device.model}
+                      {repair.device?.brand || ""}
+                      {" "}
+                      {repair.device?.model || ""}
                     </p>
 
                     <p className="mt-2 text-sm text-gray-500">
-                      {repair.problem.complaint}
+                      {repair.problem?.complaint || "-"}
                     </p>
 
                   </div>
@@ -671,8 +707,132 @@ export default function CustomerProfile({
 
                     <p className="mt-3 text-sm text-gray-500">
                       ₹
-                      {repair.estimate.totalAmount.toLocaleString(
-                        "en-IN"
+                      {Number(
+                        repair.estimate?.totalAmount || 0
+                      ).toLocaleString("en-IN")}
+                    </p>
+
+                  </div>
+
+                </div>
+
+              </div>
+
+            ))}
+
+          </div>
+
+        )}
+
+      </div>
+
+      {/* ==========================================
+          Invoice History
+      ========================================== */}
+
+      <div className="rounded-3xl border border-yellow-500/20 bg-[#181818] p-8">
+
+        <div className="mb-6 flex items-center justify-between gap-4">
+
+          <div className="flex items-center gap-3">
+
+            <Receipt
+              size={24}
+              className="text-yellow-400"
+            />
+
+            <div>
+
+              <h2 className="text-2xl font-bold text-white">
+                Invoice History
+              </h2>
+
+              <p className="mt-1 text-sm text-gray-400">
+                All invoices created for this customer.
+              </p>
+
+            </div>
+
+          </div>
+
+          <span className="rounded-full bg-blue-500/20 px-4 py-2 text-sm font-semibold text-blue-400">
+            {invoices.length} Invoice
+            {invoices.length !== 1
+              ? "s"
+              : ""}
+          </span>
+
+        </div>
+
+        {loadingInvoices ? (
+
+          <div className="rounded-xl bg-[#202020] p-8 text-center text-gray-400">
+            Loading Invoice History...
+          </div>
+
+        ) : invoices.length === 0 ? (
+
+          <div className="rounded-xl bg-[#202020] p-8 text-center text-gray-400">
+            No Invoice History Found
+          </div>
+
+        ) : (
+
+          <div className="space-y-4">
+
+            {invoices.map((invoice) => (
+
+              <div
+                key={invoice.id || invoice.invoiceNo}
+                className="rounded-xl border border-transparent bg-[#202020] p-5"
+              >
+
+                <div className="flex flex-col gap-4 md:flex-row md:items-center md:justify-between">
+
+                  <div>
+
+                    <div className="flex flex-wrap items-center gap-3">
+
+                      <h3 className="font-semibold text-white">
+                        {invoice.invoiceNo}
+                      </h3>
+
+                      <span className="rounded-full bg-green-500/20 px-3 py-1 text-xs font-semibold text-green-400">
+                        {invoice.paymentMethod}
+                      </span>
+
+                    </div>
+
+                    <p className="mt-2 text-sm text-gray-400">
+                      Date:{" "}
+                      {formatDate(
+                        invoice.createdAt
+                      )}
+                    </p>
+
+                    {invoice.repairId && (
+                      <p className="mt-1 text-sm text-yellow-400">
+                        Repair ID:{" "}
+                        {invoice.repairId}
+                      </p>
+                    )}
+
+                    <p className="mt-3 text-sm text-gray-500">
+                      Items:{" "}
+                      {invoice.items?.length || 0}
+                    </p>
+
+                  </div>
+
+                  <div className="text-right">
+
+                    <p className="text-xs uppercase tracking-wide text-gray-500">
+                      Grand Total
+                    </p>
+
+                    <p className="mt-1 text-2xl font-bold text-green-400">
+                      {formatCurrency(
+                        invoice.grandTotal
                       )}
                     </p>
 
@@ -690,34 +850,9 @@ export default function CustomerProfile({
 
       </div>
 
-      {/* ==========================
-          Invoice History
-      ========================== */}
-
-      <div className="rounded-3xl border border-yellow-500/20 bg-[#181818] p-8">
-
-        <div className="mb-6 flex items-center gap-3">
-
-          <Receipt
-            size={24}
-            className="text-yellow-400"
-          />
-
-          <h2 className="text-2xl font-bold text-white">
-            Invoice History
-          </h2>
-
-        </div>
-
-        <div className="rounded-xl bg-[#202020] p-6 text-center text-gray-400">
-          Invoice Module Coming Soon
-        </div>
-
-      </div>
-
-      {/* ==========================
-          Customer Notes
-      ========================== */}
+      {/* ==========================================
+          Notes
+      ========================================== */}
 
       <div className="rounded-3xl border border-yellow-500/20 bg-[#181818] p-8">
 
@@ -728,16 +863,17 @@ export default function CustomerProfile({
         <div className="rounded-xl bg-[#202020] p-5">
 
           <p className="leading-7 text-gray-300">
-            {customer.notes || "No notes available."}
+            {customer.notes ||
+              "No notes available."}
           </p>
 
         </div>
 
       </div>
 
-      {/* ==========================
+      {/* ==========================================
           Activity Timeline
-      ========================== */}
+      ========================================== */}
 
       <div className="rounded-3xl border border-yellow-500/20 bg-[#181818] p-8">
 
@@ -791,9 +927,9 @@ export default function CustomerProfile({
 
       </div>
 
-      {/* ==========================
+      {/* ==========================================
           Quick Actions
-      ========================== */}
+      ========================================== */}
 
       <div className="rounded-3xl border border-yellow-500/20 bg-[#181818] p-8">
 
@@ -805,37 +941,47 @@ export default function CustomerProfile({
 
           <button
             type="button"
-            className="rounded-xl bg-yellow-400 px-6 py-3 font-semibold text-black"
+            onClick={handlePrintInvoice}
+            className="flex items-center gap-2 rounded-xl bg-yellow-400 px-6 py-3 font-semibold text-black hover:bg-yellow-300"
           >
-            🧾 Print Invoice
+            <Printer size={18} />
+            Print Invoice
           </button>
 
           <button
             type="button"
-            className="rounded-xl bg-blue-600 px-6 py-3 font-semibold text-white"
+            onClick={handlePrintJobCard}
+            className="flex items-center gap-2 rounded-xl bg-blue-600 px-6 py-3 font-semibold text-white hover:bg-blue-500"
           >
-            📄 Print Job Card
+            <Printer size={18} />
+            Print Job Card
           </button>
 
           <a
             href={`https://wa.me/91${customer.mobile}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="rounded-xl bg-green-600 px-6 py-3 font-semibold text-white"
+            className="flex items-center gap-2 rounded-xl bg-green-600 px-6 py-3 font-semibold text-white hover:bg-green-500"
           >
-            💬 WhatsApp
+            <MessageCircle size={18} />
+            WhatsApp
           </a>
 
           <a
             href={`tel:${customer.mobile}`}
-            className="rounded-xl bg-purple-600 px-6 py-3 font-semibold text-white"
+            className="flex items-center gap-2 rounded-xl bg-purple-600 px-6 py-3 font-semibold text-white hover:bg-purple-500"
           >
-            📞 Call
+            <Phone size={18} />
+            Call
           </a>
 
         </div>
 
       </div>
+
+      {/* ==========================================
+          Repair Modal
+      ========================================== */}
 
       <AddRepairModal
         open={openRepairModal}
@@ -846,14 +992,16 @@ export default function CustomerProfile({
         }}
         onSuccess={() => {
           loadRepairs();
+          loadInvoices();
+
           setOpenRepairModal(false);
           setSelectedRepair(null);
         }}
       />
 
-      {/* ==========================
+      {/* ==========================================
           Customer Statistics
-      ========================== */}
+      ========================================== */}
 
       <div className="grid gap-6 md:grid-cols-3">
 
@@ -865,16 +1013,16 @@ export default function CustomerProfile({
 
           <p className="mt-4 text-3xl font-bold text-yellow-400">
 
-            {customer.totalRepairs >= 10
+            {repairs.length >= 10
               ? "Gold"
-              : customer.totalRepairs >= 5
+              : repairs.length >= 5
               ? "Silver"
               : "Regular"}
 
           </p>
 
           <p className="mt-2 text-sm text-gray-500">
-            {customer.totalRepairs} Repairs Completed
+            {repairs.length} Repairs Completed
           </p>
 
         </div>
@@ -892,11 +1040,9 @@ export default function CustomerProfile({
                 : "text-green-400"
             }`}
           >
-
             {customer.pendingAmount > 0
               ? "Pending"
               : "Clear"}
-
           </p>
 
           <p className="mt-2 text-sm text-gray-500">
@@ -925,9 +1071,9 @@ export default function CustomerProfile({
 
       </div>
 
-      {/* ==========================
+      {/* ==========================================
           Footer
-      ========================== */}
+      ========================================== */}
 
       <div className="border-t border-yellow-500/20 pt-8 text-center">
 
@@ -938,6 +1084,33 @@ export default function CustomerProfile({
       </div>
 
     </div>
+  );
+}
 
+// ==========================================
+// Date Formatter
+// ==========================================
+
+function formatDate(
+  value?: string
+) {
+  if (!value) {
+    return "Not available";
+  }
+
+  const date =
+    new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  return date.toLocaleDateString(
+    "en-IN",
+    {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }
   );
 }
