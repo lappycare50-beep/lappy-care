@@ -88,7 +88,11 @@ export default function CustomerProfile({
   useEffect(() => {
     loadRepairs();
     loadInvoices();
-  }, [customer.id, customer.customerId, customer.mobile]);
+  }, [
+    customer.id,
+    customer.customerId,
+    customer.mobile,
+  ]);
 
   // ==========================================
   // Load Repairs
@@ -98,14 +102,20 @@ export default function CustomerProfile({
     try {
       setLoadingRepairs(true);
 
-      if (!customer.customerId) {
+      if (
+        !customer.customerId &&
+        !customer.id &&
+        !customer.mobile
+      ) {
         setRepairs([]);
         return;
       }
 
       const data =
         await getRepairsByCustomerId(
-          customer.customerId
+          customer.customerId,
+          customer.id,
+          customer.mobile
         );
 
       setRepairs(data);
@@ -280,6 +290,7 @@ export default function CustomerProfile({
         router.push(
           `/admin/invoices/${invoice.id}`
         );
+
         return;
       }
     }
@@ -299,6 +310,7 @@ export default function CustomerProfile({
         router.push(
           `/admin/repairs/${repair.id}`
         );
+
         return;
       }
     }
@@ -313,9 +325,9 @@ export default function CustomerProfile({
   function formatCurrency(
     amount: number
   ) {
-    return `₹${Number(amount || 0).toLocaleString(
-      "en-IN"
-    )}`;
+    return `₹${Number(
+      amount || 0
+    ).toLocaleString("en-IN")}`;
   }
 
   // ==========================================
@@ -339,7 +351,8 @@ export default function CustomerProfile({
             </h1>
 
             <p className="mt-2 text-gray-400">
-              Customer ID : {customer.customerId}
+              Customer ID :{" "}
+              {customer.customerId}
             </p>
           </div>
 
@@ -382,7 +395,7 @@ export default function CustomerProfile({
             />
 
             <span className="text-white">
-              {customer.address || "-"}
+              {customer.address || ""}
 
               {customer.city
                 ? `, ${customer.city}`
@@ -395,6 +408,13 @@ export default function CustomerProfile({
               {customer.pincode
                 ? ` - ${customer.pincode}`
                 : ""}
+
+              {!customer.address &&
+              !customer.city &&
+              !customer.state &&
+              !customer.pincode
+                ? "-"
+                : ""}
             </span>
           </div>
 
@@ -406,17 +426,20 @@ export default function CustomerProfile({
 
           <a
             href={`tel:${customer.mobile}`}
-            className="flex items-center gap-2 rounded-xl bg-green-600 px-5 py-3 font-semibold text-white"
+            className="flex items-center gap-2 rounded-xl bg-green-600 px-5 py-3 font-semibold text-white hover:bg-green-500"
           >
             <Phone size={18} />
             Call
           </a>
 
           <a
-            href={`https://wa.me/91${customer.mobile}`}
+            href={`https://wa.me/91${customer.mobile.replace(
+              /\D/g,
+              ""
+            )}`}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 font-semibold text-white"
+            className="flex items-center gap-2 rounded-xl bg-emerald-600 px-5 py-3 font-semibold text-white hover:bg-emerald-500"
           >
             <MessageCircle size={18} />
             WhatsApp
@@ -513,7 +536,7 @@ export default function CustomerProfile({
                   href={qrUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center gap-2 rounded-xl bg-yellow-400 px-5 py-3 font-semibold text-black"
+                  className="flex items-center gap-2 rounded-xl bg-yellow-400 px-5 py-3 font-semibold text-black hover:bg-yellow-300"
                 >
                   <ExternalLink size={18} />
                   Open Profile
@@ -522,7 +545,7 @@ export default function CustomerProfile({
                 <button
                   type="button"
                   onClick={handleDownloadQr}
-                  className="flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white"
+                  className="flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-3 font-semibold text-white hover:bg-blue-500"
                 >
                   <Download size={18} />
                   Download QR
@@ -531,9 +554,10 @@ export default function CustomerProfile({
                 <button
                   type="button"
                   onClick={handleCopyUrl}
-                  className="flex items-center gap-2 rounded-xl bg-gray-700 px-5 py-3 font-semibold text-white"
+                  className="flex items-center gap-2 rounded-xl bg-gray-700 px-5 py-3 font-semibold text-white hover:bg-gray-600"
                 >
                   <Copy size={18} />
+
                   {copied
                     ? "Copied"
                     : "Copy URL"}
@@ -544,6 +568,7 @@ export default function CustomerProfile({
             </div>
 
           </div>
+
         )}
 
         {qrError && (
@@ -561,6 +586,7 @@ export default function CustomerProfile({
       <div className="grid gap-6 md:grid-cols-4">
 
         <div className="rounded-2xl bg-[#181818] p-6">
+
           <Wrench
             className="mb-3 text-yellow-400"
             size={26}
@@ -573,9 +599,11 @@ export default function CustomerProfile({
           <h2 className="mt-2 text-3xl font-bold text-white">
             {repairs.length}
           </h2>
+
         </div>
 
         <div className="rounded-2xl bg-[#181818] p-6">
+
           <Receipt
             className="mb-3 text-blue-400"
             size={26}
@@ -588,9 +616,11 @@ export default function CustomerProfile({
           <h2 className="mt-2 text-3xl font-bold text-white">
             {invoices.length}
           </h2>
+
         </div>
 
         <div className="rounded-2xl bg-[#181818] p-6">
+
           <Receipt
             className="mb-3 text-green-400"
             size={26}
@@ -605,9 +635,11 @@ export default function CustomerProfile({
               customer.totalSpent
             )}
           </h2>
+
         </div>
 
         <div className="rounded-2xl bg-[#181818] p-6">
+
           <Receipt
             className="mb-3 text-red-400"
             size={26}
@@ -622,6 +654,7 @@ export default function CustomerProfile({
               customer.pendingAmount
             )}
           </h2>
+
         </div>
 
       </div>
@@ -672,9 +705,14 @@ export default function CustomerProfile({
             {repairs.map((repair) => (
 
               <div
-                key={repair.id || repair.repairId}
+                key={
+                  repair.id ||
+                  repair.repairId
+                }
                 onClick={() =>
-                  handleOpenRepair(repair)
+                  handleOpenRepair(
+                    repair
+                  )
                 }
                 className="cursor-pointer rounded-xl border border-transparent bg-[#202020] p-5 transition hover:border-yellow-400"
               >
@@ -688,13 +726,16 @@ export default function CustomerProfile({
                     </h3>
 
                     <p className="mt-1 text-gray-400">
-                      {repair.device?.brand || ""}
+                      {repair.device?.brand ||
+                        ""}
                       {" "}
-                      {repair.device?.model || ""}
+                      {repair.device?.model ||
+                        ""}
                     </p>
 
                     <p className="mt-2 text-sm text-gray-500">
-                      {repair.problem?.complaint || "-"}
+                      {repair.problem?.complaint ||
+                        "-"}
                     </p>
 
                   </div>
@@ -708,8 +749,11 @@ export default function CustomerProfile({
                     <p className="mt-3 text-sm text-gray-500">
                       ₹
                       {Number(
-                        repair.estimate?.totalAmount || 0
-                      ).toLocaleString("en-IN")}
+                        repair.estimate?.totalAmount ||
+                          0
+                      ).toLocaleString(
+                        "en-IN"
+                      )}
                     </p>
 
                   </div>
@@ -783,7 +827,10 @@ export default function CustomerProfile({
             {invoices.map((invoice) => (
 
               <div
-                key={invoice.id || invoice.invoiceNo}
+                key={
+                  invoice.id ||
+                  invoice.invoiceNo
+                }
                 className="rounded-xl border border-transparent bg-[#202020] p-5"
               >
 
@@ -819,7 +866,8 @@ export default function CustomerProfile({
 
                     <p className="mt-3 text-sm text-gray-500">
                       Items:{" "}
-                      {invoice.items?.length || 0}
+                      {invoice.items?.length ||
+                        0}
                     </p>
 
                   </div>
@@ -896,7 +944,9 @@ export default function CustomerProfile({
               <p className="text-sm text-gray-400">
                 {new Date(
                   customer.createdAt
-                ).toLocaleString("en-IN")}
+                ).toLocaleString(
+                  "en-IN"
+                )}
               </p>
 
             </div>
@@ -916,7 +966,9 @@ export default function CustomerProfile({
               <p className="text-sm text-gray-400">
                 {new Date(
                   customer.updatedAt
-                ).toLocaleString("en-IN")}
+                ).toLocaleString(
+                  "en-IN"
+                )}
               </p>
 
             </div>
@@ -958,7 +1010,10 @@ export default function CustomerProfile({
           </button>
 
           <a
-            href={`https://wa.me/91${customer.mobile}`}
+            href={`https://wa.me/91${customer.mobile.replace(
+              /\D/g,
+              ""
+            )}`}
             target="_blank"
             rel="noopener noreferrer"
             className="flex items-center gap-2 rounded-xl bg-green-600 px-6 py-3 font-semibold text-white hover:bg-green-500"
@@ -1101,7 +1156,11 @@ function formatDate(
   const date =
     new Date(value);
 
-  if (Number.isNaN(date.getTime())) {
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
     return value;
   }
 

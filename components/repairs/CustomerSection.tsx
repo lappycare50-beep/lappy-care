@@ -9,6 +9,10 @@ import {
   findCustomerByMobile,
 } from "@/services/customerService";
 
+import {
+  getRepairsByCustomerId,
+} from "@/services/repairService";
+
 type Props = {
   customer: RepairCustomer;
   setCustomer: (
@@ -20,20 +24,22 @@ export default function CustomerSection({
   customer,
   setCustomer,
 }: Props) {
-
   const [loading, setLoading] =
     useState(false);
 
   const [
     existingCustomer,
     setExistingCustomer,
-  ] = useState<Customer | null>(
-    null
-  );
+  ] = useState<Customer | null>(null);
 
-  // ==========================
+  const [
+    repairCount,
+    setRepairCount,
+  ] = useState(0);
+
+  // ==========================================
   // Update Customer
-  // ==========================
+  // ==========================================
 
   function update<
     K extends keyof RepairCustomer
@@ -41,43 +47,64 @@ export default function CustomerSection({
     key: K,
     value: RepairCustomer[K]
   ) {
-
     setCustomer({
-
       ...customer,
-
       [key]: value,
-
     });
-
   }
 
-  // ==========================
+  // ==========================================
+  // Load Actual Repair Count
+  // ==========================================
+
+  async function loadActualRepairCount(
+    found: Customer
+  ) {
+    try {
+      const repairs =
+        await getRepairsByCustomerId(
+          found.customerId,
+          found.id,
+          found.mobile
+        );
+
+      setRepairCount(
+        repairs.length
+      );
+    } catch (error) {
+      console.error(
+        "Unable to load customer repair count:",
+        error
+      );
+
+      setRepairCount(
+        Number(
+          found.totalRepairs || 0
+        )
+      );
+    }
+  }
+
+  // ==========================================
   // Auto Lookup
-  // ==========================
+  // ==========================================
 
   useEffect(() => {
-
     const mobile =
       customer.mobile.replace(
         /\D/g,
         ""
       );
 
-    // Reset if not valid
     if (mobile.length !== 10) {
-
       setExistingCustomer(null);
-
+      setRepairCount(0);
       return;
-
     }
 
     const timer =
       setTimeout(async () => {
-
         try {
-
           setLoading(true);
 
           const found =
@@ -86,21 +113,18 @@ export default function CustomerSection({
             );
 
           if (!found) {
-
-            setExistingCustomer(
-              null
-            );
-
+            setExistingCustomer(null);
+            setRepairCount(0);
             return;
-
           }
 
-          setExistingCustomer(
+          setExistingCustomer(found);
+
+          await loadActualRepairCount(
             found
           );
 
           setCustomer({
-
             ...customer,
 
             customerId:
@@ -129,72 +153,73 @@ export default function CustomerSection({
 
             pincode:
               found.pincode,
-
           });
-
         } catch (error) {
-
-          console.error(error);
-
+          console.error(
+            "Customer lookup error:",
+            error
+          );
         } finally {
-
           setLoading(false);
-
         }
-
       }, 500);
 
     return () =>
       clearTimeout(timer);
-
   }, [customer.mobile]);
 
-  return (
+  // ==========================================
+  // Refresh Count
+  // ==========================================
 
+  useEffect(() => {
+    if (!existingCustomer) {
+      return;
+    }
+
+    loadActualRepairCount(
+      existingCustomer
+    );
+  }, [existingCustomer]);
+
+  return (
     <div className="rounded-2xl border border-yellow-500/20 bg-[#181818] p-6">
 
       <h2 className="mb-6 text-2xl font-bold text-white">
         Customer Details
       </h2>
-            {/* Existing Customer Status */}
+
+      {/* Existing Customer */}
 
       {loading && (
-
         <div className="mb-6 rounded-xl border border-blue-500/20 bg-blue-500/10 p-4">
-
           <p className="text-sm font-medium text-blue-400">
             🔄 Searching Customer...
           </p>
-
         </div>
-
       )}
 
       {!loading && existingCustomer && (
-
         <div className="mb-6 rounded-xl border border-green-500/20 bg-green-500/10 p-5">
 
-          <div className="flex items-center justify-between">
+          <div>
 
-            <div>
+            <h3 className="text-lg font-bold text-green-400">
+              ✅ Existing Customer Found
+            </h3>
 
-              <h3 className="text-lg font-bold text-green-400">
-                ✅ Existing Customer Found
-              </h3>
-
-              <p className="mt-1 text-sm text-gray-300">
-                Customer ID :
-                {" "}
-                <span className="font-semibold text-white">
-                  {existingCustomer.customerId}
-                </span>
-              </p>
-
-            </div>
+            <p className="mt-1 text-sm text-gray-300">
+              Customer ID :{" "}
+              <span className="font-semibold text-white">
+                {existingCustomer.customerId}
+              </span>
+            </p>
 
           </div>
 
           <div className="mt-5 grid gap-4 md:grid-cols-4">
+
+            {/* Repairs */}
 
             <div className="rounded-xl bg-black p-4">
 
@@ -203,10 +228,12 @@ export default function CustomerSection({
               </p>
 
               <h4 className="mt-2 text-2xl font-bold text-yellow-400">
-                {existingCustomer.totalRepairs}
+                {repairCount}
               </h4>
 
             </div>
+
+            {/* Invoices */}
 
             <div className="rounded-xl bg-black p-4">
 
@@ -215,10 +242,15 @@ export default function CustomerSection({
               </p>
 
               <h4 className="mt-2 text-2xl font-bold text-yellow-400">
-                {existingCustomer.totalInvoices}
+                {Number(
+                  existingCustomer.totalInvoices ||
+                    0
+                )}
               </h4>
 
             </div>
+
+            {/* Total Spent */}
 
             <div className="rounded-xl bg-black p-4">
 
@@ -227,10 +259,18 @@ export default function CustomerSection({
               </p>
 
               <h4 className="mt-2 text-2xl font-bold text-green-400">
-                ₹ {existingCustomer.totalSpent}
+                ₹{" "}
+                {Number(
+                  existingCustomer.totalSpent ||
+                    0
+                ).toLocaleString(
+                  "en-IN"
+                )}
               </h4>
 
             </div>
+
+            {/* Pending */}
 
             <div className="rounded-xl bg-black p-4">
 
@@ -239,7 +279,13 @@ export default function CustomerSection({
               </p>
 
               <h4 className="mt-2 text-2xl font-bold text-red-400">
-                ₹ {existingCustomer.pendingAmount}
+                ₹{" "}
+                {Number(
+                  existingCustomer.pendingAmount ||
+                    0
+                ).toLocaleString(
+                  "en-IN"
+                )}
               </h4>
 
             </div>
@@ -247,15 +293,15 @@ export default function CustomerSection({
           </div>
 
         </div>
-
       )}
+
+      {/* Customer Fields */}
 
       <div className="grid gap-5 md:grid-cols-2">
 
         {/* Customer Name */}
 
         <div>
-
           <label className="mb-2 block text-sm text-gray-300">
             Customer Name *
           </label>
@@ -264,18 +310,19 @@ export default function CustomerSection({
             type="text"
             value={customer.name}
             onChange={(e) =>
-              update("name", e.target.value)
+              update(
+                "name",
+                e.target.value
+              )
             }
             placeholder="Customer Name"
             className="w-full rounded-xl border border-gray-700 bg-black p-4 text-white outline-none focus:border-yellow-400"
           />
-
         </div>
 
         {/* Mobile */}
 
         <div>
-
           <label className="mb-2 block text-sm text-gray-300">
             Mobile Number *
           </label>
@@ -287,19 +334,20 @@ export default function CustomerSection({
             onChange={(e) =>
               update(
                 "mobile",
-                e.target.value.replace(/\D/g, "")
+                e.target.value.replace(
+                  /\D/g,
+                  ""
+                )
               )
             }
             placeholder="9876543210"
             className="w-full rounded-xl border border-gray-700 bg-black p-4 text-white outline-none focus:border-yellow-400"
           />
-
         </div>
 
         {/* Alternate Mobile */}
 
         <div>
-
           <label className="mb-2 block text-sm text-gray-300">
             Alternate Mobile
           </label>
@@ -307,49 +355,59 @@ export default function CustomerSection({
           <input
             type="text"
             maxLength={10}
-            value={customer.alternateMobile ?? ""}
+            value={
+              customer.alternateMobile ??
+              ""
+            }
             onChange={(e) =>
               update(
                 "alternateMobile",
-                e.target.value.replace(/\D/g, "")
+                e.target.value.replace(
+                  /\D/g,
+                  ""
+                )
               )
             }
             placeholder="Alternate Mobile"
             className="w-full rounded-xl border border-gray-700 bg-black p-4 text-white outline-none focus:border-yellow-400"
           />
-
         </div>
 
         {/* Email */}
 
         <div>
-
           <label className="mb-2 block text-sm text-gray-300">
             Email
           </label>
 
           <input
             type="email"
-            value={customer.email ?? ""}
+            value={
+              customer.email ?? ""
+            }
             onChange={(e) =>
-              update("email", e.target.value)
+              update(
+                "email",
+                e.target.value
+              )
             }
             placeholder="example@email.com"
             className="w-full rounded-xl border border-gray-700 bg-black p-4 text-white outline-none focus:border-yellow-400"
           />
-
         </div>
-                {/* Address */}
+
+        {/* Address */}
 
         <div className="md:col-span-2">
-
           <label className="mb-2 block text-sm text-gray-300">
             Address
           </label>
 
           <textarea
             rows={3}
-            value={customer.address ?? ""}
+            value={
+              customer.address ?? ""
+            }
             onChange={(e) =>
               update(
                 "address",
@@ -359,20 +417,20 @@ export default function CustomerSection({
             placeholder="Customer Address"
             className="w-full resize-none rounded-xl border border-gray-700 bg-black p-4 text-white outline-none focus:border-yellow-400"
           />
-
         </div>
 
         {/* City */}
 
         <div>
-
           <label className="mb-2 block text-sm text-gray-300">
             City
           </label>
 
           <input
             type="text"
-            value={customer.city ?? ""}
+            value={
+              customer.city ?? ""
+            }
             onChange={(e) =>
               update(
                 "city",
@@ -382,20 +440,20 @@ export default function CustomerSection({
             placeholder="Pune"
             className="w-full rounded-xl border border-gray-700 bg-black p-4 text-white outline-none focus:border-yellow-400"
           />
-
         </div>
 
         {/* State */}
 
         <div>
-
           <label className="mb-2 block text-sm text-gray-300">
             State
           </label>
 
           <input
             type="text"
-            value={customer.state ?? ""}
+            value={
+              customer.state ?? ""
+            }
             onChange={(e) =>
               update(
                 "state",
@@ -405,13 +463,11 @@ export default function CustomerSection({
             placeholder="Maharashtra"
             className="w-full rounded-xl border border-gray-700 bg-black p-4 text-white outline-none focus:border-yellow-400"
           />
-
         </div>
 
         {/* Pincode */}
 
         <div>
-
           <label className="mb-2 block text-sm text-gray-300">
             Pincode
           </label>
@@ -419,17 +475,21 @@ export default function CustomerSection({
           <input
             type="text"
             maxLength={6}
-            value={customer.pincode ?? ""}
+            value={
+              customer.pincode ?? ""
+            }
             onChange={(e) =>
               update(
                 "pincode",
-                e.target.value.replace(/\D/g, "")
+                e.target.value.replace(
+                  /\D/g,
+                  ""
+                )
               )
             }
             placeholder="411057"
             className="w-full rounded-xl border border-gray-700 bg-black p-4 text-white outline-none focus:border-yellow-400"
           />
-
         </div>
 
       </div>
@@ -447,11 +507,9 @@ export default function CustomerSection({
             </p>
 
             <h3 className="text-lg font-bold text-white">
-
               {existingCustomer
                 ? "Existing Customer"
                 : "New Customer"}
-
             </h3>
 
           </div>
@@ -469,11 +527,9 @@ export default function CustomerSection({
                   : "text-yellow-400"
               }`}
             >
-
               {existingCustomer
                 ? "Active"
                 : "Ready to Create"}
-
             </h3>
 
           </div>
@@ -483,7 +539,5 @@ export default function CustomerSection({
       </div>
 
     </div>
-
   );
-
 }

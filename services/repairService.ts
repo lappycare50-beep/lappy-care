@@ -40,7 +40,11 @@ export async function getRepairs(): Promise<Repair[]> {
       ...(document.data() as Omit<Repair, "id">),
     }));
   } catch (error) {
-    console.error("Error getting repairs:", error);
+    console.error(
+      "Error getting repairs:",
+      error
+    );
+
     return [];
   }
 }
@@ -66,7 +70,11 @@ export async function getRepairById(
       ...(snapshot.data() as Omit<Repair, "id">),
     };
   } catch (error) {
-    console.error("Error getting repair:", error);
+    console.error(
+      "Error getting repair:",
+      error
+    );
+
     return null;
   }
 }
@@ -88,7 +96,11 @@ export async function addRepair(
 
     return repairRef;
   } catch (error) {
-    console.error("Error adding repair:", error);
+    console.error(
+      "Error adding repair:",
+      error
+    );
+
     throw error;
   }
 }
@@ -109,7 +121,11 @@ export async function updateRepair(
       data
     );
   } catch (error) {
-    console.error("Error updating repair:", error);
+    console.error(
+      "Error updating repair:",
+      error
+    );
+
     throw error;
   }
 }
@@ -126,7 +142,11 @@ export async function deleteRepair(
       doc(db, COLLECTION, id)
     );
   } catch (error) {
-    console.error("Error deleting repair:", error);
+    console.error(
+      "Error deleting repair:",
+      error
+    );
+
     throw error;
   }
 }
@@ -249,30 +269,114 @@ export async function searchRepairs(
 }
 
 // ==========================================
-// Get Repairs By Customer ID
+// Get Repairs By Customer
+//
+// Supports:
+// 1. Customer Business ID
+// 2. Firestore Customer Document ID
+// 3. Customer Mobile Number
 // ==========================================
 
 export async function getRepairsByCustomerId(
-  customerId: string
+  customerId: string,
+  customerDocId?: string,
+  mobile?: string
 ): Promise<Repair[]> {
   try {
-    const q = query(
-      collection(db, COLLECTION),
-      where(
-        "customer.customerId",
-        "==",
-        customerId
-      ),
-      orderBy("createdAt", "desc"),
-      limit(50)
+    const snapshot = await getDocs(
+      collection(db, COLLECTION)
     );
 
-    const snapshot = await getDocs(q);
+    // ------------------------------------------
+    // Accepted Customer IDs
+    // ------------------------------------------
 
-    return snapshot.docs.map((document) => ({
-      id: document.id,
-      ...(document.data() as Omit<Repair, "id">),
-    }));
+    const customerIds = new Set(
+      [
+        customerId,
+        customerDocId,
+      ]
+        .filter(Boolean)
+        .map((value) =>
+          value!.trim()
+        )
+    );
+
+    // ------------------------------------------
+    // Normalized Mobile
+    // ------------------------------------------
+
+    const normalizedMobile =
+      mobile?.replace(/\D/g, "") || "";
+
+    // ------------------------------------------
+    // Convert Firestore Documents
+    // ------------------------------------------
+
+    const allRepairs =
+      snapshot.docs.map((document) => ({
+        id: document.id,
+        ...(document.data() as Omit<
+          Repair,
+          "id"
+        >),
+      }));
+
+    // ------------------------------------------
+    // Filter Matching Repairs
+    // ------------------------------------------
+
+    const matchedRepairs =
+      allRepairs.filter((repair) => {
+        const repairCustomerId =
+          repair.customer?.customerId
+            ?.trim() || "";
+
+        const repairMobile =
+          repair.customer?.mobile
+            ?.replace(/\D/g, "") || "";
+
+        // Match Customer ID
+        if (
+          repairCustomerId &&
+          customerIds.has(
+            repairCustomerId
+          )
+        ) {
+          return true;
+        }
+
+        // Match Mobile Number
+        if (
+          normalizedMobile &&
+          repairMobile ===
+            normalizedMobile
+        ) {
+          return true;
+        }
+
+        return false;
+      });
+
+    // ------------------------------------------
+    // Sort Latest First
+    // ------------------------------------------
+
+    matchedRepairs.sort((a, b) => {
+      const dateA =
+        String(a.createdAt || "");
+
+      const dateB =
+        String(b.createdAt || "");
+
+      return dateB.localeCompare(dateA);
+    });
+
+    // ------------------------------------------
+    // Limit
+    // ------------------------------------------
+
+    return matchedRepairs.slice(0, 50);
   } catch (error) {
     console.error(
       "Error getting customer repairs:",
@@ -307,11 +411,15 @@ export async function getRepairByRepairId(
       return null;
     }
 
-    const document = snapshot.docs[0];
+    const document =
+      snapshot.docs[0];
 
     return {
       id: document.id,
-      ...(document.data() as Omit<Repair, "id">),
+      ...(document.data() as Omit<
+        Repair,
+        "id"
+      >),
     };
   } catch (error) {
     console.error(

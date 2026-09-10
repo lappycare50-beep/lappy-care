@@ -1,9 +1,10 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import {
   Repair,
+  RepairStatus,
 } from "@/types/repair";
 
 import CustomerSection from "./CustomerSection";
@@ -20,8 +21,6 @@ import {
   updateRepair,
 } from "@/services/repairService";
 
-
-
 import { generateId } from "@/services/idGenerator";
 
 import { syncCustomer } from "@/services/customerService";
@@ -32,7 +31,6 @@ type Props = {
 };
 
 const defaultRepair: Repair = {
-
   repairId: "",
 
   customer: {
@@ -108,7 +106,6 @@ export default function RepairForm({
   editRepair,
   onSuccess,
 }: Props) {
-
   const [repair, setRepair] =
     useState<Repair>(defaultRepair);
 
@@ -116,17 +113,23 @@ export default function RepairForm({
     useState(false);
 
   // ==========================================
+  // Original Status Tracking
+  // ==========================================
+
+  const originalStatusRef =
+    useRef<RepairStatus | null>(null);
+
+  const statusChangedRef =
+    useRef(false);
+
+  // ==========================================
   // Load Edit Repair
   // ==========================================
 
   useEffect(() => {
-
     if (editRepair) {
-
       setRepair({
-
         ...defaultRepair,
-
         ...editRepair,
 
         customer: {
@@ -153,70 +156,265 @@ export default function RepairForm({
           ...defaultRepair.estimate,
           ...editRepair.estimate,
         },
-
       });
 
-    } else {
+      originalStatusRef.current =
+        editRepair.status;
 
+      statusChangedRef.current =
+        false;
+    } else {
       setRepair(defaultRepair);
 
-    }
+      originalStatusRef.current =
+        null;
 
+      statusChangedRef.current =
+        false;
+    }
   }, [editRepair]);
-    // ==========================================
+
+  // ==========================================
   // Validation
   // ==========================================
 
   function validateRepair() {
+    if (!repair.customer.name.trim()) {
+      alert("Customer Name is required.");
+      return false;
+    }
 
-  if (!repair.customer.name.trim()) {
-    alert("Customer Name is required.");
-    return false;
+    const mobile =
+      repair.customer.mobile.trim();
+
+    if (!mobile) {
+      alert("Mobile Number is required.");
+      return false;
+    }
+
+    if (!/^\d{10}$/.test(mobile)) {
+      alert(
+        "Please enter a valid 10-digit mobile number."
+      );
+      return false;
+    }
+
+    if (!repair.device.brand.trim()) {
+      alert("Device Brand is required.");
+      return false;
+    }
+
+    if (!repair.device.model.trim()) {
+      alert("Device Model is required.");
+      return false;
+    }
+
+    if (!repair.problem.complaint.trim()) {
+      alert(
+        "Customer Complaint is required."
+      );
+      return false;
+    }
+
+    return true;
   }
 
-  const mobile = repair.customer.mobile.trim();
+  // ==========================================
+  // WhatsApp Status Message
+  // ==========================================
 
-  if (!mobile) {
-    alert("Mobile Number is required.");
-    return false;
+  async function sendStatusWhatsApp(
+    repairData: Repair,
+    newStatus: string
+  ) {
+    // ------------------------------------------
+    // Mobile
+    // ------------------------------------------
+
+    const mobile =
+      repairData.customer.mobile
+        ?.replace(/\D/g, "");
+
+    if (!mobile) {
+      console.warn(
+        "WhatsApp skipped: customer mobile number is missing."
+      );
+
+      return {
+        sent: false,
+        error:
+          "Customer mobile number is missing.",
+      };
+    }
+
+    const whatsappNumber =
+      mobile.length === 10
+        ? `91${mobile}`
+        : mobile;
+
+    // ------------------------------------------
+    // Customer
+    // ------------------------------------------
+
+    const customerName =
+      repairData.customer.name?.trim() ||
+      "Customer";
+
+    // ------------------------------------------
+    // Repair ID
+    // ------------------------------------------
+
+    const repairId =
+      repairData.repairId?.trim() ||
+      "-";
+
+    // ------------------------------------------
+    // Device
+    // ------------------------------------------
+
+    const deviceName = [
+      repairData.device.brand?.trim(),
+      repairData.device.model?.trim(),
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+    // ------------------------------------------
+    // Message
+    // ------------------------------------------
+
+    const message = `Hello ${customerName},
+
+Your Lappy Care repair status has been updated.
+
+🆔 Repair ID: ${repairId}
+
+💻 Device: ${
+      deviceName || "Laptop"
+    }
+
+🔧 New Status: ${newStatus}
+
+Thank you for choosing Lappy Care.
+
+📞 95950 57006`;
+
+    try {
+      console.log(
+        "SENDING REPAIR STATUS WHATSAPP",
+        {
+          to: whatsappNumber,
+          repairId,
+          newStatus,
+        }
+      );
+
+      const response =
+        await fetch(
+          "/api/whatsapp/send",
+          {
+            method: "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body: JSON.stringify({
+              to: whatsappNumber,
+              message,
+            }),
+          }
+        );
+
+      let data: any = null;
+
+      try {
+        data =
+          await response.json();
+      } catch {
+        data = null;
+      }
+
+      console.log(
+        "REPAIR STATUS WHATSAPP RESPONSE",
+        {
+          httpStatus:
+            response.status,
+
+          ok:
+            response.ok,
+
+          data,
+        }
+      );
+
+      // ------------------------------------------
+      // API Failure
+      // ------------------------------------------
+
+      if (
+        !response.ok ||
+        !data?.success
+      ) {
+        console.error(
+          "WhatsApp message failed:",
+          {
+            status:
+              response.status,
+
+            data,
+          }
+        );
+
+        return {
+          sent: false,
+
+          error:
+            data?.error ||
+            "WhatsApp message failed.",
+        };
+      }
+
+      // ------------------------------------------
+      // Success
+      // ------------------------------------------
+
+      return {
+        sent: true,
+      };
+    } catch (error) {
+      console.error(
+        "WhatsApp message error:",
+        error
+      );
+
+      return {
+        sent: false,
+
+        error:
+          error instanceof Error
+            ? error.message
+            : "WhatsApp message failed.",
+      };
+    }
   }
-
-  if (!/^\d{10}$/.test(mobile)) {
-    alert("Please enter a valid 10-digit mobile number.");
-    return false;
-  }
-
-  if (!repair.device.brand.trim()) {
-    alert("Device Brand is required.");
-    return false;
-  }
-
-  if (!repair.device.model.trim()) {
-    alert("Device Model is required.");
-    return false;
-  }
-
-  if (!repair.problem.complaint.trim()) {
-    alert("Customer Complaint is required.");
-    return false;
-  }
-
-  return true;
-}
 
   // ==========================================
   // Save Repair
   // ==========================================
 
   async function handleSave() {
-
-    if (!validateRepair()) return;
+    if (!validateRepair()) {
+      return;
+    }
 
     try {
-
       setLoading(true);
 
+      // ==========================================
       // Recalculate Estimate
+      // ==========================================
 
       const totalAmount =
         repair.estimate.labourCharge +
@@ -226,75 +424,136 @@ export default function RepairForm({
       const balanceAmount =
         Math.max(
           totalAmount -
-          repair.estimate.advancePaid,
+            repair.estimate.advancePaid,
           0
         );
 
       const repairData: Repair = {
-
         ...repair,
 
         estimate: {
-
           ...repair.estimate,
 
           totalAmount,
 
           balanceAmount,
-
         },
 
         updatedAt:
           new Date().toISOString(),
-
       };
 
-      // ==========================
-      // Update
-      // ==========================
+      // ==========================================
+      // UPDATE EXISTING REPAIR
+      // ==========================================
 
       if (editRepair?.id) {
+        const originalStatus =
+          originalStatusRef.current;
+
+        const newStatus =
+          repairData.status;
+
+        const statusWasChanged =
+          statusChangedRef.current;
+
+        const shouldSendWhatsApp =
+          statusWasChanged &&
+          originalStatus !==
+            newStatus;
+
+        console.log(
+          "REPAIR UPDATE STATUS CHECK",
+          {
+            originalStatus,
+
+            newStatus,
+
+            statusWasChanged,
+
+            shouldSendWhatsApp,
+          }
+        );
+
+        // ------------------------------------------
+        // Save Repair
+        // ------------------------------------------
 
         await updateRepair(
           editRepair.id,
           repairData
         );
 
-        alert(
-          "Repair Updated Successfully."
-        );
+        // ------------------------------------------
+        // WhatsApp
+        // ------------------------------------------
+
+        if (
+          shouldSendWhatsApp
+        ) {
+          const whatsappResult =
+            await sendStatusWhatsApp(
+              repairData,
+              newStatus
+            );
+
+          if (
+            whatsappResult.sent
+          ) {
+            alert(
+              "Repair Updated Successfully.\n\nWhatsApp status message sent successfully."
+            );
+          } else {
+            console.error(
+              "WhatsApp failed:",
+              whatsappResult.error
+            );
+
+            alert(
+              "Repair Updated Successfully.\n\nWhatsApp status message could not be sent."
+            );
+          }
+        } else {
+          alert(
+            "Repair Updated Successfully."
+          );
+        }
+
+        // ------------------------------------------
+        // Reset Tracking
+        // ------------------------------------------
+
+        originalStatusRef.current =
+          newStatus;
+
+        statusChangedRef.current =
+          false;
 
         onSuccess?.();
 
         return;
-
       }
 
-      // ==========================
-      // Generate Repair ID
-      // ==========================
+      // ==========================================
+      // NEW REPAIR
+      // ==========================================
 
-      const repairId = await generateId("repair");
-
-      // ==========================
-      // New Repair
-      // ==========================
+      const repairId =
+        await generateId(
+          "repair"
+        );
 
       const newRepair: Repair = {
-
         ...repairData,
 
         repairId,
 
-        createdAt:
-          new Date()
-            .toISOString()
-            .split("T")[0],
+        createdAt: new Date()
+          .toISOString()
+          .split("T")[0],
 
         timeline: [
-
           {
-
             status: "Received",
 
             note:
@@ -302,65 +561,128 @@ export default function RepairForm({
 
             createdAt:
               new Date().toISOString(),
-
           },
-
         ],
-
       };
+
       // ==========================================
-// Sync Customer
-// ==========================================
+      // Sync Customer
+      // ==========================================
 
-const customerDocId = await syncCustomer({
-  name: repair.customer.name,
-  mobile: repair.customer.mobile,
-  alternateMobile: repair.customer.alternateMobile,
-  email: repair.customer.email,
-  address: repair.customer.address,
-  city: repair.customer.city,
-  state: repair.customer.state,
-  pincode: repair.customer.pincode,
-  repairId,
-});
+      const customerDocId =
+        await syncCustomer({
+          name:
+            repair.customer.name,
 
-// Save Customer Firestore Document ID in Repair
-newRepair.customer.customerId = customerDocId;
+          mobile:
+            repair.customer.mobile,
 
-      await addRepair(newRepair);
+          alternateMobile:
+            repair.customer
+              .alternateMobile,
 
-      alert(
-        "Repair Saved Successfully."
+          email:
+            repair.customer.email,
+
+          address:
+            repair.customer.address,
+
+          city:
+            repair.customer.city,
+
+          state:
+            repair.customer.state,
+
+          pincode:
+            repair.customer.pincode,
+
+          repairId,
+        });
+
+      // ------------------------------------------
+      // Save Customer ID
+      // ------------------------------------------
+
+      newRepair.customer.customerId =
+        customerDocId;
+
+      // ==========================================
+      // Save New Repair
+      // ==========================================
+
+      await addRepair(
+        newRepair
       );
 
-      setRepair(defaultRepair);
+      // ==========================================
+      // SEND WHATSAPP FOR NEW REPAIR
+      // ==========================================
+
+      const whatsappResult =
+        await sendStatusWhatsApp(
+          newRepair,
+          "Received"
+        );
+
+      // ==========================================
+      // New Repair Feedback
+      // ==========================================
+
+      if (
+        whatsappResult.sent
+      ) {
+        alert(
+          "Repair Saved Successfully.\n\nWhatsApp status message sent successfully."
+        );
+      } else {
+        console.error(
+          "New repair WhatsApp failed:",
+          whatsappResult.error
+        );
+
+        alert(
+          "Repair Saved Successfully.\n\nWhatsApp status message could not be sent."
+        );
+      }
+
+      // ==========================================
+      // Reset Form
+      // ==========================================
+
+      setRepair(
+        defaultRepair
+      );
+
+      originalStatusRef.current =
+        null;
+
+      statusChangedRef.current =
+        false;
 
       onSuccess?.();
-
     } catch (error) {
-
-      console.error(error);
+      console.error(
+        "Repair save error:",
+        error
+      );
 
       alert(
         "Failed to save repair."
       );
-
     } finally {
-
       setLoading(false);
-
     }
-
   }
-    // ==========================================
+
+  // ==========================================
   // JSX
   // ==========================================
 
   return (
-
     <form
       onSubmit={(e) => {
         e.preventDefault();
+
         handleSave();
       }}
       className="space-y-6"
@@ -399,8 +721,12 @@ newRepair.customer.customerId = customerDocId;
       ========================== */}
 
       <AccessoriesSection
-        accessories={repair.accessories}
-        setAccessories={(accessories) =>
+        accessories={
+          repair.accessories
+        }
+        setAccessories={(
+          accessories
+        ) =>
           setRepair((prev) => ({
             ...prev,
             accessories,
@@ -449,38 +775,56 @@ newRepair.customer.customerId = customerDocId;
           }))
         }
       />
-            {/* ==========================
+
+      {/* ==========================
           Status
       ========================== */}
 
       <StatusSection
         status={repair.status}
-        setStatus={(status) =>
+
+        setStatus={(status) => {
+          statusChangedRef.current =
+            true;
+
           setRepair((prev) => ({
             ...prev,
             status,
-          }))
+          }));
+        }}
+
+        warranty={
+          repair.warranty
         }
-        warranty={repair.warranty}
+
         setWarranty={(warranty) =>
           setRepair((prev) => ({
             ...prev,
             warranty,
           }))
         }
-        createdAt={repair.createdAt}
+
+        createdAt={
+          repair.createdAt
+        }
+
         setCreatedAt={(createdAt) =>
           setRepair((prev) => ({
             ...prev,
             createdAt,
           }))
         }
-        deliveredAt={repair.deliveredAt ?? ""}
-        setDeliveredAt={(deliveredAt) =>
-          setRepair((prev) => ({
-            ...prev,
-            deliveredAt,
-          }))
+
+        deliveredAt={
+          repair.deliveredAt ?? ""
+        }
+
+        setDeliveredAt={
+          (deliveredAt) =>
+            setRepair((prev) => ({
+              ...prev,
+              deliveredAt,
+            }))
         }
       />
 
@@ -489,7 +833,9 @@ newRepair.customer.customerId = customerDocId;
       ========================== */}
 
       <NotesSection
-        remarks={repair.remarks}
+        remarks={
+          repair.remarks
+        }
         setRemarks={(remarks) =>
           setRepair((prev) => ({
             ...prev,
@@ -507,7 +853,17 @@ newRepair.customer.customerId = customerDocId;
         <button
           type="button"
           disabled={loading}
-          onClick={() => setRepair(defaultRepair)}
+          onClick={() => {
+            setRepair(
+              defaultRepair
+            );
+
+            originalStatusRef.current =
+              null;
+
+            statusChangedRef.current =
+              false;
+          }}
           className="rounded-xl border border-gray-600 px-6 py-3 font-semibold text-gray-300 transition hover:border-gray-500 hover:bg-[#202020] disabled:cursor-not-allowed disabled:opacity-60"
         >
           Reset
@@ -528,7 +884,5 @@ newRepair.customer.customerId = customerDocId;
       </div>
 
     </form>
-
   );
-
 }
