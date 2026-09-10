@@ -12,6 +12,7 @@ import {
   Megaphone,
   Share2,
   MessageSquare,
+  MessageCircle,
   BarChart3,
   Settings,
 } from "lucide-react";
@@ -57,6 +58,11 @@ const menu: SidebarItem[] = [
     title: "Reviews",
     href: "/admin/marketing/reviews",
     icon: MessageSquare,
+  },
+  {
+    title: "WhatsApp",
+    href: "/admin/marketing/whatsapp",
+    icon: MessageCircle,
   },
   {
     title: "Analytics",
