@@ -220,17 +220,313 @@ export default function RepairForm({
   }
 
   // ==========================================
-  // WhatsApp Status Message
+  // Professional WhatsApp Message
+  // ==========================================
+
+  function buildStatusWhatsAppMessage(
+    repairData: Repair,
+    newStatus: RepairStatus
+  ) {
+    const customerName =
+      repairData.customer.name?.trim() ||
+      "Customer";
+
+    const repairId =
+      repairData.repairId?.trim() ||
+      "-";
+
+    const deviceName = [
+      repairData.device.brand?.trim(),
+      repairData.device.model?.trim(),
+    ]
+      .filter(Boolean)
+      .join(" ");
+
+    switch (newStatus) {
+      // ========================================
+      // RECEIVED
+      // ========================================
+
+      case "Received":
+        return `Hello ${customerName},
+
+Greetings from Lappy Care! 👋
+
+We have received your laptop for repair.
+
+🔹 Repair ID: ${repairId}
+🔹 Device: ${
+          deviceName || "Laptop"
+        }
+
+📌 Status: Repair Received
+
+Our technician will diagnose the device and keep you informed about the next update.
+
+Thank you for choosing Lappy Care.
+
+📞 95950 57006
+
+Regards,
+Lappy Care
+Laptop Repair & Service`;
+
+      // ========================================
+      // DIAGNOSING
+      // ========================================
+
+      case "Diagnosing":
+        return `Hello ${customerName},
+
+Greetings from Lappy Care! 👋
+
+Your laptop is currently under diagnosis.
+
+🔹 Repair ID: ${repairId}
+🔹 Device: ${
+          deviceName || "Laptop"
+        }
+
+📌 Status: Diagnosis in Progress
+
+Our technician is checking the device to identify the issue. We will update you once the diagnosis is completed.
+
+Thank you for your patience.
+
+📞 95950 57006
+
+Regards,
+Lappy Care
+Laptop Repair & Service`;
+
+      // ========================================
+      // WAITING APPROVAL
+      // ========================================
+
+      case "Waiting Approval":
+        return `Hello ${customerName},
+
+Greetings from Lappy Care! 👋
+
+Your laptop diagnosis has been completed and the repair is awaiting your approval.
+
+🔹 Repair ID: ${repairId}
+🔹 Device: ${
+          deviceName || "Laptop"
+        }
+
+📌 Status: Waiting for Approval
+
+Please confirm your approval so that we can proceed with the repair work.
+
+Thank you for choosing Lappy Care.
+
+📞 95950 57006
+
+Regards,
+Lappy Care
+Laptop Repair & Service`;
+
+      // ========================================
+      // WAITING PARTS
+      // ========================================
+
+      case "Waiting Parts":
+        return `Hello ${customerName},
+
+Greetings from Lappy Care! 👋
+
+Your laptop repair is currently waiting for the required parts.
+
+🔹 Repair ID: ${repairId}
+🔹 Device: ${
+          deviceName || "Laptop"
+        }
+
+📌 Status: Waiting for Parts
+
+We are arranging the required parts and will continue the repair as soon as they are available.
+
+Thank you for your patience and understanding.
+
+📞 95950 57006
+
+Regards,
+Lappy Care
+Laptop Repair & Service`;
+
+      // ========================================
+      // REPAIRING
+      // ========================================
+
+      case "Repairing":
+        return `Hello ${customerName},
+
+Greetings from Lappy Care! 👋
+
+Repair work on your laptop is currently in progress.
+
+🔹 Repair ID: ${repairId}
+🔹 Device: ${
+          deviceName || "Laptop"
+        }
+
+📌 Status: Repair in Progress
+
+Our technician is working on the required repairs. We will keep you updated on further progress.
+
+Thank you for choosing Lappy Care.
+
+📞 95950 57006
+
+Regards,
+Lappy Care
+Laptop Repair & Service`;
+
+      // ========================================
+      // TESTING
+      // ========================================
+
+      case "Testing":
+        return `Hello ${customerName},
+
+Greetings from Lappy Care! 👋
+
+The repair work on your laptop has been completed and the device is now undergoing final testing.
+
+🔹 Repair ID: ${repairId}
+🔹 Device: ${
+          deviceName || "Laptop"
+        }
+
+📌 Status: Final Testing
+
+We are checking the device to ensure everything is functioning properly before delivery.
+
+Thank you for your patience.
+
+📞 95950 57006
+
+Regards,
+Lappy Care
+Laptop Repair & Service`;
+
+      // ========================================
+      // READY
+      // ========================================
+
+      case "Ready":
+        return `Hello ${customerName},
+
+Greetings from Lappy Care! 👋
+
+Your laptop repair has been completed successfully.
+
+🔹 Repair ID: ${repairId}
+🔹 Device: ${
+          deviceName || "Laptop"
+        }
+
+✅ Status: Ready for Pickup
+
+Your repaired laptop is now ready for collection from Lappy Care.
+
+Thank you for trusting us with your device.
+
+📞 95950 57006
+
+Regards,
+Lappy Care
+Laptop Repair & Service`;
+
+      // ========================================
+      // DELIVERED
+      // ========================================
+
+      case "Delivered":
+        return `Hello ${customerName},
+
+Greetings from Lappy Care! 👋
+
+Your repaired laptop has been successfully delivered.
+
+🔹 Repair ID: ${repairId}
+🔹 Device: ${
+          deviceName || "Laptop"
+        }
+
+✅ Status: Delivered
+
+Thank you for choosing Lappy Care. We truly appreciate your trust in our service.
+
+📞 95950 57006
+
+Regards,
+Lappy Care
+Laptop Repair & Service`;
+
+      // ========================================
+      // CANCELLED
+      // ========================================
+
+      case "Cancelled":
+        return `Hello ${customerName},
+
+Greetings from Lappy Care.
+
+Your laptop repair request has been cancelled.
+
+🔹 Repair ID: ${repairId}
+🔹 Device: ${
+          deviceName || "Laptop"
+        }
+
+📌 Status: Repair Cancelled
+
+For any clarification or assistance, please contact us.
+
+📞 95950 57006
+
+Regards,
+Lappy Care
+Laptop Repair & Service`;
+
+      // ========================================
+      // DEFAULT
+      // ========================================
+
+      default:
+        return `Hello ${customerName},
+
+Greetings from Lappy Care! 👋
+
+Here is an update regarding your laptop repair.
+
+🔹 Repair ID: ${repairId}
+🔹 Device: ${
+          deviceName || "Laptop"
+        }
+
+📌 Status: ${newStatus}
+
+Thank you for choosing Lappy Care.
+
+📞 95950 57006
+
+Regards,
+Lappy Care
+Laptop Repair & Service`;
+    }
+  }
+
+  // ==========================================
+  // Send WhatsApp Status Message
   // ==========================================
 
   async function sendStatusWhatsApp(
     repairData: Repair,
-    newStatus: string
+    newStatus: RepairStatus
   ) {
-    // ------------------------------------------
-    // Mobile
-    // ------------------------------------------
-
     const mobile =
       repairData.customer.mobile
         ?.replace(/\D/g, "");
@@ -252,59 +548,19 @@ export default function RepairForm({
         ? `91${mobile}`
         : mobile;
 
-    // ------------------------------------------
-    // Customer
-    // ------------------------------------------
-
-    const customerName =
-      repairData.customer.name?.trim() ||
-      "Customer";
-
-    // ------------------------------------------
-    // Repair ID
-    // ------------------------------------------
-
-    const repairId =
-      repairData.repairId?.trim() ||
-      "-";
-
-    // ------------------------------------------
-    // Device
-    // ------------------------------------------
-
-    const deviceName = [
-      repairData.device.brand?.trim(),
-      repairData.device.model?.trim(),
-    ]
-      .filter(Boolean)
-      .join(" ");
-
-    // ------------------------------------------
-    // Message
-    // ------------------------------------------
-
-    const message = `Hello ${customerName},
-
-Your Lappy Care repair status has been updated.
-
-🆔 Repair ID: ${repairId}
-
-💻 Device: ${
-      deviceName || "Laptop"
-    }
-
-🔧 New Status: ${newStatus}
-
-Thank you for choosing Lappy Care.
-
-📞 95950 57006`;
+    const message =
+      buildStatusWhatsAppMessage(
+        repairData,
+        newStatus
+      );
 
     try {
       console.log(
         "SENDING REPAIR STATUS WHATSAPP",
         {
           to: whatsappNumber,
-          repairId,
+          repairId:
+            repairData.repairId,
           newStatus,
         }
       );
@@ -349,36 +605,22 @@ Thank you for choosing Lappy Care.
         }
       );
 
-      // ------------------------------------------
-      // API Failure
-      // ------------------------------------------
-
       if (
         !response.ok ||
         !data?.success
       ) {
         console.error(
           "WhatsApp message failed:",
-          {
-            status:
-              response.status,
-
-            data,
-          }
+          data
         );
 
         return {
           sent: false,
-
           error:
             data?.error ||
             "WhatsApp message failed.",
         };
       }
-
-      // ------------------------------------------
-      // Success
-      // ------------------------------------------
 
       return {
         sent: true,
@@ -391,7 +633,6 @@ Thank you for choosing Lappy Care.
 
       return {
         sent: false,
-
         error:
           error instanceof Error
             ? error.message
@@ -417,14 +658,23 @@ Thank you for choosing Lappy Care.
       // ==========================================
 
       const totalAmount =
-        repair.estimate.labourCharge +
-        repair.estimate.partsCharge -
-        repair.estimate.discount;
+        Number(
+          repair.estimate.labourCharge || 0
+        ) +
+        Number(
+          repair.estimate.partsCharge || 0
+        ) -
+        Number(
+          repair.estimate.discount || 0
+        );
 
       const balanceAmount =
         Math.max(
           totalAmount -
-            repair.estimate.advancePaid,
+            Number(
+              repair.estimate.advancePaid ||
+                0
+            ),
           0
         );
 
@@ -448,8 +698,8 @@ Thank you for choosing Lappy Care.
       // ==========================================
 
       if (editRepair?.id) {
-        const originalStatus =
-          originalStatusRef.current;
+        const oldStatus =
+          editRepair.status;
 
         const newStatus =
           repairData.status;
@@ -459,18 +709,14 @@ Thank you for choosing Lappy Care.
 
         const shouldSendWhatsApp =
           statusWasChanged &&
-          originalStatus !==
-            newStatus;
+          oldStatus !== newStatus;
 
         console.log(
           "REPAIR UPDATE STATUS CHECK",
           {
-            originalStatus,
-
+            oldStatus,
             newStatus,
-
             statusWasChanged,
-
             shouldSendWhatsApp,
           }
         );
@@ -485,7 +731,7 @@ Thank you for choosing Lappy Care.
         );
 
         // ------------------------------------------
-        // WhatsApp
+        // Send WhatsApp
         // ------------------------------------------
 
         if (
@@ -519,10 +765,6 @@ Thank you for choosing Lappy Care.
           );
         }
 
-        // ------------------------------------------
-        // Reset Tracking
-        // ------------------------------------------
-
         originalStatusRef.current =
           newStatus;
 
@@ -548,9 +790,10 @@ Thank you for choosing Lappy Care.
 
         repairId,
 
-        createdAt: new Date()
-          .toISOString()
-          .split("T")[0],
+        createdAt:
+          new Date()
+            .toISOString()
+            .split("T")[0],
 
         timeline: [
           {
@@ -599,9 +842,9 @@ Thank you for choosing Lappy Care.
           repairId,
         });
 
-      // ------------------------------------------
-      // Save Customer ID
-      // ------------------------------------------
+      // ==========================================
+      // Save Customer Firestore ID
+      // ==========================================
 
       newRepair.customer.customerId =
         customerDocId;
@@ -615,7 +858,7 @@ Thank you for choosing Lappy Care.
       );
 
       // ==========================================
-      // SEND WHATSAPP FOR NEW REPAIR
+      // WhatsApp - New Repair
       // ==========================================
 
       const whatsappResult =
@@ -625,7 +868,7 @@ Thank you for choosing Lappy Care.
         );
 
       // ==========================================
-      // New Repair Feedback
+      // Feedback
       // ==========================================
 
       if (
@@ -682,15 +925,12 @@ Thank you for choosing Lappy Care.
     <form
       onSubmit={(e) => {
         e.preventDefault();
-
         handleSave();
       }}
       className="space-y-6"
     >
 
-      {/* ==========================
-          Customer
-      ========================== */}
+      {/* Customer */}
 
       <CustomerSection
         customer={repair.customer}
@@ -702,9 +942,7 @@ Thank you for choosing Lappy Care.
         }
       />
 
-      {/* ==========================
-          Device
-      ========================== */}
+      {/* Device */}
 
       <DeviceSection
         device={repair.device}
@@ -716,9 +954,7 @@ Thank you for choosing Lappy Care.
         }
       />
 
-      {/* ==========================
-          Accessories
-      ========================== */}
+      {/* Accessories */}
 
       <AccessoriesSection
         accessories={
@@ -734,9 +970,7 @@ Thank you for choosing Lappy Care.
         }
       />
 
-      {/* ==========================
-          Problem
-      ========================== */}
+      {/* Problem */}
 
       <ProblemSection
         problem={repair.problem}
@@ -748,9 +982,7 @@ Thank you for choosing Lappy Care.
         }
       />
 
-      {/* ==========================
-          Physical Condition
-      ========================== */}
+      {/* Physical Condition */}
 
       <ConditionSection
         problem={repair.problem}
@@ -762,9 +994,7 @@ Thank you for choosing Lappy Care.
         }
       />
 
-      {/* ==========================
-          Estimate
-      ========================== */}
+      {/* Estimate */}
 
       <EstimateSection
         estimate={repair.estimate}
@@ -776,13 +1006,10 @@ Thank you for choosing Lappy Care.
         }
       />
 
-      {/* ==========================
-          Status
-      ========================== */}
+      {/* Status */}
 
       <StatusSection
         status={repair.status}
-
         setStatus={(status) => {
           statusChangedRef.current =
             true;
@@ -792,33 +1019,23 @@ Thank you for choosing Lappy Care.
             status,
           }));
         }}
-
-        warranty={
-          repair.warranty
-        }
-
+        warranty={repair.warranty}
         setWarranty={(warranty) =>
           setRepair((prev) => ({
             ...prev,
             warranty,
           }))
         }
-
-        createdAt={
-          repair.createdAt
-        }
-
+        createdAt={repair.createdAt}
         setCreatedAt={(createdAt) =>
           setRepair((prev) => ({
             ...prev,
             createdAt,
           }))
         }
-
         deliveredAt={
           repair.deliveredAt ?? ""
         }
-
         setDeliveredAt={
           (deliveredAt) =>
             setRepair((prev) => ({
@@ -828,14 +1045,10 @@ Thank you for choosing Lappy Care.
         }
       />
 
-      {/* ==========================
-          Notes
-      ========================== */}
+      {/* Notes */}
 
       <NotesSection
-        remarks={
-          repair.remarks
-        }
+        remarks={repair.remarks}
         setRemarks={(remarks) =>
           setRepair((prev) => ({
             ...prev,
@@ -844,9 +1057,7 @@ Thank you for choosing Lappy Care.
         }
       />
 
-      {/* ==========================
-          Action Buttons
-      ========================== */}
+      {/* Action Buttons */}
 
       <div className="flex justify-end gap-4 pt-4">
 

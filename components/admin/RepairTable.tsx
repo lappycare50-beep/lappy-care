@@ -2,26 +2,30 @@
 
 import { useEffect, useMemo, useState } from "react";
 
-import { Repair, RepairStatus } from "@/types/repair";
-
 import Link from "next/link";
-
-import {
-  getRepairs,
-  deleteRepair,
-  updateRepair,
-} from "@/services/repairService";
 
 import {
   Eye,
   Pencil,
-  Trash2,
   Search,
+  Trash2,
 } from "lucide-react";
 
-// ==========================================
-// Status Options
-// ==========================================
+import {
+  deleteRepair,
+  getRepairs,
+  updateRepair,
+} from "@/services/repairService";
+
+import {
+  Repair,
+  RepairStatus,
+} from "@/types/repair";
+
+type Props = {
+  search: string;
+  onEdit: (repair: Repair) => void;
+};
 
 const STATUS_OPTIONS: RepairStatus[] = [
   "Received",
@@ -35,14 +39,386 @@ const STATUS_OPTIONS: RepairStatus[] = [
   "Cancelled",
 ];
 
+const GOOGLE_REVIEW_URL =
+  "https://g.page/r/CRCGvIT5hA6VEAE/review";
+
 // ==========================================
-// Component
+// Status Color
 // ==========================================
 
-type Props = {
-  search: string;
-  onEdit: (repair: Repair) => void;
-};
+function getStatusColor(
+  status: RepairStatus
+) {
+  switch (status) {
+    case "Received":
+      return "bg-blue-500 text-white";
+
+    case "Diagnosing":
+      return "bg-purple-500 text-white";
+
+    case "Waiting Approval":
+      return "bg-yellow-500 text-black";
+
+    case "Waiting Parts":
+      return "bg-orange-500 text-white";
+
+    case "Repairing":
+      return "bg-indigo-500 text-white";
+
+    case "Testing":
+      return "bg-cyan-500 text-black";
+
+    case "Ready":
+      return "bg-green-500 text-white";
+
+    case "Delivered":
+      return "bg-gray-500 text-white";
+
+    case "Cancelled":
+      return "bg-red-500 text-white";
+
+    default:
+      return "bg-gray-500 text-white";
+  }
+}
+
+// ==========================================
+// Professional WhatsApp Message
+// ==========================================
+
+function buildStatusWhatsAppMessage(
+  repair: Repair,
+  newStatus: RepairStatus
+) {
+  const customerName =
+    repair.customer?.name?.trim() ||
+    "Customer";
+
+  const repairId =
+    repair.repairId?.trim() ||
+    "-";
+
+  const deviceName = [
+    repair.device?.brand?.trim(),
+    repair.device?.model?.trim(),
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  switch (newStatus) {
+    case "Received":
+      return `Hello ${customerName},
+
+Greetings from Lappy Care.
+
+We have received your device for service.
+
+🔹 Repair ID: ${repairId}
+🔹 Device: ${deviceName || "Laptop"}
+
+📍 Current Update:
+Your device has been received successfully and is now in our service process.
+
+Our technician will inspect the device and we will keep you informed about the next update.
+
+Thank you for choosing Lappy Care.
+
+📞 95950 57006
+
+Regards,
+Lappy Care
+Laptop Repair & Service`;
+
+    case "Diagnosing":
+      return `Hello ${customerName},
+
+Greetings from Lappy Care.
+
+This is an update regarding your device repair.
+
+🔹 Repair ID: ${repairId}
+🔹 Device: ${deviceName || "Laptop"}
+
+📍 Current Update:
+Your device is currently being inspected by our technician.
+
+We are identifying the issue carefully and will keep you informed once the diagnosis is completed.
+
+Thank you for your patience.
+
+📞 95950 57006
+
+Regards,
+Lappy Care
+Laptop Repair & Service`;
+
+    case "Waiting Approval":
+      return `Hello ${customerName},
+
+Greetings from Lappy Care.
+
+This is an update regarding your device repair.
+
+🔹 Repair ID: ${repairId}
+🔹 Device: ${deviceName || "Laptop"}
+
+📍 Current Update:
+The diagnosis of your device has been completed and your approval is required before we proceed.
+
+Please confirm your approval so that we can continue with the repair.
+
+Thank you for choosing Lappy Care.
+
+📞 95950 57006
+
+Regards,
+Lappy Care
+Laptop Repair & Service`;
+
+    case "Waiting Parts":
+      return `Hello ${customerName},
+
+Greetings from Lappy Care.
+
+This is an update regarding your device repair.
+
+🔹 Repair ID: ${repairId}
+🔹 Device: ${deviceName || "Laptop"}
+
+📍 Current Update:
+Your device is currently awaiting the required replacement part.
+
+Our team is arranging the necessary part and the repair will proceed as soon as it is available.
+
+We will keep you informed of the next update.
+
+Thank you for your patience and understanding.
+
+📞 95950 57006
+
+Regards,
+Lappy Care
+Laptop Repair & Service`;
+
+    case "Repairing":
+      return `Hello ${customerName},
+
+Greetings from Lappy Care.
+
+This is an update regarding your device repair.
+
+🔹 Repair ID: ${repairId}
+🔹 Device: ${deviceName || "Laptop"}
+
+📍 Current Update:
+Repair work on your device is currently in progress.
+
+Our technician is working on the required repairs and we will keep you informed about further progress.
+
+Thank you for choosing Lappy Care.
+
+📞 95950 57006
+
+Regards,
+Lappy Care
+Laptop Repair & Service`;
+
+    case "Testing":
+      return `Hello ${customerName},
+
+Greetings from Lappy Care.
+
+Good news! The repair work on your device has been completed and it is now undergoing final testing.
+
+🔹 Repair ID: ${repairId}
+🔹 Device: ${deviceName || "Laptop"}
+
+📍 Current Update:
+Our team is checking the device to ensure everything is functioning properly before handover.
+
+Thank you for your patience.
+
+📞 95950 57006
+
+Regards,
+Lappy Care
+Laptop Repair & Service`;
+
+    case "Ready":
+      return `Hello ${customerName},
+
+Greetings from Lappy Care.
+
+Good news! Your device repair has been completed successfully.
+
+🔹 Repair ID: ${repairId}
+🔹 Device: ${deviceName || "Laptop"}
+
+✅ Current Update:
+Your device is ready for pickup.
+
+You may collect your device from Lappy Care at your convenience.
+
+Thank you for trusting Lappy Care with your device.
+
+📞 95950 57006
+
+Regards,
+Lappy Care
+Laptop Repair & Service`;
+
+    case "Delivered":
+      return `Hello ${customerName},
+
+Greetings from Lappy Care.
+
+Your device has been successfully delivered.
+
+🔹 Repair ID: ${repairId}
+🔹 Device: ${deviceName || "Laptop"}
+
+✅ Current Update:
+Repair completed and device delivered successfully.
+
+We hope you are happy with our service and the experience you had with Lappy Care.
+
+If you have a moment, we would truly appreciate your feedback on Google. Your review helps us improve our service and helps other customers discover Lappy Care.
+
+⭐ Share your experience:
+${GOOGLE_REVIEW_URL}
+
+Thank you for trusting Lappy Care with your device.
+
+📞 95950 57006
+
+Regards,
+Lappy Care
+Laptop Repair & Service`;
+
+    case "Cancelled":
+      return `Hello ${customerName},
+
+Greetings from Lappy Care.
+
+This is an update regarding your device repair.
+
+🔹 Repair ID: ${repairId}
+🔹 Device: ${deviceName || "Laptop"}
+
+📍 Current Update:
+Your repair request has been cancelled.
+
+For any clarification or further assistance, please contact our team.
+
+📞 95950 57006
+
+Regards,
+Lappy Care
+Laptop Repair & Service`;
+
+    default:
+      return `Hello ${customerName},
+
+Greetings from Lappy Care.
+
+This is an update regarding your device repair.
+
+🔹 Repair ID: ${repairId}
+🔹 Device: ${deviceName || "Laptop"}
+
+📍 Current Update:
+Your device status has been updated to ${newStatus}.
+
+Thank you for choosing Lappy Care.
+
+📞 95950 57006
+
+Regards,
+Lappy Care
+Laptop Repair & Service`;
+  }
+}
+
+// ==========================================
+// Send WhatsApp
+// ==========================================
+
+async function sendStatusWhatsApp(
+  repair: Repair,
+  newStatus: RepairStatus
+) {
+  const mobile =
+    repair.customer?.mobile?.replace(
+      /\D/g,
+      ""
+    );
+
+  if (!mobile) {
+    throw new Error(
+      "Customer mobile number is missing."
+    );
+  }
+
+  const whatsappNumber =
+    mobile.length === 10
+      ? `91${mobile}`
+      : mobile;
+
+  const message =
+    buildStatusWhatsAppMessage(
+      repair,
+      newStatus
+    );
+
+  const response = await fetch(
+    "/api/whatsapp/send",
+    {
+      method: "POST",
+
+      headers: {
+        "Content-Type":
+          "application/json",
+      },
+
+      body: JSON.stringify({
+        to: whatsappNumber,
+        message,
+      }),
+    }
+  );
+
+  let data: any = null;
+
+  try {
+    data = await response.json();
+  } catch {
+    data = null;
+  }
+
+  console.log(
+    "Repair Status WhatsApp Response:",
+    {
+      status: response.status,
+      data,
+    }
+  );
+
+  if (
+    !response.ok ||
+    !data?.success
+  ) {
+    throw new Error(
+      data?.error ||
+        "WhatsApp message failed."
+    );
+  }
+
+  return data;
+}
+
+// ==========================================
+// Repair Table
+// ==========================================
 
 export default function RepairTable({
   search,
@@ -57,7 +433,9 @@ export default function RepairTable({
   const [
     updatingRepairId,
     setUpdatingRepairId,
-  ] = useState<string | null>(null);
+  ] = useState<string | null>(
+    null
+  );
 
   // ==========================================
   // Load Repairs
@@ -72,7 +450,10 @@ export default function RepairTable({
 
       setRepairs(data);
     } catch (error) {
-      console.error(error);
+      console.error(
+        "Load Repairs Error:",
+        error
+      );
 
       alert(
         "Failed to load repairs."
@@ -87,187 +468,43 @@ export default function RepairTable({
   }, []);
 
   // ==========================================
-  // Search Filter
+  // Search
   // ==========================================
 
   const filteredRepairs =
     useMemo(() => {
-      if (!search.trim()) {
+      const keyword =
+        search
+          .trim()
+          .toLowerCase();
+
+      if (!keyword) {
         return repairs;
       }
 
-      const keyword =
-        search
-          .toLowerCase()
-          .trim();
-
       return repairs.filter(
         (repair) =>
-          repair.repairId
+          (repair.repairId ?? "")
             .toLowerCase()
             .includes(keyword) ||
 
-          repair.customer.name
+          (repair.customer?.name ?? "")
             .toLowerCase()
             .includes(keyword) ||
 
-          repair.customer.mobile
+          (repair.customer?.mobile ?? "")
             .toLowerCase()
             .includes(keyword) ||
 
-          repair.device.brand
+          (repair.device?.brand ?? "")
             .toLowerCase()
             .includes(keyword) ||
 
-          repair.device.model
+          (repair.device?.model ?? "")
             .toLowerCase()
             .includes(keyword)
       );
     }, [repairs, search]);
-
-  // ==========================================
-  // Status Color
-  // ==========================================
-
-  function getStatusColor(
-    status: RepairStatus
-  ) {
-    switch (status) {
-      case "Received":
-        return "bg-blue-500";
-
-      case "Diagnosing":
-        return "bg-purple-500";
-
-      case "Waiting Approval":
-        return "bg-yellow-500 text-black";
-
-      case "Waiting Parts":
-        return "bg-orange-500";
-
-      case "Repairing":
-        return "bg-indigo-500";
-
-      case "Testing":
-        return "bg-cyan-500 text-black";
-
-      case "Ready":
-        return "bg-green-500";
-
-      case "Delivered":
-        return "bg-gray-500";
-
-      case "Cancelled":
-        return "bg-red-500";
-
-      default:
-        return "bg-gray-500";
-    }
-  }
-
-  // ==========================================
-  // WhatsApp Status Message
-  // ==========================================
-
-  async function sendStatusWhatsApp(
-    repair: Repair,
-    newStatus: RepairStatus
-  ) {
-    const mobile =
-      repair.customer.mobile?.replace(
-        /\D/g,
-        ""
-      );
-
-    if (!mobile) {
-      throw new Error(
-        "Customer mobile number is missing."
-      );
-    }
-
-    const whatsappNumber =
-      mobile.length === 10
-        ? `91${mobile}`
-        : mobile;
-
-    const customerName =
-      repair.customer.name?.trim() ||
-      "Customer";
-
-    const repairId =
-      repair.repairId?.trim() ||
-      "-";
-
-    const deviceName = [
-      repair.device.brand?.trim(),
-      repair.device.model?.trim(),
-    ]
-      .filter(Boolean)
-      .join(" ");
-
-    const message = `Hello ${customerName},
-
-Your Lappy Care repair status has been updated.
-
-🆔 Repair ID: ${repairId}
-
-💻 Device: ${
-      deviceName || "Laptop"
-    }
-
-🔧 New Status: ${newStatus}
-
-Thank you for choosing Lappy Care.
-
-📞 95950 57006`;
-
-    const response =
-      await fetch(
-        "/api/whatsapp/send",
-        {
-          method: "POST",
-
-          headers: {
-            "Content-Type":
-              "application/json",
-          },
-
-          body: JSON.stringify({
-            to: whatsappNumber,
-            message,
-          }),
-        }
-      );
-
-    let data: any = null;
-
-    try {
-      data =
-        await response.json();
-    } catch {
-      data = null;
-    }
-
-    console.log(
-      "Repair table WhatsApp response:",
-      {
-        status: response.status,
-        data,
-      }
-    );
-
-    if (
-      !response.ok ||
-      !data?.success
-    ) {
-      throw new Error(
-        data?.error ||
-          "WhatsApp message failed."
-      );
-    }
-
-    return data;
-  }
 
   // ==========================================
   // Change Status
@@ -299,10 +536,6 @@ Thank you for choosing Lappy Care.
         repair.id
       );
 
-      // ==========================================
-      // Update Firestore
-      // ==========================================
-
       const updatedRepair:
         Repair = {
         ...repair,
@@ -314,13 +547,17 @@ Thank you for choosing Lappy Care.
           new Date().toISOString(),
       };
 
+      // ==========================================
+      // Save
+      // ==========================================
+
       await updateRepair(
         repair.id,
         updatedRepair
       );
 
       // ==========================================
-      // Update Local Table Immediately
+      // Immediate UI Update
       // ==========================================
 
       setRepairs((current) =>
@@ -332,7 +569,7 @@ Thank you for choosing Lappy Care.
       );
 
       // ==========================================
-      // Send WhatsApp
+      // WhatsApp
       // ==========================================
 
       let whatsappSent =
@@ -347,13 +584,13 @@ Thank you for choosing Lappy Care.
         whatsappSent = true;
       } catch (whatsappError) {
         console.error(
-          "WhatsApp status send failed:",
+          "Status WhatsApp Error:",
           whatsappError
         );
       }
 
       // ==========================================
-      // Final Refresh
+      // Refresh
       // ==========================================
 
       await loadRepairs();
@@ -373,7 +610,7 @@ Thank you for choosing Lappy Care.
       }
     } catch (error) {
       console.error(
-        "Repair status update error:",
+        "Repair Status Update Error:",
         error
       );
 
@@ -388,12 +625,20 @@ Thank you for choosing Lappy Care.
   }
 
   // ==========================================
-  // Delete Repair
+  // Delete
   // ==========================================
 
   async function handleDelete(
     repair: Repair
   ) {
+    if (!repair.id) {
+      alert(
+        "Invalid Repair ID."
+      );
+
+      return;
+    }
+
     const confirmDelete =
       window.confirm(
         `Delete Repair ${repair.repairId}?`
@@ -404,14 +649,6 @@ Thank you for choosing Lappy Care.
     }
 
     try {
-      if (!repair.id) {
-        alert(
-          "Invalid Repair ID"
-        );
-
-        return;
-      }
-
       await deleteRepair(
         repair.id
       );
@@ -422,7 +659,10 @@ Thank you for choosing Lappy Care.
 
       await loadRepairs();
     } catch (error) {
-      console.error(error);
+      console.error(
+        "Delete Repair Error:",
+        error
+      );
 
       alert(
         "Failed to delete repair."
@@ -431,15 +671,11 @@ Thank you for choosing Lappy Care.
   }
 
   // ==========================================
-  // JSX
+  // Render
   // ==========================================
 
   return (
     <div className="overflow-hidden rounded-2xl border border-yellow-500/20 bg-[#181818]">
-
-      {/* =====================================
-          Loading
-      ===================================== */}
 
       {loading && (
         <div className="flex items-center justify-center p-12">
@@ -448,10 +684,6 @@ Thank you for choosing Lappy Care.
           </div>
         </div>
       )}
-
-      {/* =====================================
-          Empty
-      ===================================== */}
 
       {!loading &&
         filteredRepairs.length === 0 && (
@@ -472,10 +704,6 @@ Thank you for choosing Lappy Care.
 
           </div>
         )}
-
-      {/* =====================================
-          Table
-      ===================================== */}
 
       {!loading &&
         filteredRepairs.length > 0 && (
@@ -619,10 +847,7 @@ Thank you for choosing Lappy Care.
                           </div>
 
                           <div className="mt-1 text-xs text-gray-500">
-
-                            Advance:
-                            {" "}
-                            ₹
+                            Advance: ₹
                             {Number(
                               repair.estimate
                                 ?.advancePaid ||
@@ -630,14 +855,11 @@ Thank you for choosing Lappy Care.
                             ).toLocaleString(
                               "en-IN"
                             )}
-
                           </div>
 
                         </td>
 
-                        {/* ==================================
-                            CLICKABLE STATUS
-                        ================================== */}
+                        {/* Status */}
 
                         <td className="px-6 py-4">
 
@@ -663,7 +885,6 @@ Thank you for choosing Lappy Care.
                               py-1.5
                               text-sm
                               font-semibold
-                              text-white
                               outline-none
                               transition
                               hover:brightness-110
@@ -697,15 +918,11 @@ Thank you for choosing Lappy Care.
 
                         </td>
 
-                        {/* ==================================
-                            Actions
-                        ================================== */}
+                        {/* Actions */}
 
                         <td className="px-6 py-4">
 
                           <div className="flex items-center justify-center gap-2">
-
-                            {/* View Job Card */}
 
                             <Link
                               href={`/admin/repairs/${repair.id}/job-card`}
@@ -714,8 +931,6 @@ Thank you for choosing Lappy Care.
                             >
                               <Eye size={18} />
                             </Link>
-
-                            {/* Edit */}
 
                             <button
                               type="button"
@@ -731,8 +946,6 @@ Thank you for choosing Lappy Care.
                                 size={18}
                               />
                             </button>
-
-                            {/* Delete */}
 
                             <button
                               type="button"
