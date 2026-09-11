@@ -12,47 +12,10 @@ import { db } from "@/lib/firebase";
 const COLLECTION = "counters";
 
 // ==========================================
-// Helper Functions
-// ==========================================
-
-export function generateRepairId() {
-  return generateId("repair");
-}
-
-export function generateCustomerId() {
-  return generateId("customer");
-}
-
-export function generateBookingId() {
-  return generateId("booking");
-}
-
-export function generateContactId() {
-  return generateId("contact");
-}
-
-export function generateInvoiceId() {
-  return generateId("invoice", "WKD", true);
-}
-
-export function generatePurchaseId() {
-  return generateId("purchase", "WKD", true);
-}
-
-export function generateVendorId() {
-  return generateId("vendor");
-}
-
-export function generateProductId() {
-  return generateId("product");
-}
-
-// ==========================================
 // Configuration
 // ==========================================
 
 const CONFIG = {
-
   repair: {
     prefix: "LC",
     digits: 6,
@@ -69,12 +32,7 @@ const CONFIG = {
   },
 
   contact: {
-  prefix: "CT",
-  digits: 6,
-},
-
-  invoice: {
-    prefix: "INV",
+    prefix: "CT",
     digits: 6,
   },
 
@@ -92,7 +50,6 @@ const CONFIG = {
     prefix: "PR",
     digits: 6,
   },
-
 } as const;
 
 export type CounterType =
@@ -102,74 +59,73 @@ export type CounterType =
 // Financial Year
 // ==========================================
 
-function getFinancialYear() {
-
+export function getFinancialYear(): string {
   const today = new Date();
 
-  const year = today.getFullYear();
+  const year =
+    today.getFullYear();
 
-  const month = today.getMonth() + 1;
+  const month =
+    today.getMonth() + 1;
 
   if (month >= 4) {
-
-    return `${String(year).slice(-2)}-${String(
+    return `${String(
+      year
+    ).slice(-2)}-${String(
       year + 1
     ).slice(-2)}`;
-
   }
 
-  return `${String(year - 1).slice(-2)}-${String(
+  return `${String(
+    year - 1
+  ).slice(-2)}-${String(
     year
   ).slice(-2)}`;
-
 }
 
 // ==========================================
-// Generate Generic ID
+// Generic Counter ID
 // ==========================================
 
 export async function generateId(
   type: CounterType,
-  branch = "WKD",
-  useFinancialYear = false
+  branch = "WKD"
 ): Promise<string> {
+  const config =
+    CONFIG[type];
 
-  const config = CONFIG[type];
-
-  const documentName =
-    useFinancialYear
-      ? `${type}_${getFinancialYear()}`
-      : type;
-
-  const counterRef = doc(
-    db,
-    COLLECTION,
-    documentName
-  );
+  const counterRef =
+    doc(
+      db,
+      COLLECTION,
+      type
+    );
 
   const nextNumber =
     await runTransaction(
       db,
       async (transaction) => {
-
         const snapshot =
-          await transaction.get(counterRef);
+          await transaction.get(
+            counterRef
+          );
 
-        let current = 0;
+        const current =
+          snapshot.exists()
+            ? Number(
+                snapshot.data()
+                  .current || 0
+              )
+            : 0;
 
-        if (snapshot.exists()) {
-
-          current =
-            snapshot.data().current ?? 0;
-
-        }
-
-        const next = current + 1;
+        const next =
+          current + 1;
 
         transaction.set(
           counterRef,
           {
             current: next,
+
             updatedAt:
               new Date().toISOString(),
           },
@@ -179,7 +135,6 @@ export async function generateId(
         );
 
         return next;
-
       }
     );
 
@@ -191,12 +146,51 @@ export async function generateId(
         "0"
       );
 
-  if (useFinancialYear) {
-
-    return `${branch}-${config.prefix}-${getFinancialYear()}-${number}`;
-
-  }
-
   return `${branch}-${config.prefix}${number}`;
+}
 
+// ==========================================
+// Generic IDs
+// ==========================================
+
+export function generateRepairId() {
+  return generateId(
+    "repair"
+  );
+}
+
+export function generateCustomerId() {
+  return generateId(
+    "customer"
+  );
+}
+
+export function generateBookingId() {
+  return generateId(
+    "booking"
+  );
+}
+
+export function generateContactId() {
+  return generateId(
+    "contact"
+  );
+}
+
+export function generatePurchaseId() {
+  return generateId(
+    "purchase"
+  );
+}
+
+export function generateVendorId() {
+  return generateId(
+    "vendor"
+  );
+}
+
+export function generateProductId() {
+  return generateId(
+    "product"
+  );
 }
