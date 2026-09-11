@@ -1,4 +1,5 @@
 import Sidebar from "@/components/admin/Sidebar";
+import ProtectedRoute from "@/components/auth/ProtectedRoute";
 
 export default function AdminLayout({
   children,
@@ -6,12 +7,14 @@ export default function AdminLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex min-h-screen bg-black text-white">
-      <Sidebar />
+    <ProtectedRoute>
+      <div className="flex min-h-screen bg-black text-white">
+        <Sidebar />
 
-      <main className="min-h-screen flex-1 overflow-y-auto">
-        {children}
-      </main>
-    </div>
+        <main className="min-h-screen flex-1 overflow-y-auto">
+          {children}
+        </main>
+      </div>
+    </ProtectedRoute>
   );
 }
