@@ -88,6 +88,7 @@ export interface RepairDevice {
 
 export interface RepairAccessories {
   items: string[];
+
   other: string;
 }
 
@@ -160,7 +161,6 @@ export interface RepairTimeline {
 // ==========================================
 
 export interface Repair {
-
   id?: string;
 
   repairId: string;
@@ -190,5 +190,4 @@ export interface Repair {
   deliveredAt?: string;
 
   timeline: RepairTimeline[];
-
 }

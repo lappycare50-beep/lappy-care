@@ -1,10 +1,16 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import {
+  useMemo,
+  useState,
+} from "react";
+
 import { useRouter } from "next/navigation";
 
 import { useRepairs } from "@/hooks/useRepairs";
-import { deleteRepair } from "@/services/repairService";
+import {
+  deleteRepair,
+} from "@/services/repairService";
 
 import {
   PaymentStatus,
@@ -19,112 +25,147 @@ import RepairTableRow from "./RepairTableRow";
 import RepairToolbar from "./RepairToolbar";
 
 export default function RepairTable() {
-  const router = useRouter();
+  const router =
+    useRouter();
 
   const {
     repairs,
     loading,
     error,
     refresh,
+    removeRepair,
   } = useRepairs();
 
   // ==========================================
   // Filters
   // ==========================================
 
-  const [search, setSearch] = useState("");
+  const [
+    search,
+    setSearch,
+  ] = useState("");
 
-  const [status, setStatus] =
-    useState<RepairStatus | "">("");
+  const [
+    status,
+    setStatus,
+  ] =
+    useState<
+      RepairStatus | ""
+    >("");
 
-  const [payment, setPayment] =
-    useState<PaymentStatus | "">("");
+  const [
+    payment,
+    setPayment,
+  ] =
+    useState<
+      PaymentStatus | ""
+    >("");
 
-  const [priority, setPriority] =
-    useState<Priority | "">("");
+  const [
+    priority,
+    setPriority,
+  ] =
+    useState<
+      Priority | ""
+    >("");
 
   // ==========================================
   // Filter Repairs
   // ==========================================
 
-  const filteredRepairs = useMemo(() => {
-    const keyword = search
-      .trim()
-      .toLowerCase();
+  const filteredRepairs =
+    useMemo(() => {
+      const keyword =
+        search
+          .trim()
+          .toLowerCase();
 
-    return repairs.filter((repair) => {
-      const matchesSearch =
-        repair.repairId
-          .toLowerCase()
-          .includes(keyword) ||
+      return repairs.filter(
+        (repair) => {
+          const matchesSearch =
+            !keyword ||
+            repair.repairId
+              .toLowerCase()
+              .includes(keyword) ||
+            repair.customer.name
+              .toLowerCase()
+              .includes(keyword) ||
+            repair.customer.mobile
+              .toLowerCase()
+              .includes(keyword) ||
+            repair.device.brand
+              .toLowerCase()
+              .includes(keyword) ||
+            repair.device.model
+              .toLowerCase()
+              .includes(keyword) ||
+            repair.problem.complaint
+              .toLowerCase()
+              .includes(keyword);
 
-        repair.customer.name
-          .toLowerCase()
-          .includes(keyword) ||
+          const matchesStatus =
+            !status ||
+            repair.status ===
+              status;
 
-        repair.customer.mobile
-          .toLowerCase()
-          .includes(keyword) ||
+          const matchesPayment =
+            !payment ||
+            repair.paymentStatus ===
+              payment;
 
-        repair.device.brand
-          .toLowerCase()
-          .includes(keyword) ||
+          const matchesPriority =
+            !priority ||
+            repair.estimate
+              .priority ===
+              priority;
 
-        repair.device.model
-          .toLowerCase()
-          .includes(keyword) ||
-
-        repair.problem.complaint
-          .toLowerCase()
-          .includes(keyword);
-
-      const matchesStatus =
-        !status ||
-        repair.status === status;
-
-      const matchesPayment =
-        !payment ||
-        repair.paymentStatus ===
-          payment;
-
-      const matchesPriority =
-        !priority ||
-        repair.estimate.priority ===
-          priority;
-
-      return (
-        matchesSearch &&
-        matchesStatus &&
-        matchesPayment &&
-        matchesPriority
+          return (
+            matchesSearch &&
+            matchesStatus &&
+            matchesPayment &&
+            matchesPriority
+          );
+        }
       );
-    });
-  }, [
-    repairs,
-    search,
-    status,
-    payment,
-    priority,
-  ]);
-    // ==========================================
+    }, [
+      repairs,
+      search,
+      status,
+      payment,
+      priority,
+    ]);
+
+  // ==========================================
   // Delete Repair
   // ==========================================
 
   async function handleDelete(
     repair: Repair
   ) {
-    if (!repair.id) return;
+    if (!repair.id) {
+      return;
+    }
 
-    const ok = window.confirm(
-      `Are you sure you want to delete ${repair.repairId}?`
-    );
+    const ok =
+      window.confirm(
+        `Are you sure you want to delete ${repair.repairId}?`
+      );
 
-    if (!ok) return;
+    if (!ok) {
+      return;
+    }
 
     try {
-      await deleteRepair(repair.id);
+      await deleteRepair(
+        repair.id
+      );
 
-      await refresh();
+      // Update the current UI locally.
+      // Do not reload the complete repairs
+      // collection after a successful delete.
+      removeRepair(
+        repair.id
+      );
     } catch (error) {
       console.error(
         "Delete Repair Error:",
@@ -142,7 +183,9 @@ export default function RepairTable() {
   // ==========================================
 
   if (loading) {
-    return <RepairLoading />;
+    return (
+      <RepairLoading />
+    );
   }
 
   // ==========================================
@@ -161,7 +204,12 @@ export default function RepairTable() {
         </p>
 
         <button
-          onClick={refresh}
+          type="button"
+          onClick={() =>
+            void refresh(
+              true
+            )
+          }
           className="mt-5 rounded-lg bg-red-500 px-4 py-2 text-sm font-semibold text-white transition hover:bg-red-600"
         >
           Retry
@@ -178,19 +226,35 @@ export default function RepairTable() {
     <>
       <RepairToolbar
         search={search}
-        onSearchChange={setSearch}
+        onSearchChange={
+          setSearch
+        }
         status={status}
-        onStatusChange={setStatus}
+        onStatusChange={
+          setStatus
+        }
         payment={payment}
-        onPaymentChange={setPayment}
+        onPaymentChange={
+          setPayment
+        }
         priority={priority}
-        onPriorityChange={setPriority}
-        onRefresh={refresh}
+        onPriorityChange={
+          setPriority
+        }
+        onRefresh={() =>
+          void refresh(
+            true
+          )
+        }
         onAddRepair={() =>
-          router.push("/admin/repairs/new")
+          router.push(
+            "/admin/repairs/new"
+          )
         }
       />
-            {filteredRepairs.length === 0 ? (
+
+      {filteredRepairs.length ===
+      0 ? (
         <RepairEmpty
           title="No Repairs Found"
           description="Try changing your search or filters."
@@ -240,30 +304,36 @@ export default function RepairTable() {
               </thead>
 
               <tbody>
-                                {filteredRepairs.map((repair) => (
-                  <RepairTableRow
-                    key={repair.id}
-                    repair={repair}
-                    onView={() =>
-                      router.push(
-                        `/admin/repairs/${repair.id}`
-                      )
-                    }
-                    onEdit={() =>
-                      router.push(
-                        `/admin/repairs/${repair.id}/edit`
-                      )
-                    }
-                    onPrint={() => {
-                      // TODO:
-                      // Replace with Job Card Print
-                      window.print();
-                    }}
-                    onDelete={() =>
-                      handleDelete(repair)
-                    }
-                  />
-                ))}
+                {filteredRepairs.map(
+                  (repair) => (
+                    <RepairTableRow
+                      key={
+                        repair.id
+                      }
+                      repair={
+                        repair
+                      }
+                      onView={() =>
+                        router.push(
+                          `/admin/repairs/${repair.id}`
+                        )
+                      }
+                      onEdit={() =>
+                        router.push(
+                          `/admin/repairs/${repair.id}/edit`
+                        )
+                      }
+                      onPrint={() => {
+                        window.print();
+                      }}
+                      onDelete={() =>
+                        void handleDelete(
+                          repair
+                        )
+                      }
+                    />
+                  )
+                )}
               </tbody>
             </table>
           </div>
@@ -272,4 +342,3 @@ export default function RepairTable() {
     </>
   );
 }
- 

@@ -10,6 +10,7 @@ import {
   Receipt,
   Users,
   Package,
+  ShoppingCart,
   Globe,
   BarChart3,
   Settings,
@@ -50,6 +51,11 @@ const menus = [
     icon: Package,
   },
   {
+    title: "Sales",
+    href: "/admin/sales",
+    icon: ShoppingCart,
+  },
+  {
     title: "Website Requests",
     href: "/admin/website-requests",
     icon: Globe,
@@ -68,13 +74,17 @@ const menus = [
 
 export default function Sidebar() {
   const router = useRouter();
-  const { logoutUser } = useAuth();
+
+  const { logoutUser } =
+    useAuth();
 
   async function handleLogout() {
     try {
       await logoutUser();
 
-      router.replace("/login");
+      router.replace(
+        "/login"
+      );
     } catch (error) {
       console.error(
         "Logout Error:",
@@ -89,6 +99,8 @@ export default function Sidebar() {
 
   return (
     <aside className="flex h-screen w-72 flex-col border-r border-yellow-500/20 bg-[#111111]">
+
+      {/* Header */}
 
       <div className="border-b border-yellow-500/20 p-6">
 
@@ -105,38 +117,61 @@ export default function Sidebar() {
 
       </div>
 
+      {/* Navigation */}
+
       <nav className="flex-1 space-y-2 overflow-y-auto p-5">
 
-        {menus.map((item) => {
-          const Icon = item.icon;
+        {menus.map(
+          (item) => {
+            const Icon =
+              item.icon;
 
-          return (
-            <Link
-              key={item.title}
-              href={item.href}
-              className="flex items-center gap-4 rounded-xl px-4 py-3 text-gray-300 transition hover:bg-yellow-400 hover:text-black"
-            >
-              <Icon size={20} />
+            return (
+              <Link
+                key={
+                  item.title
+                }
+                href={
+                  item.href
+                }
+                className="flex items-center gap-4 rounded-xl px-4 py-3 text-gray-300 transition hover:bg-yellow-400 hover:text-black"
+              >
 
-              <span>
-                {item.title}
-              </span>
-            </Link>
-          );
-        })}
+                <Icon
+                  size={20}
+                />
+
+                <span>
+                  {
+                    item.title
+                  }
+                </span>
+
+              </Link>
+            );
+          }
+        )}
 
       </nav>
+
+      {/* Logout */}
 
       <div className="border-t border-yellow-500/20 p-5">
 
         <button
           type="button"
-          onClick={handleLogout}
+          onClick={
+            handleLogout
+          }
           className="flex w-full items-center gap-4 rounded-xl bg-red-500 px-4 py-3 font-semibold text-white transition hover:bg-red-600"
         >
-          <LogOut size={20} />
+
+          <LogOut
+            size={20}
+          />
 
           Logout
+
         </button>
 
       </div>

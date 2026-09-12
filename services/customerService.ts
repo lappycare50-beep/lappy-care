@@ -18,198 +18,355 @@ import { Customer } from "@/types/customer";
 
 import { generateId } from "@/services/idGenerator";
 
-const COLLECTION = "customers";
+const COLLECTION =
+  "customers";
 
-// ==========================================
-// Get All Customers
-// ==========================================
-
-export async function getCustomers(): Promise<Customer[]> {
-
-  const q = query(
-    collection(db, COLLECTION),
-    orderBy("createdAt", "desc")
+const customersCollection =
+  collection(
+    db,
+    COLLECTION
   );
 
-  const snapshot = await getDocs(q);
+// =====================================================
+// CACHE
+// =====================================================
 
-  return snapshot.docs.map((document) => ({
-    id: document.id,
-    ...(document.data() as Omit<Customer, "id">),
-  }));
+let customersCache:
+  Customer[] | null = null;
 
+let customersCacheTime = 0;
+
+const CUSTOMERS_CACHE_TTL =
+  60 * 1000;
+
+const customerMobileCache =
+  new Map<
+    string,
+    Customer | null
+  >();
+
+// =====================================================
+// INVALIDATE CACHE
+// =====================================================
+
+function invalidateCustomerCache() {
+  customersCache = null;
+  customersCacheTime = 0;
+
+  customerMobileCache.clear();
 }
 
-// ==========================================
-// Get Customer By ID
-// ==========================================
+// =====================================================
+// GET ALL CUSTOMERS
+// =====================================================
+
+export async function getCustomers(
+  forceRefresh = false
+): Promise<Customer[]> {
+  const now =
+    Date.now();
+
+  if (
+    !forceRefresh &&
+    customersCache &&
+    now -
+      customersCacheTime <
+      CUSTOMERS_CACHE_TTL
+  ) {
+    return customersCache;
+  }
+
+  const q =
+    query(
+      customersCollection,
+
+      orderBy(
+        "createdAt",
+        "desc"
+      )
+    );
+
+  const snapshot =
+    await getDocs(q);
+
+  const result =
+    snapshot.docs.map(
+      (document) => ({
+        id:
+          document.id,
+
+        ...(document.data() as Omit<
+          Customer,
+          "id"
+        >),
+      })
+    );
+
+  customersCache =
+    result;
+
+  customersCacheTime =
+    now;
+
+  return result;
+}
+
+// =====================================================
+// GET CUSTOMER BY ID
+// =====================================================
 
 export async function getCustomerById(
   id: string
 ): Promise<Customer | null> {
+  const snapshot =
+    await getDoc(
+      doc(
+        db,
+        COLLECTION,
+        id
+      )
+    );
 
-  const snapshot = await getDoc(
-    doc(db, COLLECTION, id)
-  );
-
-  if (!snapshot.exists()) {
+  if (
+    !snapshot.exists()
+  ) {
     return null;
   }
 
   return {
-    id: snapshot.id,
-    ...(snapshot.data() as Omit<Customer, "id">),
-  };
+    id:
+      snapshot.id,
 
+    ...(snapshot.data() as Omit<
+      Customer,
+      "id"
+    >),
+  };
 }
 
-// ==========================================
-// Add Customer
-// ==========================================
+// =====================================================
+// ADD CUSTOMER
+// =====================================================
 
 export async function addCustomer(
-  customer: Omit<Customer, "id">
+  customer: Omit<
+    Customer,
+    "id"
+  >
 ) {
+  const result =
+    await addDoc(
+      customersCollection,
+      customer
+    );
 
-  return await addDoc(
-    collection(db, COLLECTION),
-    customer
-  );
+  invalidateCustomerCache();
 
+  return result;
 }
 
-// ==========================================
-// Update Customer
-// ==========================================
+// =====================================================
+// UPDATE CUSTOMER
+// =====================================================
 
 export async function updateCustomer(
   id: string,
-  customer: Omit<Customer, "id">
+  customer: Omit<
+    Customer,
+    "id"
+  >
 ) {
-
   await updateDoc(
-    doc(db, COLLECTION, id),
+    doc(
+      db,
+      COLLECTION,
+      id
+    ),
     customer
   );
 
+  invalidateCustomerCache();
 }
 
-// ==========================================
-// Delete Customer
-// ==========================================
+// =====================================================
+// DELETE CUSTOMER
+// =====================================================
 
 export async function deleteCustomer(
   id: string
 ) {
-
   await deleteDoc(
-    doc(db, COLLECTION, id)
+    doc(
+      db,
+      COLLECTION,
+      id
+    )
   );
 
+  invalidateCustomerCache();
 }
-// ==========================================
-// Find Customer By Mobile
-// ==========================================
+
+// =====================================================
+// FIND CUSTOMER BY MOBILE
+// =====================================================
 
 export async function findCustomerByMobile(
-  mobile: string
+  mobile: string,
+  forceRefresh = false
 ): Promise<Customer | null> {
+  const normalizedMobile =
+    mobile.replace(
+      /\D/g,
+      ""
+    );
 
-  // Normalize Mobile Number
-  const normalizedMobile = mobile.replace(/\D/g, "");
-
-  const q = query(
-    collection(db, COLLECTION),
-    where("mobile", "==", normalizedMobile),
-    limit(1)
-  );
-
-  const snapshot = await getDocs(q);
-
-  if (snapshot.empty) {
+  if (
+    normalizedMobile.length !==
+    10
+  ) {
     return null;
   }
 
-  return {
-    id: snapshot.docs[0].id,
-    ...(snapshot.docs[0].data() as Omit<Customer, "id">),
+  if (
+    !forceRefresh &&
+    customerMobileCache.has(
+      normalizedMobile
+    )
+  ) {
+    return (
+      customerMobileCache.get(
+        normalizedMobile
+      ) || null
+    );
+  }
+
+  const q =
+    query(
+      customersCollection,
+
+      where(
+        "mobile",
+        "==",
+        normalizedMobile
+      ),
+
+      limit(1)
+    );
+
+  const snapshot =
+    await getDocs(q);
+
+  if (
+    snapshot.empty
+  ) {
+    customerMobileCache.set(
+      normalizedMobile,
+      null
+    );
+
+    return null;
+  }
+
+  const customer:
+    Customer = {
+    id:
+      snapshot.docs[0].id,
+
+    ...(snapshot.docs[0]
+      .data() as Omit<
+      Customer,
+      "id"
+    >),
   };
 
+  customerMobileCache.set(
+    normalizedMobile,
+    customer
+  );
+
+  return customer;
 }
 
-// ==========================================
-// Get Customer By Mobile (Alias)
-// ==========================================
+// =====================================================
+// ALIAS
+// =====================================================
 
 export const getCustomerByMobile =
   findCustomerByMobile;
 
-// ==========================================
-// Search Customers
-// ==========================================
+// =====================================================
+// SEARCH CUSTOMERS
+// =====================================================
 
 export async function searchCustomers(
   keyword: string
 ): Promise<Customer[]> {
+  const search =
+    keyword
+      .toLowerCase()
+      .trim();
+
+  if (
+    !search
+  ) {
+    return getCustomers();
+  }
 
   const customers =
     await getCustomers();
 
-  const search =
-    keyword.toLowerCase().trim();
+  return customers.filter(
+    (customer) =>
+      customer.customerId
+        .toLowerCase()
+        .includes(search) ||
 
-  return customers.filter((customer) =>
+      customer.name
+        .toLowerCase()
+        .includes(search) ||
 
-    customer.customerId
-      .toLowerCase()
-      .includes(search)
+      customer.mobile
+        .toLowerCase()
+        .includes(search) ||
 
-    ||
+      (
+        customer.email ??
+        ""
+      )
+        .toLowerCase()
+        .includes(search) ||
 
-    customer.name
-      .toLowerCase()
-      .includes(search)
-
-    ||
-
-    customer.mobile
-      .toLowerCase()
-      .includes(search)
-
-    ||
-
-    (customer.email ?? "")
-      .toLowerCase()
-      .includes(search)
-
-    ||
-
-    (customer.companyName ?? "")
-      .toLowerCase()
-      .includes(search)
-
+      (
+        customer.companyName ??
+        ""
+      )
+        .toLowerCase()
+        .includes(search)
   );
-
 }
-// ==========================================
-// Sync Customer
-// ==========================================
 
-export async function syncCustomer(data: {
-  name: string;
-  mobile: string;
-  alternateMobile?: string;
-  email?: string;
-  address?: string;
-  city?: string;
-  state?: string;
-  pincode?: string;
-  repairId?: string;
-}) {
+// =====================================================
+// SYNC CUSTOMER
+// =====================================================
 
-  // Normalize Mobile
+export async function syncCustomer(
+  data: {
+    name: string;
+    mobile: string;
+    alternateMobile?: string;
+    email?: string;
+    address?: string;
+    city?: string;
+    state?: string;
+    pincode?: string;
+    repairId?: string;
+  }
+) {
   const mobile =
-    data.mobile.replace(/\D/g, "");
+    data.mobile.replace(
+      /\D/g,
+      ""
+    );
 
   const today =
     new Date()
@@ -219,22 +376,23 @@ export async function syncCustomer(data: {
   const now =
     new Date().toISOString();
 
-  // ==========================================
-  // Existing Customer
-  // ==========================================
-
   const existing =
     await findCustomerByMobile(
       mobile
     );
 
-  if (existing) {
-
-    const updatedCustomer: Omit<Customer, "id"> = {
-
+  if (
+    existing
+  ) {
+    const updatedCustomer:
+      Omit<
+        Customer,
+        "id"
+      > = {
       ...existing,
 
-      name: data.name,
+      name:
+        data.name,
 
       mobile,
 
@@ -266,90 +424,105 @@ export async function syncCustomer(data: {
         data.repairId ??
         existing.lastRepairId,
 
-      lastVisit: today,
+      lastVisit:
+        today,
 
-      updatedAt: now,
-
+      updatedAt:
+        now,
     };
 
     await updateCustomer(
-  existing.id!,
-  updatedCustomer
-);
+      existing.id!,
+      updatedCustomer
+    );
 
-return existing.customerId;
-
+    return existing.customerId;
   }
 
-  // ==========================================
-  // New Customer
-  // ==========================================
-
   const customerId =
-    await generateId("customer");
+    await generateId(
+      "customer"
+    );
 
-  
-    await addCustomer({
+  await addCustomer({
+    customerId,
 
-      customerId,
+    name:
+      data.name,
 
-      name: data.name,
+    mobile,
 
-      mobile,
+    alternateMobile:
+      data.alternateMobile ??
+      "",
 
-      alternateMobile:
-        data.alternateMobile ?? "",
+    email:
+      data.email ??
+      "",
 
-      email:
-        data.email ?? "",
+    address:
+      data.address ??
+      "",
 
-      address:
-        data.address ?? "",
+    city:
+      data.city ??
+      "",
 
-      city:
-        data.city ?? "",
+    state:
+      data.state ??
+      "",
 
-      state:
-        data.state ?? "",
+    pincode:
+      data.pincode ??
+      "",
 
-      pincode:
-        data.pincode ?? "",
+    gstNumber:
+      "",
 
-      gstNumber: "",
+    companyName:
+      "",
 
-      companyName: "",
+    totalRepairs:
+      1,
 
-      totalRepairs: 1,
+    totalInvoices:
+      0,
 
-      totalInvoices: 0,
+    totalSpent:
+      0,
 
-      totalSpent: 0,
+    pendingAmount:
+      0,
 
-      pendingAmount: 0,
+    lastRepairId:
+      data.repairId ??
+      "",
 
-      lastRepairId:
-        data.repairId ?? "",
+    lastInvoiceId:
+      "",
 
-      lastInvoiceId: "",
+    lastVisit:
+      today,
 
-      lastVisit: today,
+    notes:
+      "",
 
-      notes: "",
+    isActive:
+      true,
 
-      isActive: true,
+    createdAt:
+      now,
 
-      createdAt: now,
-
-      updatedAt: now,
-
-    });
+    updatedAt:
+      now,
+  });
 
   return customerId;
-
 }
-// ==========================================
-// Update Customer Invoice
-// ==========================================
+
+// =====================================================
+// UPDATE CUSTOMER INVOICE
+// =====================================================
 
 export async function updateCustomerInvoice(
   mobile: string,
@@ -357,22 +530,28 @@ export async function updateCustomerInvoice(
   pendingAmount: number,
   invoiceId?: string
 ) {
-
   const customer =
     await findCustomerByMobile(
-      mobile.replace(/\D/g, "")
+      mobile.replace(
+        /\D/g,
+        ""
+      )
     );
 
-  if (!customer) return;
+  if (
+    !customer
+  ) {
+    return;
+  }
 
   await updateCustomer(
     customer.id!,
     {
-
       ...customer,
 
       totalInvoices:
-        customer.totalInvoices + 1,
+        customer.totalInvoices +
+        1,
 
       totalSpent:
         customer.totalSpent +
@@ -393,36 +572,40 @@ export async function updateCustomerInvoice(
 
       updatedAt:
         new Date().toISOString(),
-
     }
   );
-
 }
 
-// ==========================================
-// Update Customer Repair
-// ==========================================
+// =====================================================
+// UPDATE CUSTOMER REPAIR
+// =====================================================
 
 export async function updateCustomerRepair(
   mobile: string,
   repairId: string
 ) {
-
   const customer =
     await findCustomerByMobile(
-      mobile.replace(/\D/g, "")
+      mobile.replace(
+        /\D/g,
+        ""
+      )
     );
 
-  if (!customer) return;
+  if (
+    !customer
+  ) {
+    return;
+  }
 
   await updateCustomer(
     customer.id!,
     {
-
       ...customer,
 
       totalRepairs:
-        customer.totalRepairs + 1,
+        customer.totalRepairs +
+        1,
 
       lastRepairId:
         repairId,
@@ -434,8 +617,6 @@ export async function updateCustomerRepair(
 
       updatedAt:
         new Date().toISOString(),
-
     }
   );
-
 }

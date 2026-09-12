@@ -21,29 +21,52 @@ export default async function CustomerPublicPage({
 }: CustomerPublicPageProps) {
   const { token } = await params;
 
-  const decodedToken = decodeURIComponent(token);
+  const decodedToken =
+    decodeURIComponent(token);
 
-  const customer = await getCustomerByQrToken(decodedToken);
+  const customer =
+    await getCustomerByQrToken(
+      decodedToken
+    );
 
-  if (!customer || customer.isActive === false) {
+  if (
+    !customer ||
+    customer.isActive === false
+  ) {
     notFound();
   }
 
   /*
-   * Existing health records may use either:
+   * Health records created by older versions of the app
+   * may use either:
    * 1. Firestore customer document ID
-   * 2. Public customerId
+   * 2. Public/business customerId
    *
-   * Keep both lookups for compatibility.
+   * Try the Firestore document ID first to preserve
+   * compatibility with existing records, then fall back
+   * to the public customerId only when necessary.
+   *
+   * getLatestLaptopHealth() is cached, so repeated portal
+   * visits will not repeatedly read the same customer health
+   * document during its cache window.
    */
-  let health = await getLatestLaptopHealth(
-    customer.id || customer.customerId
-  );
-
-  if (!health && customer.id && customer.customerId) {
-    health = await getLatestLaptopHealth(
-      customer.customerId
+  let health =
+    await getLatestLaptopHealth(
+      customer.id ||
+        customer.customerId
     );
+
+  if (
+    !health &&
+    customer.id &&
+    customer.customerId &&
+    customer.id !==
+      customer.customerId
+  ) {
+    health =
+      await getLatestLaptopHealth(
+        customer.customerId
+      );
   }
 
   return (
@@ -55,11 +78,8 @@ export default async function CustomerPublicPage({
         ================================================== */}
 
         <section className="overflow-hidden rounded-[28px] bg-black p-5 shadow-2xl sm:p-7">
-
           <div className="flex items-start justify-between gap-4">
-
             <div className="min-w-0">
-
               <p className="text-[10px] font-black uppercase tracking-[0.3em] text-yellow-400">
                 LAPPY CARE
               </p>
@@ -71,28 +91,21 @@ export default async function CustomerPublicPage({
               <p className="mt-2 text-xs leading-5 text-white/60 sm:text-sm">
                 Your laptop care information in one place.
               </p>
-
             </div>
 
             <div className="hidden h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-white/10 text-2xl sm:flex">
               💻
             </div>
-
           </div>
-
         </section>
-
 
         {/* ==================================================
             CUSTOMER PROFILE
         ================================================== */}
 
         <section className="mt-4 rounded-[26px] border border-slate-200 bg-white p-5 shadow-sm sm:mt-5 sm:p-6">
-
           <div className="flex items-center justify-between gap-4">
-
             <div className="min-w-0">
-
               <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">
                 Customer Profile
               </p>
@@ -104,11 +117,9 @@ export default async function CustomerPublicPage({
               <p className="mt-1 text-xs text-slate-500">
                 Personal information is kept private.
               </p>
-
             </div>
 
             <div className="shrink-0 rounded-xl bg-slate-100 px-3 py-2 text-right">
-
               <p className="text-[8px] font-bold uppercase tracking-wider text-slate-400">
                 Customer ID
               </p>
@@ -116,22 +127,16 @@ export default async function CustomerPublicPage({
               <p className="mt-1 max-w-[110px] break-all text-[11px] font-black text-slate-900">
                 {customer.customerId}
               </p>
-
             </div>
-
           </div>
-
         </section>
-
 
         {/* ==================================================
             LAPTOP HEALTH
         ================================================== */}
 
         <section className="mt-5">
-
           <div className="mb-3 px-1">
-
             <p className="text-[9px] font-black uppercase tracking-[0.22em] text-blue-600">
               LAPTOP HEALTH
             </p>
@@ -143,21 +148,21 @@ export default async function CustomerPublicPage({
             <p className="mt-1 text-xs leading-5 text-white/60">
               View the latest technician health report for this laptop.
             </p>
-
           </div>
-
 
           {!health ? (
             <NoHealthReport />
           ) : (
             <div className="space-y-3">
+              <OverallHealthCard
+                health={health}
+              />
 
-              <OverallHealthCard health={health} />
-
-              <QuickHealthOverview health={health} />
+              <QuickHealthOverview
+                health={health}
+              />
 
               <div className="flex justify-center pt-1">
-
                 <a
                   href={`/customer/${encodeURIComponent(
                     decodedToken
@@ -165,33 +170,27 @@ export default async function CustomerPublicPage({
                   className="inline-flex w-full items-center justify-center gap-2 rounded-xl bg-green-500 px-5 py-3 text-xs font-black text-black shadow-sm transition hover:bg-green-400 sm:w-auto"
                 >
                   View Full Health Report
+
                   <span aria-hidden="true">
                     →
                   </span>
                 </a>
-
               </div>
-
             </div>
           )}
-
         </section>
-
 
         {/* ==================================================
             SERVICE SUMMARY
         ================================================== */}
 
         <section className="mt-5 rounded-[26px] border border-slate-200 bg-white p-5 shadow-sm sm:p-6">
-
           <div className="flex items-center gap-3">
-
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-slate-100 text-lg">
               📋
             </div>
 
             <div>
-
               <p className="text-[9px] font-black uppercase tracking-[0.2em] text-slate-400">
                 SERVICE HISTORY
               </p>
@@ -199,48 +198,45 @@ export default async function CustomerPublicPage({
               <h2 className="mt-0.5 text-lg font-black text-slate-900">
                 Service Summary
               </h2>
-
             </div>
-
           </div>
 
-
           <div className="mt-4 grid grid-cols-3 gap-2 sm:gap-3">
-
             <StatCard
               label="Total Repairs"
-              value={customer.totalRepairs}
+              value={
+                customer.totalRepairs
+              }
             />
 
             <StatCard
               label="Total Invoices"
-              value={customer.totalInvoices}
+              value={
+                customer.totalInvoices
+              }
             />
 
             <StatCard
               label="Last Visit"
-              value={customer.lastVisit || "—"}
+              value={
+                customer.lastVisit ||
+                "—"
+              }
             />
-
           </div>
-
         </section>
-
 
         {/* ==================================================
             PRIVACY
         ================================================== */}
 
         <section className="mt-4 rounded-[26px] border border-slate-200 bg-white p-5 shadow-sm">
-
           <div className="flex items-start gap-3">
-
             <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-slate-100 text-lg">
               🔒
             </div>
 
             <div>
-
               <h2 className="text-sm font-black text-slate-900">
                 Your Information is Private
               </h2>
@@ -249,20 +245,15 @@ export default async function CustomerPublicPage({
                 Personal contact information is not displayed
                 on this public customer portal.
               </p>
-
             </div>
-
           </div>
-
         </section>
-
 
         {/* ==================================================
             BOOK SERVICE
         ================================================== */}
 
         <section className="mt-4 rounded-[26px] border border-slate-200 bg-white p-6 text-center shadow-sm">
-
           <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-black text-xl">
             🔧
           </div>
@@ -276,25 +267,20 @@ export default async function CustomerPublicPage({
           </p>
 
           <div className="mt-4 flex justify-center">
-
             <a
               href="/book-repair"
               className="rounded-xl bg-black px-6 py-3 text-xs font-black text-white transition hover:bg-slate-800"
             >
               Book Laptop Service
             </a>
-
           </div>
-
         </section>
-
 
         {/* ==================================================
             FOOTER
         ================================================== */}
 
         <footer className="px-2 py-7 text-center">
-
           <p className="text-[10px] font-bold text-white/40">
             Lappy Care • Customer Care Portal
           </p>
@@ -302,14 +288,11 @@ export default async function CustomerPublicPage({
           <p className="mt-1 text-[9px] text-white/25">
             Professional laptop care & maintenance
           </p>
-
         </footer>
-
       </div>
     </main>
   );
 }
-
 
 /* ==================================================
    OVERALL HEALTH
@@ -322,21 +305,21 @@ function OverallHealthCard({
 }) {
   const score = Math.min(
     100,
-    Math.max(0, health.overallScore ?? 0)
+    Math.max(
+      0,
+      health.overallScore ?? 0
+    )
   );
 
   const status =
-    health.overallStatus || "Not Tested";
+    health.overallStatus ||
+    "Not Tested";
 
   return (
     <section className="overflow-hidden rounded-[26px] border border-slate-700 bg-white shadow-xl">
-
       <div className="bg-black p-5 sm:p-6">
-
         <div className="flex items-center justify-between gap-4">
-
           <div className="min-w-0">
-
             <p className="text-[9px] font-black uppercase tracking-[0.22em] text-white/40">
               OVERALL HEALTH
             </p>
@@ -348,14 +331,10 @@ function OverallHealthCard({
             <p className="mt-1 text-xs text-white/50">
               Latest technician assessment
             </p>
-
           </div>
 
-
           <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-full border-4 border-white/20 bg-white/10">
-
             <div className="text-center">
-
               <p className="text-xl font-black text-white">
                 {score}%
               </p>
@@ -363,18 +342,12 @@ function OverallHealthCard({
               <p className="text-[8px] font-bold tracking-widest text-white/40">
                 HEALTH
               </p>
-
             </div>
-
           </div>
-
         </div>
 
-
         <div className="mt-5">
-
           <div className="flex items-center justify-between">
-
             <p className="text-[8px] font-bold uppercase tracking-widest text-white/35">
               Health Score
             </p>
@@ -382,29 +355,21 @@ function OverallHealthCard({
             <p className="text-[8px] font-bold text-white/50">
               {score}/100
             </p>
-
           </div>
 
           <div className="mt-2 h-2 overflow-hidden rounded-full bg-white/10">
-
             <div
               className="h-full rounded-full bg-white"
               style={{
                 width: `${score}%`,
               }}
             />
-
           </div>
-
         </div>
-
       </div>
 
-
       <div className="grid grid-cols-2 divide-x divide-slate-100">
-
         <div className="p-4 text-center">
-
           <p className="text-[8px] font-bold uppercase tracking-widest text-slate-400">
             Report Status
           </p>
@@ -412,30 +377,25 @@ function OverallHealthCard({
           <p className="mt-1 text-sm font-black text-green-600">
             Verified
           </p>
-
         </div>
 
-
         <div className="p-4 text-center">
-
           <p className="text-[8px] font-bold uppercase tracking-widest text-slate-400">
             Checked On
           </p>
 
           <p className="mt-1 text-xs font-black text-slate-900">
             {health.checkedAt
-              ? formatDate(health.checkedAt)
+              ? formatDate(
+                  health.checkedAt
+                )
               : "—"}
           </p>
-
         </div>
-
       </div>
-
     </section>
   );
 }
-
 
 /* ==================================================
    QUICK HEALTH OVERVIEW
@@ -448,53 +408,62 @@ function QuickHealthOverview({
 }) {
   return (
     <section className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-
       <MiniHealthCard
         icon="🔋"
         label="Battery"
         value={
-          health.batteryHealth !== undefined
+          health.batteryHealth !==
+          undefined
             ? `${health.batteryHealth}%`
             : "Not Tested"
         }
-        status={health.batteryStatus}
+        status={
+          health.batteryStatus
+        }
       />
 
       <MiniHealthCard
         icon="💾"
         label="Storage"
         value={
-          health.storageHealth !== undefined
+          health.storageHealth !==
+          undefined
             ? `${health.storageHealth}%`
             : "Not Tested"
         }
-        status={health.storageStatus}
+        status={
+          health.storageStatus
+        }
       />
 
       <MiniHealthCard
         icon="🌡️"
         label="Temperature"
         value={
-          health.temperature !== undefined
+          health.temperature !==
+          undefined
             ? `${health.temperature}°C`
             : "Not Tested"
         }
-        status={health.fanStatus}
+        status={
+          health.fanStatus
+        }
       />
 
       <MiniHealthCard
         icon="🛡️"
         label="Security"
         value={
-          health.antivirusStatus || "Not Tested"
+          health.antivirusStatus ||
+          "Not Tested"
         }
-        status={health.antivirusStatus}
+        status={
+          health.antivirusStatus
+        }
       />
-
     </section>
   );
 }
-
 
 /* ==================================================
    MINI HEALTH CARD
@@ -513,9 +482,7 @@ function MiniHealthCard({
 }) {
   return (
     <div className="min-w-0 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-
       <div className="flex min-w-0 items-center gap-2">
-
         <span className="shrink-0 text-base">
           {icon}
         </span>
@@ -523,18 +490,14 @@ function MiniHealthCard({
         <p className="min-w-0 truncate text-[9px] font-black uppercase tracking-wide text-slate-500">
           {label}
         </p>
-
       </div>
-
 
       <p className="mt-3 break-words text-lg font-black text-slate-900">
         {value}
       </p>
 
-
       {status && (
         <div className="mt-1 flex items-center gap-1.5">
-
           <span
             className={`h-1.5 w-1.5 shrink-0 rounded-full ${getStatusDot(
               status
@@ -548,14 +511,11 @@ function MiniHealthCard({
           >
             {status}
           </p>
-
         </div>
       )}
-
     </div>
   );
 }
-
 
 /* ==================================================
    NO HEALTH REPORT
@@ -564,9 +524,7 @@ function MiniHealthCard({
 function NoHealthReport() {
   return (
     <section className="overflow-hidden rounded-[26px] border border-slate-200 bg-white shadow-sm">
-
       <div className="p-7 text-center">
-
         <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-100 text-2xl">
           💻
         </div>
@@ -583,13 +541,10 @@ function NoHealthReport() {
           A laptop health report has not been added to
           your customer profile yet.
         </p>
-
       </div>
-
     </section>
   );
 }
-
 
 /* ==================================================
    STAT CARD
@@ -604,7 +559,6 @@ function StatCard({
 }) {
   return (
     <div className="min-w-0 rounded-2xl border border-slate-100 bg-slate-50 p-3 text-center">
-
       <p className="truncate text-[8px] font-black uppercase tracking-wide text-slate-400">
         {label}
       </p>
@@ -612,19 +566,18 @@ function StatCard({
       <p className="mt-2 break-words text-sm font-black text-slate-900">
         {value}
       </p>
-
     </div>
   );
 }
-
 
 /* ==================================================
    STATUS CLASS
 ================================================== */
 
-function getStatusClass(status: string) {
+function getStatusClass(
+  status: string
+) {
   switch (status) {
-
     case "Excellent":
     case "Good":
       return "text-green-600";
@@ -647,14 +600,14 @@ function getStatusClass(status: string) {
   }
 }
 
-
 /* ==================================================
    STATUS DOT
 ================================================== */
 
-function getStatusDot(status: string) {
+function getStatusDot(
+  status: string
+) {
   switch (status) {
-
     case "Excellent":
     case "Good":
       return "bg-green-500";
@@ -675,25 +628,34 @@ function getStatusDot(status: string) {
   }
 }
 
-
 /* ==================================================
    DATE FORMAT
 ================================================== */
 
-function formatDate(value: string) {
+function formatDate(
+  value: string
+) {
   if (!value) {
     return "Not available";
   }
 
-  const date = new Date(value);
+  const date =
+    new Date(value);
 
-  if (Number.isNaN(date.getTime())) {
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
     return value;
   }
 
-  return date.toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  return date.toLocaleDateString(
+    "en-IN",
+    {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }
+  );
 }

@@ -2,6 +2,7 @@ import {
   collection,
   deleteDoc,
   doc,
+  getDoc,
   getDocs,
   limit,
   orderBy,
@@ -12,6 +13,7 @@ import {
 } from "firebase/firestore";
 
 import { db } from "@/lib/firebase";
+
 import {
   Invoice,
 } from "@/types/invoice";
@@ -22,9 +24,36 @@ const COLLECTION =
 const COUNTER_COLLECTION =
   "counters";
 
-// ==========================================
-// Financial Year
-// ==========================================
+const invoiceCollection =
+  collection(
+    db,
+    COLLECTION
+  );
+
+// =====================================================
+// CACHE
+// =====================================================
+
+let invoicesCache:
+  Invoice[] | null = null;
+
+let invoicesCacheTime = 0;
+
+const INVOICE_CACHE_TTL =
+  30 * 1000;
+
+// =====================================================
+// INVALIDATE
+// =====================================================
+
+function invalidateInvoiceCache() {
+  invoicesCache = null;
+  invoicesCacheTime = 0;
+}
+
+// =====================================================
+// FINANCIAL YEAR
+// =====================================================
 
 function getFinancialYear(): string {
   const today =
@@ -36,7 +65,9 @@ function getFinancialYear(): string {
   const month =
     today.getMonth() + 1;
 
-  if (month >= 4) {
+  if (
+    month >= 4
+  ) {
     return `${String(
       year
     ).slice(-2)}-${String(
@@ -51,14 +82,16 @@ function getFinancialYear(): string {
   ).slice(-2)}`;
 }
 
-// ==========================================
-// Extract Invoice Number
-// ==========================================
+// =====================================================
+// INVOICE SEQUENCE
+// =====================================================
 
 function getInvoiceSequence(
   invoiceNo?: string
 ): number {
-  if (!invoiceNo) {
+  if (
+    !invoiceNo
+  ) {
     return 0;
   }
 
@@ -66,7 +99,9 @@ function getInvoiceSequence(
     invoiceNo.split("-");
 
   const lastPart =
-    parts[parts.length - 1];
+    parts[
+      parts.length - 1
+    ];
 
   const value =
     Number(lastPart);
@@ -78,90 +113,91 @@ function getInvoiceSequence(
     : 0;
 }
 
-// ==========================================
-// Get All Invoices
-// ==========================================
+// =====================================================
+// GET ALL INVOICES
+// =====================================================
 
-export async function getInvoices(): Promise<
-  Invoice[]
-> {
-  try {
-    const snapshot =
-      await getDocs(
-        collection(
-          db,
-          COLLECTION
-        )
-      );
+export async function getInvoices(
+  forceRefresh = false
+): Promise<Invoice[]> {
+  const now =
+    Date.now();
 
-    const invoices =
-      snapshot.docs.map(
-        (document) => ({
-          id: document.id,
-
-          ...(document.data() as Omit<
-            Invoice,
-            "id"
-          >),
-        })
-      );
-
-    return invoices.sort(
-      (a, b) =>
-        getInvoiceSequence(
-          b.invoiceNo
-        ) -
-        getInvoiceSequence(
-          a.invoiceNo
-        )
-    );
-  } catch (error) {
-    console.error(
-      "Error getting invoices:",
-      error
-    );
-
-    return [];
+  if (
+    !forceRefresh &&
+    invoicesCache &&
+    now -
+      invoicesCacheTime <
+      INVOICE_CACHE_TTL
+  ) {
+    return invoicesCache;
   }
+
+  const snapshot =
+    await getDocs(
+      invoiceCollection
+    );
+
+  const invoices =
+    snapshot.docs.map(
+      (document) => ({
+        id:
+          document.id,
+
+        ...(document.data() as Omit<
+          Invoice,
+          "id"
+        >),
+      })
+    );
+
+  invoices.sort(
+    (a, b) =>
+      getInvoiceSequence(
+        b.invoiceNo
+      ) -
+      getInvoiceSequence(
+        a.invoiceNo
+      )
+  );
+
+  invoicesCache =
+    invoices;
+
+  invoicesCacheTime =
+    now;
+
+  return invoices;
 }
 
-// ==========================================
-// Get Single Invoice
-// ==========================================
+// =====================================================
+// GET SINGLE INVOICE
+// =====================================================
 
 export async function getInvoiceById(
   id: string
 ): Promise<Invoice | null> {
   try {
     const snapshot =
-      await getDocs(
-        query(
-          collection(
-            db,
-            COLLECTION
-          ),
-          where(
-            "__name__",
-            "==",
-            id
-          ),
-          limit(1)
+      await getDoc(
+        doc(
+          db,
+          COLLECTION,
+          id
         )
       );
 
     if (
-      snapshot.empty
+      !snapshot.exists()
     ) {
       return null;
     }
 
-    const document =
-      snapshot.docs[0];
-
     return {
-      id: document.id,
+      id:
+        snapshot.id,
 
-      ...(document.data() as Omit<
+      ...(snapshot.data() as Omit<
         Invoice,
         "id"
       >),
@@ -176,9 +212,9 @@ export async function getInvoiceById(
   }
 }
 
-// ==========================================
-// Get Invoices By Mobile
-// ==========================================
+// =====================================================
+// GET INVOICES BY MOBILE
+// =====================================================
 
 export async function getInvoicesByMobile(
   mobile: string
@@ -190,21 +226,22 @@ export async function getInvoicesByMobile(
         ""
       );
 
-    if (!normalizedMobile) {
+    if (
+      !normalizedMobile
+    ) {
       return [];
     }
 
     const q =
       query(
-        collection(
-          db,
-          COLLECTION
-        ),
+        invoiceCollection,
+
         where(
           "mobile",
           "==",
           normalizedMobile
         ),
+
         limit(50)
       );
 
@@ -214,7 +251,8 @@ export async function getInvoicesByMobile(
     const invoices =
       snapshot.docs.map(
         (document) => ({
-          id: document.id,
+          id:
+            document.id,
 
           ...(document.data() as Omit<
             Invoice,
@@ -242,29 +280,30 @@ export async function getInvoicesByMobile(
   }
 }
 
-// ==========================================
-// Get Invoices By Repair ID
-// ==========================================
+// =====================================================
+// GET INVOICES BY REPAIR ID
+// =====================================================
 
 export async function getInvoicesByRepairId(
   repairId: string
 ): Promise<Invoice[]> {
   try {
-    if (!repairId) {
+    if (
+      !repairId
+    ) {
       return [];
     }
 
     const q =
       query(
-        collection(
-          db,
-          COLLECTION
-        ),
+        invoiceCollection,
+
         where(
           "repairId",
           "==",
           repairId
         ),
+
         limit(50)
       );
 
@@ -274,7 +313,8 @@ export async function getInvoicesByRepairId(
     const invoices =
       snapshot.docs.map(
         (document) => ({
-          id: document.id,
+          id:
+            document.id,
 
           ...(document.data() as Omit<
             Invoice,
@@ -302,13 +342,9 @@ export async function getInvoicesByRepairId(
   }
 }
 
-// ==========================================
+// =====================================================
 // ADD INVOICE
-//
-// IMPORTANT:
-// Invoice number is generated ONLY when
-// invoice is actually saved.
-// ==========================================
+// =====================================================
 
 export async function addInvoice(
   invoice: Omit<
@@ -319,114 +355,94 @@ export async function addInvoice(
   id: string;
   invoiceNo: string;
 }> {
-  try {
-    const invoiceRef =
-      doc(
-        collection(
-          db,
-          COLLECTION
-        )
-      );
-
-    const financialYear =
-      getFinancialYear();
-
-    const counterRef =
-      doc(
-        db,
-        COUNTER_COLLECTION,
-        `invoice_${financialYear}`
-      );
-
-    const invoiceNo =
-      await runTransaction(
-        db,
-        async (
-          transaction
-        ) => {
-          // ========================================
-          // READ COUNTER
-          // ========================================
-
-          const counterSnapshot =
-            await transaction.get(
-              counterRef
-            );
-
-          const current =
-            counterSnapshot.exists()
-              ? Number(
-                  counterSnapshot
-                    .data()
-                    .current || 0
-                )
-              : 0;
-
-          const next =
-            current + 1;
-
-          const generatedInvoiceNo =
-            `WKD-INV-${financialYear}-${String(
-              next
-            ).padStart(
-              6,
-              "0"
-            )}`;
-
-          // ========================================
-          // UPDATE COUNTER
-          // ========================================
-
-          transaction.set(
-            counterRef,
-            {
-              current: next,
-
-              updatedAt:
-                new Date().toISOString(),
-            },
-            {
-              merge: true,
-            }
-          );
-
-          // ========================================
-          // SAVE INVOICE
-          // ========================================
-
-          transaction.set(
-            invoiceRef,
-            {
-              ...invoice,
-
-              invoiceNo:
-                generatedInvoiceNo,
-            }
-          );
-
-          return generatedInvoiceNo;
-        }
-      );
-
-    return {
-      id:
-        invoiceRef.id,
-
-      invoiceNo,
-    };
-  } catch (error) {
-    console.error(
-      "Error adding invoice:",
-      error
+  const invoiceRef =
+    doc(
+      invoiceCollection
     );
 
-    throw error;
-  }
+  const financialYear =
+    getFinancialYear();
+
+  const counterRef =
+    doc(
+      db,
+      COUNTER_COLLECTION,
+      `invoice_${financialYear}`
+    );
+
+  const invoiceNo =
+    await runTransaction(
+      db,
+      async (
+        transaction
+      ) => {
+        const counterSnapshot =
+          await transaction.get(
+            counterRef
+          );
+
+        const current =
+          counterSnapshot.exists()
+            ? Number(
+                counterSnapshot
+                  .data()
+                  .current || 0
+              )
+            : 0;
+
+        const next =
+          current + 1;
+
+        const generatedInvoiceNo =
+          `WKD-INV-${financialYear}-${String(
+            next
+          ).padStart(
+            6,
+            "0"
+          )}`;
+
+        transaction.set(
+          counterRef,
+          {
+            current:
+              next,
+
+            updatedAt:
+              new Date().toISOString(),
+          },
+          {
+            merge:
+              true,
+          }
+        );
+
+        transaction.set(
+          invoiceRef,
+          {
+            ...invoice,
+
+            invoiceNo:
+              generatedInvoiceNo,
+          }
+        );
+
+        return generatedInvoiceNo;
+      }
+    );
+
+  invalidateInvoiceCache();
+
+  return {
+    id:
+      invoiceRef.id,
+
+    invoiceNo,
+  };
 }
 
-// ==========================================
+// =====================================================
 // UPDATE INVOICE
-// ==========================================
+// =====================================================
 
 export async function updateInvoice(
   id: string,
@@ -435,46 +451,32 @@ export async function updateInvoice(
     "id"
   >
 ) {
-  try {
-    await updateDoc(
-      doc(
-        db,
-        COLLECTION,
-        id
-      ),
-      invoice
-    );
-  } catch (error) {
-    console.error(
-      "Error updating invoice:",
-      error
-    );
+  await updateDoc(
+    doc(
+      db,
+      COLLECTION,
+      id
+    ),
+    invoice
+  );
 
-    throw error;
-  }
+  invalidateInvoiceCache();
 }
 
-// ==========================================
+// =====================================================
 // DELETE INVOICE
-// ==========================================
+// =====================================================
 
 export async function deleteInvoice(
   id: string
 ) {
-  try {
-    await deleteDoc(
-      doc(
-        db,
-        COLLECTION,
-        id
-      )
-    );
-  } catch (error) {
-    console.error(
-      "Error deleting invoice:",
-      error
-    );
+  await deleteDoc(
+    doc(
+      db,
+      COLLECTION,
+      id
+    )
+  );
 
-    throw error;
-  }
+  invalidateInvoiceCache();
 }

@@ -1,54 +1,101 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useState,
+} from "react";
 
 import AdminLayout from "@/components/admin/AdminLayout";
 import StatCard from "@/components/admin/StatCard";
 import RecentProducts from "@/components/admin/RecentProducts";
 
-import { getDashboardStats } from "@/services/dashboardService";
+import {
+  getDashboardStats,
+  type DashboardStats,
+} from "@/services/dashboardService";
 
-type Stats = {
-  totalProducts: number;
-  inStock: number;
-  outOfStock: number;
-  inventoryValue: number;
+type Stats = Pick<
+  DashboardStats,
+  | "totalProducts"
+  | "inStock"
+  | "outOfStock"
+  | "inventoryValue"
+>;
+
+const initialStats: Stats = {
+  totalProducts: 0,
+  inStock: 0,
+  outOfStock: 0,
+  inventoryValue: 0,
 };
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState<Stats>({
-    totalProducts: 0,
-    inStock: 0,
-    outOfStock: 0,
-    inventoryValue: 0,
-  });
+  const [
+    stats,
+    setStats,
+  ] = useState<Stats>(
+    initialStats
+  );
 
-  const [loading, setLoading] = useState(true);
+  const [
+    recentProducts,
+    setRecentProducts,
+  ] = useState<
+    DashboardStats["recentProducts"]
+  >([]);
+
+  const [
+    loading,
+    setLoading,
+  ] = useState(true);
 
   useEffect(() => {
+    let active = true;
+
     async function loadDashboard() {
       try {
-        const data = await getDashboardStats();
+        const data =
+          await getDashboardStats();
+
+        if (!active) {
+          return;
+        }
 
         setStats({
-          totalProducts: data.totalProducts,
-          inStock: data.inStock,
-          outOfStock: data.outOfStock,
-          inventoryValue: data.inventoryValue,
+          totalProducts:
+            data.totalProducts,
+          inStock:
+            data.inStock,
+          outOfStock:
+            data.outOfStock,
+          inventoryValue:
+            data.inventoryValue,
         });
+
+        setRecentProducts(
+          data.recentProducts
+        );
       } catch (error) {
-        console.error("Dashboard Error:", error);
+        console.error(
+          "Dashboard Error:",
+          error
+        );
       } finally {
-        setLoading(false);
+        if (active) {
+          setLoading(false);
+        }
       }
     }
 
-    loadDashboard();
+    void loadDashboard();
+
+    return () => {
+      active = false;
+    };
   }, []);
 
   return (
     <AdminLayout>
-      {/* Header */}
       <div className="mb-8">
         <h1 className="text-4xl font-bold text-white">
           Dashboard
@@ -65,17 +112,19 @@ export default function DashboardPage() {
         </div>
       ) : (
         <>
-          {/* Statistics Cards */}
           <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-4">
-
             <StatCard
               title="Total Products"
-              value={stats.totalProducts}
+              value={
+                stats.totalProducts
+              }
             />
 
             <StatCard
               title="Inventory Value"
-              value={`₹${stats.inventoryValue.toLocaleString("en-IN")}`}
+              value={`₹${stats.inventoryValue.toLocaleString(
+                "en-IN"
+              )}`}
             />
 
             <StatCard
@@ -89,11 +138,11 @@ export default function DashboardPage() {
               value={stats.outOfStock}
               color="text-red-400"
             />
-
           </div>
 
-          {/* Recent Products */}
-          <RecentProducts />
+          <RecentProducts
+            products={recentProducts}
+          />
         </>
       )}
     </AdminLayout>

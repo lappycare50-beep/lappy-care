@@ -44,7 +44,8 @@ const templates = [
   {
     name: "Repair Received",
     message:
-      "Hello {{name}}! Your laptop has been received by Lappy Care.\n\nOur technician will diagnose the issue and update you shortly.\n\nRepair ID: {{repairId}}\nDevice: {{device}}",
+      
+  "Hello {{name}}! Your laptop has been received by Lappy Care.\n\nOur technician will diagnose the issue and update you shortly.\n\nRepair ID: {{repairId}}\nDevice: {{device}}\n\n🔗 Track Your Repair:\n{{trackingUrl}}",
   },
   {
     name: "Diagnosis Update",
@@ -83,12 +84,10 @@ function getWhatsAppNumber(value: string) {
     return "";
   }
 
-  // Indian 10 digit number
   if (clean.length === 10) {
     return `91${clean}`;
   }
 
-  // Already country-code format
   return clean;
 }
 
@@ -128,56 +127,91 @@ export default function WhatsAppPage() {
   // CUSTOMER
   // =======================================================
 
-  const [customers, setCustomers] = useState<Customer[]>(
-    []
-  );
+  const [customers, setCustomers] =
+    useState<Customer[]>([]);
 
-  const [loadingCustomers, setLoadingCustomers] =
-    useState(true);
+  const [
+    loadingCustomers,
+    setLoadingCustomers,
+  ] = useState(true);
 
-  const [customerSearch, setCustomerSearch] =
+  const [
+    customerSearch,
+    setCustomerSearch,
+  ] = useState("");
+
+  const [
+    showCustomerList,
+    setShowCustomerList,
+  ] = useState(false);
+
+  const [
+    selectedCustomerId,
+    setSelectedCustomerId,
+  ] = useState("");
+
+  const [
+    customerName,
+    setCustomerName,
+  ] = useState("");
+
+  const [phone, setPhone] =
     useState("");
-
-  const [showCustomerList, setShowCustomerList] =
-    useState(false);
-
-  const [selectedCustomerId, setSelectedCustomerId] =
-    useState("");
-
-  const [customerName, setCustomerName] =
-    useState("");
-
-  const [phone, setPhone] = useState("");
 
   // =======================================================
   // REPAIR
   // =======================================================
 
-  const [repairs, setRepairs] = useState<Repair[]>(
-    []
-  );
+  const [repairs, setRepairs] =
+    useState<Repair[]>([]);
 
-  const [loadingRepairs, setLoadingRepairs] =
-    useState(false);
+  const [
+    loadingRepairs,
+    setLoadingRepairs,
+  ] = useState(false);
 
-  const [selectedRepair, setSelectedRepair] =
-    useState<Repair | null>(null);
+  const [
+    selectedRepair,
+    setSelectedRepair,
+  ] = useState<Repair | null>(null);
 
   // =======================================================
   // MESSAGE
   // =======================================================
 
-  const [message, setMessage] = useState("");
+  const [message, setMessage] =
+    useState("");
 
   // =======================================================
   // SEND STATE
   // =======================================================
 
-  const [sending, setSending] = useState(false);
+  const [sending, setSending] =
+    useState(false);
 
-  const [success, setSuccess] = useState("");
+  const [success, setSuccess] =
+    useState("");
 
-  const [error, setError] = useState("");
+  const [error, setError] =
+    useState("");
+
+  // =======================================================
+  // LOCAL CUSTOMER REPAIR CACHE
+  //
+  // The repair service already has a short-lived cache.
+  // This second cache prevents repeated lookups while the
+  // WhatsApp page remains open, even after UI changes.
+  // =======================================================
+
+  const customerRepairsCache =
+    useMemo(
+      () =>
+        new Map<
+          string,
+          Repair[]
+        >(),
+      []
+    );
 
   // =======================================================
   // LOAD CUSTOMERS
@@ -190,10 +224,13 @@ export default function WhatsAppPage() {
       try {
         setLoadingCustomers(true);
 
-        const result = await getCustomers();
+        const result =
+          await getCustomers();
 
         if (mounted) {
-          setCustomers(result ?? []);
+          setCustomers(
+            result ?? []
+          );
         }
       } catch (err) {
         console.error(
@@ -213,7 +250,7 @@ export default function WhatsAppPage() {
       }
     }
 
-    loadCustomers();
+    void loadCustomers();
 
     return () => {
       mounted = false;
@@ -224,48 +261,65 @@ export default function WhatsAppPage() {
   // CUSTOMER SEARCH
   // =======================================================
 
-  const filteredCustomers = useMemo(() => {
-    const search =
-      customerSearch.trim().toLowerCase();
+  const filteredCustomers =
+    useMemo(() => {
+      const search =
+        customerSearch
+          .trim()
+          .toLowerCase();
 
-    if (!search) {
-      return customers.slice(0, 20);
-    }
-
-    const cleanSearch =
-      normalizePhone(search);
-
-    return customers
-      .filter((customer) => {
-        const name =
-          customer.name?.toLowerCase() || "";
-
-        const mobile =
-          normalizePhone(
-            customer.mobile || ""
-          );
-
-        const alternateMobile =
-          normalizePhone(
-            customer.alternateMobile || ""
-          );
-
-        const email =
-          customer.email?.toLowerCase() || "";
-
-        const customerId =
-          customer.customerId?.toLowerCase() || "";
-
-        return (
-          name.includes(search) ||
-          mobile.includes(cleanSearch) ||
-          alternateMobile.includes(cleanSearch) ||
-          email.includes(search) ||
-          customerId.includes(search)
+      if (!search) {
+        return customers.slice(
+          0,
+          20
         );
-      })
-      .slice(0, 20);
-  }, [customers, customerSearch]);
+      }
+
+      const cleanSearch =
+        normalizePhone(search);
+
+      return customers
+        .filter((customer) => {
+          const name =
+            customer.name?.toLowerCase() ||
+            "";
+
+          const mobile =
+            normalizePhone(
+              customer.mobile || ""
+            );
+
+          const alternateMobile =
+            normalizePhone(
+              customer.alternateMobile ||
+                ""
+            );
+
+          const email =
+            customer.email?.toLowerCase() ||
+            "";
+
+          const customerId =
+            customer.customerId?.toLowerCase() ||
+            "";
+
+          return (
+            name.includes(search) ||
+            mobile.includes(
+              cleanSearch
+            ) ||
+            alternateMobile.includes(
+              cleanSearch
+            ) ||
+            email.includes(search) ||
+            customerId.includes(search)
+          );
+        })
+        .slice(0, 20);
+    }, [
+      customers,
+      customerSearch,
+    ]);
 
   // =======================================================
   // LOAD CUSTOMER REPAIRS
@@ -280,6 +334,19 @@ export default function WhatsAppPage() {
       return;
     }
 
+    const cacheKey = customerId.trim();
+
+    const cached =
+      customerRepairsCache.get(
+        cacheKey
+      );
+
+    if (cached) {
+      setRepairs(cached);
+      setSelectedRepair(null);
+      return;
+    }
+
     try {
       setLoadingRepairs(true);
       setRepairs([]);
@@ -287,10 +354,20 @@ export default function WhatsAppPage() {
 
       const result =
         await getRepairsByCustomerId(
-          customerId
+          cacheKey
         );
 
-      setRepairs(result ?? []);
+      const safeResult =
+        result ?? [];
+
+      customerRepairsCache.set(
+        cacheKey,
+        safeResult
+      );
+
+      setRepairs(
+        safeResult
+      );
     } catch (err) {
       console.error(
         "WhatsApp repair loading error:",
@@ -329,34 +406,40 @@ export default function WhatsAppPage() {
       customer.customerId || "";
 
     setSelectedCustomerId(
-      firestoreId || customCustomerId
+      firestoreId ||
+        customCustomerId
     );
 
-    setCustomerName(name);
+    setCustomerName(
+      name
+    );
 
     setPhone(
       normalizePhone(mobile)
     );
 
-    setCustomerSearch(name);
+    setCustomerSearch(
+      name
+    );
 
-    setShowCustomerList(false);
+    setShowCustomerList(
+      false
+    );
 
     setSuccess("");
     setError("");
 
-    // -------------------------------------------------------
-    // IMPORTANT:
-    // getRepairsByCustomerId expects customer.customerId
-    // -------------------------------------------------------
-
-    if (customCustomerId) {
+    if (
+      customCustomerId
+    ) {
       await loadCustomerRepairs(
         customCustomerId
       );
     } else {
       setRepairs([]);
-      setSelectedRepair(null);
+      setSelectedRepair(
+        null
+      );
     }
   }
 
@@ -367,12 +450,13 @@ export default function WhatsAppPage() {
   function selectRepair(
     repair: Repair
   ) {
-    setSelectedRepair(repair);
+    setSelectedRepair(
+      repair
+    );
 
     setSuccess("");
     setError("");
 
-    // Automatically prepare tracking-aware message
     if (message.trim()) {
       setMessage(
         replaceTemplateVariables(
@@ -389,7 +473,8 @@ export default function WhatsAppPage() {
 
   function replaceTemplateVariables(
     text: string,
-    repair: Repair | null = selectedRepair
+    repair: Repair | null =
+      selectedRepair
   ) {
     const device =
       getDeviceName(repair);
@@ -397,7 +482,8 @@ export default function WhatsAppPage() {
     return text
       .replace(
         /{{name}}/g,
-        customerName || "Customer"
+        customerName ||
+          "Customer"
       )
       .replace(
         /{{repairId}}/g,
@@ -433,7 +519,9 @@ export default function WhatsAppPage() {
         selectedRepair
       );
 
-    setMessage(preparedMessage);
+    setMessage(
+      preparedMessage
+    );
 
     setSuccess("");
     setError("");
@@ -445,23 +533,14 @@ export default function WhatsAppPage() {
 
   function clearCustomer() {
     setSelectedCustomerId("");
-
     setCustomerName("");
-
     setPhone("");
-
     setCustomerSearch("");
-
     setRepairs([]);
-
     setSelectedRepair(null);
-
     setMessage("");
-
     setShowCustomerList(false);
-
     setSuccess("");
-
     setError("");
   }
 
@@ -471,23 +550,14 @@ export default function WhatsAppPage() {
 
   function resetForm() {
     setSelectedCustomerId("");
-
     setCustomerName("");
-
     setPhone("");
-
     setCustomerSearch("");
-
     setRepairs([]);
-
     setSelectedRepair(null);
-
     setMessage("");
-
     setShowCustomerList(false);
-
     setSuccess("");
-
     setError("");
   }
 
@@ -503,10 +573,6 @@ export default function WhatsAppPage() {
     setSuccess("");
     setError("");
 
-    // -------------------------------------------------------
-    // PHONE
-    // -------------------------------------------------------
-
     const cleanPhone =
       getWhatsAppNumber(phone);
 
@@ -517,16 +583,14 @@ export default function WhatsAppPage() {
       return;
     }
 
-    if (cleanPhone.length < 12) {
+    if (
+      cleanPhone.length < 12
+    ) {
       setError(
         "Please enter a valid WhatsApp number with country code."
       );
       return;
     }
-
-    // -------------------------------------------------------
-    // MESSAGE
-    // -------------------------------------------------------
 
     if (!message.trim()) {
       setError(
@@ -535,11 +599,9 @@ export default function WhatsAppPage() {
       return;
     }
 
-    // -------------------------------------------------------
-    // REPAIR REQUIRED
-    // -------------------------------------------------------
-
-    if (!selectedRepair?.repairId) {
+    if (
+      !selectedRepair?.repairId
+    ) {
       setError(
         "Please select a repair before sending the WhatsApp message."
       );
@@ -549,23 +611,10 @@ export default function WhatsAppPage() {
     try {
       setSending(true);
 
-      // =====================================================
-      // TRACKING URL
-      // =====================================================
-
       const trackingUrl =
         getTrackingUrl(
           selectedRepair
         );
-
-      // =====================================================
-      // FINAL MESSAGE
-      //
-      // THIS IS THE IMPORTANT PART.
-      //
-      // Tracking URL is actually included in the
-      // message sent to WhatsApp API.
-      // =====================================================
 
       const finalMessage =
         `${replaceTemplateVariables(
@@ -573,41 +622,28 @@ export default function WhatsAppPage() {
           selectedRepair
         )}\n\n` +
         `🔗 Track Your Repair:\n` +
-        `${trackingUrl}`;
-
-      console.log(
-        "WhatsApp final message:",
-        finalMessage
-      );
-
-      // =====================================================
-      // SEND API
-      // =====================================================
+        trackingUrl;
 
       const response =
         await fetch(
           "/api/whatsapp/send",
           {
             method: "POST",
-
             headers: {
               "Content-Type":
                 "application/json",
             },
-
-            body: JSON.stringify({
-              to: cleanPhone,
-              message: finalMessage,
-            }),
+            body:
+              JSON.stringify({
+                to: cleanPhone,
+                message:
+                  finalMessage,
+              }),
           }
         );
 
       const data =
         await response.json();
-
-      // =====================================================
-      // ERROR
-      // =====================================================
 
       if (
         !response.ok ||
@@ -619,10 +655,6 @@ export default function WhatsAppPage() {
         );
       }
 
-      // =====================================================
-      // SUCCESS
-      // =====================================================
-
       setSuccess(
         customerName
           ? `WhatsApp message sent successfully to ${customerName}.`
@@ -630,7 +662,6 @@ export default function WhatsAppPage() {
       );
 
       setMessage("");
-
     } catch (err) {
       console.error(
         "WhatsApp send error:",
@@ -648,17 +679,13 @@ export default function WhatsAppPage() {
   }
 
   // =======================================================
-  // DEVICE
+  // DERIVED DATA
   // =======================================================
 
   const selectedDevice =
     getDeviceName(
       selectedRepair
     );
-
-  // =======================================================
-  // TRACKING URL
-  // =======================================================
 
   const trackingUrl =
     getTrackingUrl(
@@ -671,15 +698,9 @@ export default function WhatsAppPage() {
 
   return (
     <div className="min-h-screen bg-black px-5 py-7 text-white md:px-8">
-
-      {/* ===================================================
-          HEADER
-      =================================================== */}
-
+      {/* Header */}
       <div className="mb-7 flex items-center justify-between">
-
         <div className="flex items-center gap-3">
-
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-green-500/10">
             <MessageCircle
               size={27}
@@ -696,7 +717,6 @@ export default function WhatsAppPage() {
               Customer messaging
             </p>
           </div>
-
         </div>
 
         <button
@@ -707,13 +727,9 @@ export default function WhatsAppPage() {
           <RotateCcw size={16} />
           Reset
         </button>
-
       </div>
 
-      {/* ===================================================
-          STATUS
-      =================================================== */}
-
+      {/* Status */}
       {success && (
         <div className="mb-5 flex items-center gap-3 rounded-xl border border-green-500/30 bg-green-500/10 px-4 py-3 text-sm text-green-300">
           <CheckCircle2 size={18} />
@@ -728,29 +744,15 @@ export default function WhatsAppPage() {
         </div>
       )}
 
-      {/* ===================================================
-          MAIN GRID
-      =================================================== */}
-
+      {/* Main Grid */}
       <div className="grid grid-cols-1 gap-5 xl:grid-cols-3">
-
-        {/* =================================================
-            LEFT
-        ================================================= */}
-
+        {/* Left */}
         <div className="xl:col-span-2">
-
           <form
             onSubmit={handleSend}
             className="rounded-2xl border border-zinc-800 bg-zinc-950 p-6"
           >
-
-            {/* =============================================
-                TITLE
-            ============================================= */}
-
             <div className="mb-6">
-
               <h2 className="text-xl font-semibold">
                 Send WhatsApp Message
               </h2>
@@ -758,23 +760,16 @@ export default function WhatsAppPage() {
               <p className="mt-1 text-sm text-zinc-500">
                 Select a customer and send a message with repair tracking.
               </p>
-
             </div>
 
-            {/* =============================================
-                CUSTOMER SEARCH
-            ============================================= */}
-
+            {/* Customer Search */}
             <div className="mb-5">
-
               <label className="mb-2 block text-sm font-medium text-zinc-300">
                 Select Customer
               </label>
 
               <div className="relative">
-
                 <div className="flex items-center rounded-xl border border-zinc-700 bg-black focus-within:border-yellow-400">
-
                   <Search
                     size={18}
                     className="ml-4 text-zinc-500"
@@ -784,14 +779,18 @@ export default function WhatsAppPage() {
                     type="text"
                     value={customerSearch}
                     onFocus={() =>
-                      setShowCustomerList(true)
+                      setShowCustomerList(
+                        true
+                      )
                     }
                     onChange={(event) => {
                       setCustomerSearch(
                         event.target.value
                       );
 
-                      setShowCustomerList(true);
+                      setShowCustomerList(
+                        true
+                      );
 
                       if (
                         selectedCustomerId
@@ -799,9 +798,7 @@ export default function WhatsAppPage() {
                         setSelectedCustomerId(
                           ""
                         );
-
                         setRepairs([]);
-
                         setSelectedRepair(
                           null
                         );
@@ -834,16 +831,10 @@ export default function WhatsAppPage() {
                         <X size={17} />
                       </button>
                     )}
-
                 </div>
-
-                {/* =========================================
-                    CUSTOMER DROPDOWN
-                ========================================= */}
 
                 {showCustomerList && (
                   <div className="absolute left-0 right-0 top-full z-50 mt-2 max-h-80 overflow-y-auto rounded-xl border border-zinc-700 bg-zinc-950 shadow-2xl">
-
                     {loadingCustomers ? (
                       <div className="flex items-center gap-3 px-4 py-4 text-sm text-zinc-500">
                         <Loader2
@@ -870,7 +861,6 @@ export default function WhatsAppPage() {
                           customer,
                           index
                         ) => {
-
                           const key =
                             customer.id ||
                             customer.customerId ||
@@ -881,13 +871,12 @@ export default function WhatsAppPage() {
                               key={key}
                               type="button"
                               onClick={() =>
-                                selectCustomer(
+                                void selectCustomer(
                                   customer
                                 )
                               }
                               className="flex w-full items-center gap-4 border-b border-zinc-800 px-4 py-3 text-left transition last:border-b-0 hover:bg-zinc-900"
                             >
-
                               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-yellow-500/10">
                                 <UserRound
                                   size={18}
@@ -896,17 +885,13 @@ export default function WhatsAppPage() {
                               </div>
 
                               <div className="min-w-0 flex-1">
-
                                 <div className="truncate font-medium text-white">
                                   {customer.name ||
                                     "Unnamed Customer"}
                                 </div>
 
                                 <div className="mt-1 flex items-center gap-2 text-xs text-zinc-500">
-
-                                  <Phone
-                                    size={13}
-                                  />
+                                  <Phone size={13} />
 
                                   <span>
                                     {customer.mobile ||
@@ -916,9 +901,7 @@ export default function WhatsAppPage() {
 
                                   {customer.customerId && (
                                     <>
-                                      <span>
-                                        •
-                                      </span>
+                                      <span>•</span>
 
                                       <span>
                                         {
@@ -927,20 +910,15 @@ export default function WhatsAppPage() {
                                       </span>
                                     </>
                                   )}
-
                                 </div>
-
                               </div>
-
                             </button>
                           );
                         }
                       )
                     )}
-
                   </div>
                 )}
-
               </div>
 
               {selectedCustomerId && (
@@ -960,20 +938,13 @@ export default function WhatsAppPage() {
                   </span>
                 </div>
               )}
-
             </div>
 
-            {/* =============================================
-                CUSTOMER REPAIRS
-            ============================================= */}
-
+            {/* Customer Repairs */}
             {selectedCustomerId && (
               <div className="mb-5 rounded-xl border border-zinc-800 bg-black p-4">
-
                 <div className="mb-4 flex items-center justify-between">
-
                   <div className="flex items-center gap-3">
-
                     <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-500/10">
                       <Wrench
                         size={19}
@@ -990,19 +961,18 @@ export default function WhatsAppPage() {
                         Select the repair related to this WhatsApp message.
                       </p>
                     </div>
-
                   </div>
 
                   <span className="text-xs text-zinc-500">
                     {loadingRepairs
                       ? "Loading..."
                       : `${repairs.length} ${
-                          repairs.length === 1
+                          repairs.length ===
+                          1
                             ? "repair"
                             : "repairs"
                         }`}
                   </span>
-
                 </div>
 
                 {loadingRepairs ? (
@@ -1013,17 +983,14 @@ export default function WhatsAppPage() {
                     />
                     Loading customer repairs...
                   </div>
-                ) : repairs.length ===
-                  0 ? (
+                ) : repairs.length === 0 ? (
                   <div className="rounded-xl border border-yellow-500/30 bg-yellow-500/5 px-4 py-4 text-sm text-yellow-300">
                     No repair found for this customer.
                   </div>
                 ) : (
                   <div className="space-y-2">
-
                     {repairs.map(
                       (repair) => {
-
                         const isSelected =
                           selectedRepair?.id ===
                           repair.id;
@@ -1046,9 +1013,7 @@ export default function WhatsAppPage() {
                                 : "border-zinc-800 hover:border-zinc-600 hover:bg-zinc-900"
                             }`}
                           >
-
                             <div className="flex items-center gap-3">
-
                               <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-yellow-500/10">
                                 <Laptop
                                   size={18}
@@ -1057,9 +1022,7 @@ export default function WhatsAppPage() {
                               </div>
 
                               <div className="min-w-0 flex-1">
-
                                 <div className="flex items-center gap-2">
-
                                   <span className="font-semibold text-white">
                                     {
                                       repair.repairId
@@ -1071,7 +1034,6 @@ export default function WhatsAppPage() {
                                       repair.status
                                     }
                                   </span>
-
                                 </div>
 
                                 <div className="mt-1 text-xs text-zinc-500">
@@ -1086,7 +1048,6 @@ export default function WhatsAppPage() {
                                     repair.createdAt
                                   }
                                 </div>
-
                               </div>
 
                               {isSelected && (
@@ -1095,24 +1056,16 @@ export default function WhatsAppPage() {
                                   className="text-yellow-400"
                                 />
                               )}
-
                             </div>
-
                           </button>
                         );
                       }
                     )}
-
                   </div>
                 )}
 
-                {/* =========================================
-                    SELECTED REPAIR TRACKING
-                ========================================= */}
-
                 {selectedRepair && (
                   <div className="mt-3 rounded-xl border border-green-500/30 bg-green-500/5 p-3">
-
                     <div className="flex items-center gap-2 text-xs font-medium text-green-400">
                       <CircleCheck size={14} />
                       Repair selected:
@@ -1124,7 +1077,6 @@ export default function WhatsAppPage() {
                     </div>
 
                     <div className="mt-3 rounded-lg border border-zinc-700 bg-black p-3">
-
                       <div className="flex items-center gap-2 text-xs text-zinc-400">
                         <ExternalLink
                           size={14}
@@ -1135,23 +1087,15 @@ export default function WhatsAppPage() {
                       <div className="mt-1 break-all text-xs text-blue-400">
                         {trackingUrl}
                       </div>
-
                     </div>
-
                   </div>
                 )}
-
               </div>
             )}
 
-            {/* =============================================
-                CUSTOMER DETAILS
-            ============================================= */}
-
+            {/* Customer Details */}
             <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-
               <div>
-
                 <label className="mb-2 block text-sm font-medium text-zinc-300">
                   Customer Name
                 </label>
@@ -1167,11 +1111,9 @@ export default function WhatsAppPage() {
                   placeholder="Customer name"
                   className="w-full rounded-xl border border-zinc-700 bg-black px-4 py-3 text-white outline-none placeholder:text-zinc-600 focus:border-yellow-400"
                 />
-
               </div>
 
               <div>
-
                 <label className="mb-2 block text-sm font-medium text-zinc-300">
                   WhatsApp Number *
                 </label>
@@ -1194,27 +1136,19 @@ export default function WhatsAppPage() {
                 <p className="mt-2 text-xs text-zinc-600">
                   10 digit Indian number is automatically converted to +91.
                 </p>
-
               </div>
-
             </div>
 
-            {/* =============================================
-                TRACKING PREVIEW
-            ============================================= */}
-
+            {/* Tracking Preview */}
             {selectedRepair && (
               <div className="mt-5 rounded-xl border border-blue-500/30 bg-blue-500/5 p-4">
-
                 <div className="flex items-start gap-3">
-
                   <ExternalLink
                     size={18}
                     className="mt-0.5 text-blue-400"
                   />
 
                   <div className="min-w-0">
-
                     <div className="text-sm font-medium text-white">
                       Track Repair Link
                     </div>
@@ -1226,20 +1160,13 @@ export default function WhatsAppPage() {
                     <div className="mt-2 break-all text-xs text-blue-400">
                       {trackingUrl}
                     </div>
-
                   </div>
-
                 </div>
-
               </div>
             )}
 
-            {/* =============================================
-                MESSAGE
-            ============================================= */}
-
+            {/* Message */}
             <div className="mt-5">
-
               <label className="mb-2 block text-sm font-medium text-zinc-300">
                 Message *
               </label>
@@ -1262,7 +1189,6 @@ export default function WhatsAppPage() {
               />
 
               <div className="mt-2 flex items-center justify-between">
-
                 <p className="text-xs text-zinc-600">
                   Tracking URL will be added automatically when sending.
                 </p>
@@ -1270,17 +1196,11 @@ export default function WhatsAppPage() {
                 <span className="text-xs text-zinc-600">
                   {message.length} characters
                 </span>
-
               </div>
-
             </div>
 
-            {/* =============================================
-                SEND
-            ============================================= */}
-
+            {/* Send */}
             <div className="mt-6 flex justify-end">
-
               <button
                 type="submit"
                 disabled={
@@ -1289,7 +1209,6 @@ export default function WhatsAppPage() {
                 }
                 className="flex items-center gap-2 rounded-xl bg-green-500 px-6 py-3 font-semibold text-black transition hover:bg-green-400 disabled:cursor-not-allowed disabled:opacity-50"
               >
-
                 {sending ? (
                   <Loader2
                     size={18}
@@ -1302,29 +1221,16 @@ export default function WhatsAppPage() {
                 {sending
                   ? "Sending..."
                   : "Send WhatsApp"}
-
               </button>
-
             </div>
-
           </form>
-
         </div>
 
-        {/* =================================================
-            RIGHT SIDE
-        ================================================= */}
-
+        {/* Right Side */}
         <div className="space-y-5">
-
-          {/* ===============================================
-              TEMPLATES
-          =============================================== */}
-
+          {/* Templates */}
           <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-5">
-
             <div className="mb-5">
-
               <h2 className="text-xl font-semibold">
                 Message Templates
               </h2>
@@ -1332,11 +1238,9 @@ export default function WhatsAppPage() {
               <p className="mt-1 text-sm text-zinc-500">
                 Select a template to quickly compose a message.
               </p>
-
             </div>
 
             <div className="space-y-3">
-
               {templates.map(
                 (template) => (
                   <button
@@ -1351,7 +1255,6 @@ export default function WhatsAppPage() {
                     }
                     className="w-full rounded-xl border border-zinc-800 bg-black p-4 text-left transition hover:border-yellow-500/50 hover:bg-zinc-900"
                   >
-
                     <div className="font-medium text-white">
                       {template.name}
                     </div>
@@ -1374,24 +1277,16 @@ export default function WhatsAppPage() {
                             "{{device}}"
                         )}
                     </p>
-
                   </button>
                 )
               )}
-
             </div>
-
           </div>
 
-          {/* ===============================================
-              REPAIR SUMMARY
-          =============================================== */}
-
+          {/* Repair Summary */}
           {selectedRepair && (
             <div className="rounded-2xl border border-zinc-800 bg-zinc-950 p-5">
-
               <div className="mb-4 flex items-center gap-3">
-
                 <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-yellow-500/10">
                   <Wrench
                     size={17}
@@ -1400,7 +1295,6 @@ export default function WhatsAppPage() {
                 </div>
 
                 <div>
-
                   <h3 className="font-semibold">
                     Repair Summary
                   </h3>
@@ -1408,13 +1302,10 @@ export default function WhatsAppPage() {
                   <p className="text-xs text-zinc-500">
                     Selected repair details
                   </p>
-
                 </div>
-
               </div>
 
               <div className="space-y-3 text-sm">
-
                 <div className="flex justify-between gap-4">
                   <span className="text-zinc-500">
                     Repair ID
@@ -1469,15 +1360,9 @@ export default function WhatsAppPage() {
                     )}
                   </span>
                 </div>
-
               </div>
 
-              {/* =========================================
-                  TRACKING URL
-              ========================================= */}
-
               <div className="mt-5 rounded-xl border border-blue-500/30 bg-blue-500/5 p-3">
-
                 <div className="flex items-center gap-2 text-xs font-medium text-blue-400">
                   <ExternalLink
                     size={14}
@@ -1488,31 +1373,21 @@ export default function WhatsAppPage() {
                 <div className="mt-2 break-all text-xs text-blue-300">
                   {trackingUrl}
                 </div>
-
               </div>
-
             </div>
           )}
-
         </div>
-
       </div>
 
-      {/* ===================================================
-          WHATSAPP API INFO
-      =================================================== */}
-
+      {/* WhatsApp API Info */}
       <div className="mt-5 rounded-2xl border border-zinc-800 bg-zinc-950 p-5">
-
         <div className="flex items-start gap-3">
-
           <MessageCircle
             size={20}
             className="mt-0.5 text-green-400"
           />
 
           <div>
-
             <h3 className="font-medium text-white">
               WhatsApp Cloud API
             </h3>
@@ -1526,28 +1401,23 @@ export default function WhatsAppPage() {
                 ✓ Tracking URL will be included in the outgoing message.
               </p>
             )}
-
           </div>
-
         </div>
-
       </div>
 
-      {/* ===================================================
-          CLICK OUTSIDE
-      =================================================== */}
-
+      {/* Click Outside */}
       {showCustomerList && (
         <button
           type="button"
           aria-label="Close customer search"
           onClick={() =>
-            setShowCustomerList(false)
+            setShowCustomerList(
+              false
+            )
           }
           className="fixed inset-0 z-40 cursor-default"
         />
       )}
-
     </div>
   );
 }

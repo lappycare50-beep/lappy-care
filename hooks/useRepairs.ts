@@ -1,34 +1,78 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useState,
+} from "react";
 
 import { Repair } from "@/types/repair";
 import { getRepairs } from "@/services/repairService";
 
 export function useRepairs() {
-  const [repairs, setRepairs] = useState<Repair[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [
+    repairs,
+    setRepairs,
+  ] = useState<Repair[]>([]);
 
-  const refresh = useCallback(async () => {
-    try {
-      setLoading(true);
-      setError("");
+  const [
+    loading,
+    setLoading,
+  ] = useState(true);
 
-      const data = await getRepairs();
+  const [
+    error,
+    setError,
+  ] = useState("");
 
-      setRepairs(data);
-    } catch (err) {
-      console.error(err);
+  const refresh =
+    useCallback(
+      async (
+        forceRefresh = false
+      ) => {
+        try {
+          setLoading(true);
+          setError("");
 
-      setError("Failed to load repairs.");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
+          const data =
+            await getRepairs(
+              forceRefresh
+            );
+
+          setRepairs(data);
+        } catch (err) {
+          console.error(
+            "Repair Load Error:",
+            err
+          );
+
+          setError(
+            "Failed to load repairs."
+          );
+        } finally {
+          setLoading(false);
+        }
+      },
+      []
+    );
+
+  const removeRepair =
+    useCallback(
+      (repairId: string) => {
+        setRepairs(
+          (previous) =>
+            previous.filter(
+              (repair) =>
+                repair.id !==
+                repairId
+            )
+        );
+      },
+      []
+    );
 
   useEffect(() => {
-    refresh();
+    void refresh();
   }, [refresh]);
 
   return {
@@ -36,5 +80,6 @@ export function useRepairs() {
     loading,
     error,
     refresh,
+    removeRepair,
   };
 }

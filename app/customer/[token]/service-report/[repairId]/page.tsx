@@ -2,7 +2,10 @@ import { notFound } from "next/navigation";
 import type { ReactNode } from "react";
 
 import { getCustomerByQrToken } from "@/services/customerQrService";
-import { getRepairsByCustomerId } from "@/services/repairService";
+import {
+  getRepairById,
+  getRepairByRepairId,
+} from "@/services/repairService";
 
 export const dynamic = "force-dynamic";
 
@@ -16,36 +19,75 @@ type Props = {
 export default async function CustomerServiceReportPage({
   params,
 }: Props) {
-  const { token, repairId } = await params;
+  const {
+    token,
+    repairId,
+  } = await params;
 
-  const decodedToken = decodeURIComponent(token);
-  const decodedRepairId = decodeURIComponent(repairId);
+  const decodedToken =
+    decodeURIComponent(token);
 
-  const customer = await getCustomerByQrToken(decodedToken);
+  const decodedRepairId =
+    decodeURIComponent(repairId);
 
-  if (!customer || customer.isActive === false) {
+  const customer =
+    await getCustomerByQrToken(
+      decodedToken
+    );
+
+  if (
+    !customer ||
+    customer.isActive === false
+  ) {
     notFound();
   }
 
-  const repairs = await getRepairsByCustomerId(customer.customerId);
+  // =====================================================
+  // TARGETED REPAIR LOOKUP
+  //
+  // repairId may be either the business Repair ID or
+  // the Firestore document ID. Try the business ID first,
+  // then fall back to the document ID.
+  //
+  // This avoids loading the customer's complete repair
+  // history just to find one report.
+  // =====================================================
 
-  const repair = repairs.find(
-    (item) =>
-      item.id === decodedRepairId ||
-      item.repairId === decodedRepairId
-  );
+  let repair =
+    await getRepairByRepairId(
+      decodedRepairId
+    );
 
   if (!repair) {
+    repair =
+      await getRepairById(
+        decodedRepairId
+      );
+  }
+
+  // =====================================================
+  // CUSTOMER OWNERSHIP CHECK
+  // =====================================================
+
+  if (
+    !repair ||
+    repair.customer?.customerId !==
+      customer.customerId
+  ) {
     notFound();
   }
 
-  const laptopName =
-    [repair.device?.brand, repair.device?.model]
-      .filter(Boolean)
-      .join(" ") || "Laptop";
+  const laptopName = [
+    repair.device?.brand,
+    repair.device?.model,
+  ]
+    .filter(Boolean)
+    .join(" ") || "Laptop";
 
   const reportId =
-    repair.repairId || repair.id || "Service Report";
+    repair.repairId ||
+    repair.id ||
+    "Service Report";
 
   return (
     <main className="min-h-screen bg-slate-100 px-3 py-5 text-slate-900 sm:px-4 sm:py-8">
@@ -94,33 +136,48 @@ export default async function CustomerServiceReportPage({
 
               <p className="mt-1 text-xs text-slate-600">
                 Service Date:{" "}
-                {formatDate(repair.createdAt || repair.updatedAt)}
+                {formatDate(
+                  repair.createdAt ||
+                    repair.updatedAt
+                )}
               </p>
             </div>
 
-            <StatusBadge status={repair.status} />
+            <StatusBadge
+              status={repair.status}
+            />
           </div>
 
           <div className="mt-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <ReportMeta label="Repair ID" value={reportId} />
+            <ReportMeta
+              label="Repair ID"
+              value={reportId}
+            />
 
             <ReportMeta
               label="Warranty"
-              value={repair.warranty || "—"}
+              value={
+                repair.warranty || "—"
+              }
             />
 
             <ReportMeta
               label="Delivered"
               value={
                 repair.deliveredAt
-                  ? formatDate(repair.deliveredAt)
+                  ? formatDate(
+                      repair.deliveredAt
+                    )
                   : "—"
               }
             />
 
             <ReportMeta
               label="Status"
-              value={repair.status || "Service"}
+              value={
+                repair.status ||
+                "Service"
+              }
             />
           </div>
         </section>
@@ -133,32 +190,50 @@ export default async function CustomerServiceReportPage({
           <div className="grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3">
             <ReportField
               label="Brand"
-              value={repair.device?.brand || "—"}
+              value={
+                repair.device?.brand ||
+                "—"
+              }
             />
 
             <ReportField
               label="Model"
-              value={repair.device?.model || "—"}
+              value={
+                repair.device?.model ||
+                "—"
+              }
             />
 
             <ReportField
               label="Serial Number"
-              value={repair.device?.serialNo || "—"}
+              value={
+                repair.device?.serialNo ||
+                "—"
+              }
             />
 
             <ReportField
               label="Processor"
-              value={repair.device?.processor || "—"}
+              value={
+                repair.device?.processor ||
+                "—"
+              }
             />
 
             <ReportField
               label="RAM"
-              value={repair.device?.ram || "—"}
+              value={
+                repair.device?.ram ||
+                "—"
+              }
             />
 
             <ReportField
               label="Storage"
-              value={repair.device?.storage || "—"}
+              value={
+                repair.device?.storage ||
+                "—"
+              }
             />
           </div>
         </ReportSection>
@@ -171,28 +246,38 @@ export default async function CustomerServiceReportPage({
           <ReportRow
             label="Reported Issue"
             value={
-              repair.problem?.complaint || "Not available"
+              repair.problem?.complaint ||
+              "Not available"
             }
           />
 
           {repair.problem?.diagnosis && (
             <ReportRow
               label="Diagnosis"
-              value={repair.problem.diagnosis}
+              value={
+                repair.problem
+                  .diagnosis
+              }
             />
           )}
 
-          {repair.problem?.physicalCondition && (
+          {repair.problem
+            ?.physicalCondition && (
             <ReportRow
               label="Physical Condition"
-              value={repair.problem.physicalCondition}
+              value={
+                repair.problem
+                  .physicalCondition
+              }
             />
           )}
 
           {repair.remarks && (
             <ReportRow
               label="Service Remarks"
-              value={repair.remarks}
+              value={
+                repair.remarks
+              }
             />
           )}
         </ReportSection>
@@ -205,34 +290,52 @@ export default async function CustomerServiceReportPage({
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
             <ReportMeta
               label="Labour"
-              value={money(repair.estimate?.labourCharge)}
+              value={money(
+                repair.estimate
+                  ?.labourCharge
+              )}
             />
 
             <ReportMeta
               label="Parts"
-              value={money(repair.estimate?.partsCharge)}
+              value={money(
+                repair.estimate
+                  ?.partsCharge
+              )}
             />
 
             <ReportMeta
               label="Discount"
-              value={money(repair.estimate?.discount)}
+              value={money(
+                repair.estimate
+                  ?.discount
+              )}
             />
 
             <ReportMeta
               label="Total"
-              value={money(repair.estimate?.totalAmount)}
+              value={money(
+                repair.estimate
+                  ?.totalAmount
+              )}
             />
           </div>
 
           <div className="mt-3 grid grid-cols-2 gap-3">
             <ReportMeta
               label="Advance Paid"
-              value={money(repair.estimate?.advancePaid)}
+              value={money(
+                repair.estimate
+                  ?.advancePaid
+              )}
             />
 
             <ReportMeta
               label="Balance"
-              value={money(repair.estimate?.balanceAmount)}
+              value={money(
+                repair.estimate
+                  ?.balanceAmount
+              )}
             />
           </div>
 
@@ -243,7 +346,10 @@ export default async function CustomerServiceReportPage({
               </span>
 
               <span className="text-lg font-bold text-slate-900">
-                {money(repair.estimate?.totalAmount)}
+                {money(
+                  repair.estimate
+                    ?.totalAmount
+                )}
               </span>
             </div>
           </div>
@@ -256,32 +362,43 @@ export default async function CustomerServiceReportPage({
             description="Recorded progress of this service."
           >
             <div className="space-y-4">
-              {repair.timeline.map((entry, index) => (
-                <div
-                  key={`${entry.createdAt || "entry"}-${index}`}
-                  className="flex gap-3"
-                >
-                  <div className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-black" />
+              {repair.timeline.map(
+                (
+                  entry,
+                  index
+                ) => (
+                  <div
+                    key={`${entry.createdAt || "entry"}-${index}`}
+                    className="flex gap-3"
+                  >
+                    <div className="mt-1.5 h-2.5 w-2.5 shrink-0 rounded-full bg-black" />
 
-                  <div className="min-w-0 flex-1">
-                    <div className="flex items-start justify-between gap-3">
-                      <p className="text-sm font-bold text-slate-900">
-                        {entry.status}
-                      </p>
+                    <div className="min-w-0 flex-1">
+                      <div className="flex items-start justify-between gap-3">
+                        <p className="text-sm font-bold text-slate-900">
+                          {
+                            entry.status
+                          }
+                        </p>
 
-                      <p className="shrink-0 text-[10px] text-slate-500">
-                        {formatDate(entry.createdAt)}
-                      </p>
+                        <p className="shrink-0 text-[10px] text-slate-500">
+                          {formatDate(
+                            entry.createdAt
+                          )}
+                        </p>
+                      </div>
+
+                      {entry.note && (
+                        <p className="mt-1 whitespace-pre-wrap text-xs leading-5 text-slate-700">
+                          {
+                            entry.note
+                          }
+                        </p>
+                      )}
                     </div>
-
-                    {entry.note && (
-                      <p className="mt-1 whitespace-pre-wrap text-xs leading-5 text-slate-700">
-                        {entry.note}
-                      </p>
-                    )}
                   </div>
-                </div>
-              ))}
+                )
+              )}
             </div>
           </ReportSection>
         ) : null}
@@ -310,7 +427,9 @@ export default async function CustomerServiceReportPage({
         {/* Back */}
         <div className="mt-5 flex justify-center">
           <a
-            href={`/customer/${encodeURIComponent(decodedToken)}`}
+            href={`/customer/${encodeURIComponent(
+              decodedToken
+            )}`}
             className="rounded-xl bg-black px-6 py-3 text-xs font-bold text-white transition hover:bg-slate-800"
           >
             ← Back to Customer Portal
@@ -344,7 +463,9 @@ function ReportSection({
         {description}
       </p>
 
-      <div className="mt-4">{children}</div>
+      <div className="mt-4">
+        {children}
+      </div>
     </section>
   );
 }
@@ -414,19 +535,27 @@ function StatusBadge({
 }: {
   status?: string;
 }) {
-  const value = status || "Service";
-  const normalized = value.toLowerCase();
+  const value =
+    status || "Service";
+
+  const normalized =
+    value.toLowerCase();
 
   const className =
-    normalized === "completed"
+    normalized ===
+    "completed"
       ? "bg-green-50 text-green-700"
-      : normalized === "waiting parts"
+      : normalized ===
+        "waiting parts"
       ? "bg-orange-50 text-orange-700"
-      : normalized === "diagnosing"
+      : normalized ===
+        "diagnosing"
       ? "bg-yellow-50 text-yellow-700"
-      : normalized === "cancelled"
+      : normalized ===
+        "cancelled"
       ? "bg-red-50 text-red-700"
-      : normalized === "received"
+      : normalized ===
+        "received"
       ? "bg-blue-50 text-blue-700"
       : "bg-slate-100 text-slate-700";
 
@@ -439,28 +568,45 @@ function StatusBadge({
   );
 }
 
-function money(value?: number) {
-  if (typeof value !== "number") {
+function money(
+  value?: number
+) {
+  if (
+    typeof value !==
+    "number"
+  ) {
     return "—";
   }
 
-  return `₹${value.toLocaleString("en-IN")}`;
+  return `₹${value.toLocaleString(
+    "en-IN"
+  )}`;
 }
 
-function formatDate(value?: string) {
+function formatDate(
+  value?: string
+) {
   if (!value) {
     return "Not available";
   }
 
-  const date = new Date(value);
+  const date =
+    new Date(value);
 
-  if (Number.isNaN(date.getTime())) {
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
     return value;
   }
 
-  return date.toLocaleDateString("en-IN", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-  });
+  return date.toLocaleDateString(
+    "en-IN",
+    {
+      day: "2-digit",
+      month: "short",
+      year: "numeric",
+    }
+  );
 }

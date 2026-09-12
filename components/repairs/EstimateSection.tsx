@@ -1,45 +1,46 @@
 "use client";
 
-import { RepairEstimate, Priority } from "@/types/repair";
+import {
+  RepairEstimate,
+  Priority,
+} from "@/types/repair";
 
 type Props = {
   estimate: RepairEstimate;
-  setEstimate: (estimate: RepairEstimate) => void;
+  setEstimate: (
+    estimate: RepairEstimate
+  ) => void;
 };
 
 export default function EstimateSection({
   estimate,
   setEstimate,
 }: Props) {
-
   function update<K extends keyof RepairEstimate>(
     key: K,
     value: RepairEstimate[K]
   ) {
-
-    let updated = {
+    const updated = {
       ...estimate,
       [key]: value,
     };
 
     updated.totalAmount =
-      updated.labourCharge +
-      updated.partsCharge -
-      updated.discount;
+      Number(updated.labourCharge || 0) +
+      Number(updated.partsCharge || 0) -
+      Number(updated.discount || 0);
 
     updated.balanceAmount =
       Math.max(
         updated.totalAmount -
-        updated.advancePaid,
+          Number(updated.advancePaid || 0),
         0
       );
 
     setEstimate(updated);
-
   }
 
   return (
-
     <div className="rounded-2xl border border-yellow-500/20 bg-[#181818] p-6">
 
       <h2 className="mb-6 text-2xl font-bold text-white">
@@ -51,15 +52,16 @@ export default function EstimateSection({
         {/* Labour */}
 
         <div>
-
           <label className="mb-2 block text-sm text-gray-300">
             Labour Charge
           </label>
 
           <input
             type="number"
+            min="0"
+            step="0.01"
             value={estimate.labourCharge}
-            onChange={(e)=>
+            onChange={(e) =>
               update(
                 "labourCharge",
                 Number(e.target.value)
@@ -67,21 +69,21 @@ export default function EstimateSection({
             }
             className="w-full rounded-xl border border-gray-700 bg-black p-4 text-white outline-none focus:border-yellow-400"
           />
-
         </div>
 
         {/* Parts */}
 
         <div>
-
           <label className="mb-2 block text-sm text-gray-300">
             Parts Charge
           </label>
 
           <input
             type="number"
+            min="0"
+            step="0.01"
             value={estimate.partsCharge}
-            onChange={(e)=>
+            onChange={(e) =>
               update(
                 "partsCharge",
                 Number(e.target.value)
@@ -89,21 +91,21 @@ export default function EstimateSection({
             }
             className="w-full rounded-xl border border-gray-700 bg-black p-4 text-white outline-none focus:border-yellow-400"
           />
-
         </div>
 
         {/* Discount */}
 
         <div>
-
           <label className="mb-2 block text-sm text-gray-300">
             Discount
           </label>
 
           <input
             type="number"
+            min="0"
+            step="0.01"
             value={estimate.discount}
-            onChange={(e)=>
+            onChange={(e) =>
               update(
                 "discount",
                 Number(e.target.value)
@@ -111,21 +113,21 @@ export default function EstimateSection({
             }
             className="w-full rounded-xl border border-gray-700 bg-black p-4 text-white outline-none focus:border-yellow-400"
           />
-
         </div>
 
         {/* Advance */}
 
         <div>
-
           <label className="mb-2 block text-sm text-gray-300">
             Advance Paid
           </label>
 
           <input
             type="number"
+            min="0"
+            step="0.01"
             value={estimate.advancePaid}
-            onChange={(e)=>
+            onChange={(e) =>
               update(
                 "advancePaid",
                 Number(e.target.value)
@@ -133,13 +135,11 @@ export default function EstimateSection({
             }
             className="w-full rounded-xl border border-gray-700 bg-black p-4 text-white outline-none focus:border-yellow-400"
           />
-
         </div>
 
         {/* Delivery */}
 
         <div>
-
           <label className="mb-2 block text-sm text-gray-300">
             Expected Delivery
           </label>
@@ -147,7 +147,7 @@ export default function EstimateSection({
           <input
             type="date"
             value={estimate.expectedDelivery}
-            onChange={(e)=>
+            onChange={(e) =>
               update(
                 "expectedDelivery",
                 e.target.value
@@ -155,13 +155,11 @@ export default function EstimateSection({
             }
             className="w-full rounded-xl border border-gray-700 bg-black p-4 text-white outline-none focus:border-yellow-400"
           />
-
         </div>
 
         {/* Technician */}
 
         <div>
-
           <label className="mb-2 block text-sm text-gray-300">
             Technician
           </label>
@@ -169,7 +167,7 @@ export default function EstimateSection({
           <input
             type="text"
             value={estimate.technician}
-            onChange={(e)=>
+            onChange={(e) =>
               update(
                 "technician",
                 e.target.value
@@ -178,20 +176,18 @@ export default function EstimateSection({
             placeholder="Assign Technician"
             className="w-full rounded-xl border border-gray-700 bg-black p-4 text-white outline-none focus:border-yellow-400"
           />
-
         </div>
 
         {/* Priority */}
 
         <div>
-
           <label className="mb-2 block text-sm text-gray-300">
             Priority
           </label>
 
           <select
             value={estimate.priority}
-            onChange={(e)=>
+            onChange={(e) =>
               update(
                 "priority",
                 e.target.value as Priority
@@ -199,17 +195,22 @@ export default function EstimateSection({
             }
             className="w-full rounded-xl border border-gray-700 bg-black p-4 text-white outline-none focus:border-yellow-400"
           >
+            <option value="Low">
+              Low
+            </option>
 
-            <option value="Low">Low</option>
+            <option value="Medium">
+              Medium
+            </option>
 
-            <option value="Medium">Medium</option>
+            <option value="High">
+              High
+            </option>
 
-            <option value="High">High</option>
-
-            <option value="Urgent">Urgent</option>
-
+            <option value="Urgent">
+              Urgent
+            </option>
           </select>
-
         </div>
 
       </div>
@@ -225,18 +226,33 @@ export default function EstimateSection({
         <div className="space-y-3 text-white">
 
           <div className="flex justify-between">
-            <span>Total Amount</span>
-            <span>₹ {estimate.totalAmount}</span>
+            <span>
+              Total Amount
+            </span>
+
+            <span>
+              ₹ {estimate.totalAmount}
+            </span>
           </div>
 
           <div className="flex justify-between">
-            <span>Advance Paid</span>
-            <span>₹ {estimate.advancePaid}</span>
+            <span>
+              Advance Paid
+            </span>
+
+            <span>
+              ₹ {estimate.advancePaid}
+            </span>
           </div>
 
           <div className="flex justify-between text-lg font-bold text-yellow-400">
-            <span>Balance</span>
-            <span>₹ {estimate.balanceAmount}</span>
+            <span>
+              Balance
+            </span>
+
+            <span>
+              ₹ {estimate.balanceAmount}
+            </span>
           </div>
 
         </div>
@@ -244,7 +260,5 @@ export default function EstimateSection({
       </div>
 
     </div>
-
   );
-
 }

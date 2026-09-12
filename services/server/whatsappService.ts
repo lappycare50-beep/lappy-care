@@ -25,12 +25,28 @@ function getWhatsAppConfig() {
   };
 }
 
+// =====================================================
+// NORMALIZE WHATSAPP NUMBER
+//
+// Accepted examples:
+// 9898989898
+// +91 9898989898
+// +91-9898989898
+// 919898989898
+//
+// Meta receives digits only:
+// 9898989898
+// =====================================================
+
 function normalizeWhatsAppNumber(
   to: string
 ) {
-  let number = String(to).trim();
+  let number = String(to ?? "").trim();
 
-  number = number.replace(/[^\d]/g, "");
+  number = number.replace(
+    /[^\d]/g,
+    ""
+  );
 
   if (number.length === 10) {
     number = `91${number}`;
@@ -38,12 +54,16 @@ function normalizeWhatsAppNumber(
 
   if (!/^\d{10,15}$/.test(number)) {
     throw new Error(
-      "Invalid WhatsApp recipient phone number"
+      "Invalid WhatsApp recipient phone number. Use +91 9898989898 format."
     );
   }
 
   return number;
 }
+
+// =====================================================
+// SEND WHATSAPP TEXT MESSAGE
+// =====================================================
 
 export async function sendWhatsAppTextMessage(
   to: string,
@@ -94,9 +114,15 @@ export async function sendWhatsAppTextMessage(
     JSON.stringify(
       {
         phoneNumberId,
-        recipient,
-        messageLength: finalMessage.length,
-        message: finalMessage,
+        originalRecipient: to,
+        normalizedRecipient: recipient,
+        displayRecipient:
+          recipient.length === 12 &&
+          recipient.startsWith("91")
+            ? `+91 ${recipient.slice(2)}`
+            : recipient,
+        messageLength:
+          finalMessage.length,
         hasTrackingUrl:
           finalMessage.includes(
             "https://lappycarepune.in/track/"
@@ -119,28 +145,23 @@ export async function sendWhatsAppTextMessage(
     )
   );
 
-  console.log(
-    "========================================"
-  );
-
-  const response = await fetch(
-    url,
-    {
-      method: "POST",
-
-      headers: {
-        Authorization:
-          `Bearer ${accessToken}`,
-
-        "Content-Type":
-          "application/json",
-      },
-
-      body: JSON.stringify(
-        payload
-      ),
-    }
-  );
+  const response =
+    await fetch(
+      url,
+      {
+        method: "POST",
+        headers: {
+          Authorization:
+            `Bearer ${accessToken}`,
+          "Content-Type":
+            "application/json",
+        },
+        body:
+          JSON.stringify(
+            payload
+          ),
+      }
+    );
 
   const raw =
     await response.text();
@@ -148,12 +169,19 @@ export async function sendWhatsAppTextMessage(
   let data: any;
 
   try {
-    data = JSON.parse(raw);
+    data =
+      raw
+        ? JSON.parse(raw)
+        : null;
   } catch {
     data = {
       raw,
     };
   }
+
+  // ===================================================
+  // META ERROR
+  // ===================================================
 
   if (!response.ok) {
     console.error(
@@ -173,13 +201,35 @@ export async function sendWhatsAppTextMessage(
     );
   }
 
+  // ===================================================
+  // MESSAGE ID
+  // ===================================================
+
+  const messageId =
+    data?.messages?.[0]?.id ||
+    "";
+
   console.log(
-    "WhatsApp message sent successfully:",
+    "WHATSAPP MESSAGE ACCEPTED BY META"
+  );
+
+  console.log(
     JSON.stringify(
-      data,
+      {
+        messageId,
+        recipient,
+        status:
+          data?.messages?.[0]?.message_status ||
+          "accepted",
+        response: data,
+      },
       null,
       2
     )
+  );
+
+  console.log(
+    "========================================"
   );
 
   return data;

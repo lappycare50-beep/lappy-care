@@ -1,27 +1,52 @@
-import { collection, getDocs } from "firebase/firestore";
-import { db } from "@/lib/firebase";
+import { getProducts } from "@/services/productService";
+import { Product } from "@/types/product";
 
-export async function getDashboardStats() {
-  const snapshot = await getDocs(collection(db, "products"));
+export type DashboardStats = {
+  totalProducts: number;
+  inStock: number;
+  outOfStock: number;
+  inventoryValue: number;
+  recentProducts: Product[];
+};
 
-  const products = snapshot.docs.map((doc) => doc.data());
+// =====================================================
+// Dashboard Statistics
+// =====================================================
 
-  const totalProducts = products.length;
+export async function getDashboardStats(): Promise<DashboardStats> {
+  const products = await getProducts();
 
-  const inStock = products.filter((p) => p.stock).length;
+  const totalProducts =
+    products.length;
 
-  const outOfStock = totalProducts - inStock;
+  const inStock =
+    products.filter(
+      (product) =>
+        Boolean(product.stock)
+    ).length;
 
-  const inventoryValue = products.reduce(
-    (sum, p) => sum + Number(p.price || 0),
-    0
-  );
+  const outOfStock =
+    totalProducts -
+    inStock;
+
+  const inventoryValue =
+    products.reduce(
+      (sum, product) =>
+        sum +
+        Number(product.price || 0),
+      0
+    );
+
+  const recentProducts =
+    products
+      .slice(-5)
+      .reverse();
 
   return {
     totalProducts,
     inStock,
     outOfStock,
     inventoryValue,
-    recentProducts: products.slice(0, 5),
+    recentProducts,
   };
 }
