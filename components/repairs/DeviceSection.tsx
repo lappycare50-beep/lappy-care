@@ -18,6 +18,41 @@ type Props = {
 
 const MAX_PHOTOS = 10;
 
+// ==========================================
+// Brand Options
+// ==========================================
+
+const BRAND_OPTIONS = [
+  "Dell",
+  "HP",
+  "Lenovo",
+  "ASUS",
+  "Acer",
+  "MSI",
+  "Apple",
+  "Microsoft",
+  "Samsung",
+  "Xiaomi",
+  "Realme",
+  "Other",
+];
+
+// ==========================================
+// Color Options
+// ==========================================
+
+const COLOR_OPTIONS = [
+  "Black",
+  "Silver",
+  "Grey",
+  "White",
+  "Blue",
+  "Red",
+  "Gold",
+  "Rose Gold",
+  "Other",
+];
+
 export default function DeviceSection({
   device,
   setDevice,
@@ -153,8 +188,6 @@ export default function DeviceSection({
       const uploadedUrls: string[] =
         [];
 
-      // Upload one by one
-      // so failures are easier to handle.
       for (
         const file of filesToUpload
       ) {
@@ -205,8 +238,6 @@ export default function DeviceSection({
       setDevice({
         ...device,
 
-        // Keep old single-image field
-        // compatible with existing screens.
         image:
           device.image ||
           uploadedUrls[0] ||
@@ -279,9 +310,10 @@ export default function DeviceSection({
       return;
     }
 
-    const ok = window.confirm(
-      "Remove all device photos from this repair?"
-    );
+    const ok =
+      window.confirm(
+        "Remove all device photos from this repair?"
+      );
 
     if (!ok) {
       return;
@@ -325,9 +357,7 @@ export default function DeviceSection({
         </div>
 
         <div className="rounded-full border border-yellow-500/20 bg-yellow-500/10 px-4 py-2 text-xs font-bold text-yellow-400">
-          Photos:{" "}
-          {photos.length}/
-          {MAX_PHOTOS}
+          Photos: {photos.length}/{MAX_PHOTOS}
         </div>
 
       </div>
@@ -341,15 +371,12 @@ export default function DeviceSection({
         {/* Device Type */}
 
         <div>
-
           <label className="mb-2 block text-sm text-gray-300">
             Device Type
           </label>
 
           <select
-            value={
-              device.type
-            }
+            value={device.type}
             onChange={(e) =>
               update(
                 "type",
@@ -358,7 +385,6 @@ export default function DeviceSection({
             }
             className="w-full rounded-xl border border-gray-700 bg-black p-4 text-white outline-none focus:border-yellow-400"
           >
-
             <option value="Laptop">
               Laptop
             </option>
@@ -378,49 +404,53 @@ export default function DeviceSection({
             <option value="Monitor">
               Monitor
             </option>
-
           </select>
-
         </div>
 
         {/* Brand */}
 
         <div>
-
           <label className="mb-2 block text-sm text-gray-300">
             Brand *
           </label>
 
-          <input
-            type="text"
-            value={
-              device.brand
-            }
+          <select
+            value={device.brand}
             onChange={(e) =>
               update(
                 "brand",
                 e.target.value
               )
             }
-            placeholder="Dell / HP / Lenovo"
             className="w-full rounded-xl border border-gray-700 bg-black p-4 text-white outline-none focus:border-yellow-400"
-          />
+          >
+            <option value="">
+              Select Brand
+            </option>
 
+            {BRAND_OPTIONS.map(
+              (brand) => (
+                <option
+                  key={brand}
+                  value={brand}
+                >
+                  {brand}
+                </option>
+              )
+            )}
+          </select>
         </div>
 
         {/* Model */}
 
         <div>
-
           <label className="mb-2 block text-sm text-gray-300">
             Model *
           </label>
 
           <input
             type="text"
-            value={
-              device.model
-            }
+            value={device.model}
             onChange={(e) =>
               update(
                 "model",
@@ -430,22 +460,18 @@ export default function DeviceSection({
             placeholder="Latitude 5420"
             className="w-full rounded-xl border border-gray-700 bg-black p-4 text-white outline-none focus:border-yellow-400"
           />
-
         </div>
 
         {/* Serial Number */}
 
         <div>
-
           <label className="mb-2 block text-sm text-gray-300">
             Serial Number
           </label>
 
           <input
             type="text"
-            value={
-              device.serialNo
-            }
+            value={device.serialNo}
             onChange={(e) =>
               update(
                 "serialNo",
@@ -455,13 +481,11 @@ export default function DeviceSection({
             placeholder="Serial Number"
             className="w-full rounded-xl border border-gray-700 bg-black p-4 text-white outline-none focus:border-yellow-400"
           />
-
         </div>
 
         {/* Processor */}
 
         <div>
-
           <label className="mb-2 block text-sm text-gray-300">
             Processor
           </label>
@@ -469,8 +493,7 @@ export default function DeviceSection({
           <input
             type="text"
             value={
-              device.processor ??
-              ""
+              device.processor ?? ""
             }
             onChange={(e) =>
               update(
@@ -481,22 +504,18 @@ export default function DeviceSection({
             placeholder="Intel Core i5 11th Gen"
             className="w-full rounded-xl border border-gray-700 bg-black p-4 text-white outline-none focus:border-yellow-400"
           />
-
         </div>
 
         {/* RAM */}
 
         <div>
-
           <label className="mb-2 block text-sm text-gray-300">
             RAM
           </label>
 
           <input
             type="text"
-            value={
-              device.ram ?? ""
-            }
+            value={device.ram ?? ""}
             onChange={(e) =>
               update(
                 "ram",
@@ -506,13 +525,11 @@ export default function DeviceSection({
             placeholder="8 GB"
             className="w-full rounded-xl border border-gray-700 bg-black p-4 text-white outline-none focus:border-yellow-400"
           />
-
         </div>
 
         {/* Storage */}
 
         <div>
-
           <label className="mb-2 block text-sm text-gray-300">
             Storage
           </label>
@@ -520,8 +537,7 @@ export default function DeviceSection({
           <input
             type="text"
             value={
-              device.storage ??
-              ""
+              device.storage ?? ""
             }
             onChange={(e) =>
               update(
@@ -532,32 +548,40 @@ export default function DeviceSection({
             placeholder="512 GB SSD"
             className="w-full rounded-xl border border-gray-700 bg-black p-4 text-white outline-none focus:border-yellow-400"
           />
-
         </div>
 
         {/* Color */}
 
         <div>
-
           <label className="mb-2 block text-sm text-gray-300">
             Color
           </label>
 
-          <input
-            type="text"
-            value={
-              device.color ?? ""
-            }
+          <select
+            value={device.color ?? ""}
             onChange={(e) =>
               update(
                 "color",
                 e.target.value
               )
             }
-            placeholder="Black"
             className="w-full rounded-xl border border-gray-700 bg-black p-4 text-white outline-none focus:border-yellow-400"
-          />
+          >
+            <option value="">
+              Select Color
+            </option>
 
+            {COLOR_OPTIONS.map(
+              (color) => (
+                <option
+                  key={color}
+                  value={color}
+                >
+                  {color}
+                </option>
+              )
+            )}
+          </select>
         </div>
 
       </div>
@@ -597,14 +621,10 @@ export default function DeviceSection({
               onClick={
                 clearAllPhotos
               }
-              disabled={
-                uploading
-              }
+              disabled={uploading}
               className="inline-flex items-center justify-center gap-2 rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-2 text-sm font-bold text-red-400 transition hover:bg-red-500/20 disabled:opacity-50"
             >
-              <Trash2
-                size={16}
-              />
+              <Trash2 size={16} />
 
               Remove All
             </button>
@@ -621,9 +641,7 @@ export default function DeviceSection({
             onClick={() =>
               fileInputRef.current?.click()
             }
-            disabled={
-              uploading
-            }
+            disabled={uploading}
             className="flex min-h-[150px] w-full flex-col items-center justify-center rounded-2xl border-2 border-dashed border-yellow-500/30 bg-[#111111] px-5 py-8 transition hover:border-yellow-400 hover:bg-yellow-500/5 disabled:cursor-not-allowed disabled:opacity-60"
           >
 
@@ -636,8 +654,7 @@ export default function DeviceSection({
 
                 <p className="font-semibold text-white">
                   Uploading{" "}
-                  {uploadCount >
-                  0
+                  {uploadCount > 0
                     ? `${uploadCount}...`
                     : "..."}
                 </p>
@@ -669,9 +686,7 @@ export default function DeviceSection({
         )}
 
         <input
-          ref={
-            fileInputRef
-          }
+          ref={fileInputRef}
           type="file"
           hidden
           multiple
@@ -715,9 +730,7 @@ export default function DeviceSection({
                   >
 
                     <img
-                      src={
-                        photo
-                      }
+                      src={photo}
                       alt={`Device photo ${
                         index + 1
                       }`}
@@ -727,14 +740,12 @@ export default function DeviceSection({
                     {/* Number */}
 
                     <div className="absolute left-2 top-2 rounded-full bg-black/75 px-2.5 py-1 text-[11px] font-bold text-white">
-                      #
-                      {index + 1}
+                      #{index + 1}
                     </div>
 
                     {/* Main */}
 
-                    {index ===
-                      0 && (
+                    {index === 0 && (
                       <div className="absolute bottom-2 left-2 rounded-lg bg-yellow-400 px-2 py-1 text-[10px] font-black uppercase text-black">
                         Main
                       </div>
@@ -749,18 +760,14 @@ export default function DeviceSection({
                           index
                         )
                       }
-                      disabled={
-                        uploading
-                      }
+                      disabled={uploading}
                       className="absolute right-2 top-2 rounded-full bg-red-500 p-1.5 text-white opacity-0 shadow-lg transition group-hover:opacity-100 hover:bg-red-600 disabled:opacity-50"
                       title="Remove photo"
                       aria-label={`Remove device photo ${
                         index + 1
                       }`}
                     >
-                      <X
-                        size={15}
-                      />
+                      <X size={15} />
                     </button>
 
                   </div>

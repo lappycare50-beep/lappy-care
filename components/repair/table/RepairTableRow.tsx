@@ -2,7 +2,10 @@
 
 import { useState } from "react";
 
-import { Repair, RepairStatus } from "@/types/repair";
+import {
+  Repair,
+  RepairStatus,
+} from "@/types/repair";
 
 import RepairActions from "./RepairActions";
 import RepairPaymentBadge from "./RepairPaymentBadge";
@@ -13,13 +16,21 @@ import { updateRepair } from "@/services/repairService";
 interface RepairTableRowProps {
   repair: Repair;
 
-  onView?: (repair: Repair) => void;
+  onView?: (
+    repair: Repair
+  ) => void;
 
-  onEdit?: (repair: Repair) => void;
+  onEdit?: (
+    repair: Repair
+  ) => void;
 
-  onPrint?: (repair: Repair) => void;
+  onPrint?: (
+    repair: Repair
+  ) => void;
 
-  onDelete?: (repair: Repair) => void;
+  onDelete?: (
+    repair: Repair
+  ) => void;
 
   onStatusChange?: (
     repair: Repair
@@ -84,6 +95,8 @@ function getStatusColor(
 
 // ==========================================
 // WhatsApp Status Message
+//
+// Used when status is changed from the table.
 // ==========================================
 
 async function sendStatusWhatsApp(
@@ -126,7 +139,7 @@ async function sendStatusWhatsApp(
 
 Your Lappy Care repair status has been updated.
 
-🆔 Repair ID: ${repairId}
+🔧 Repair ID: ${repairId}
 
 💻 Device: ${
     deviceName || "Laptop"
@@ -136,7 +149,11 @@ Your Lappy Care repair status has been updated.
 
 Thank you for choosing Lappy Care.
 
-📞 95950 57006`;
+📞 95950 57006
+
+Regards,
+Lappy Care
+Laptop Repair & Service`;
 
   const response =
     await fetch(
@@ -156,7 +173,7 @@ Thank you for choosing Lappy Care.
       }
     );
 
-  let data: any = null;
+  let data: unknown = null;
 
   try {
     data =
@@ -173,17 +190,155 @@ Thank you for choosing Lappy Care.
     }
   );
 
+  const result =
+    data as {
+      success?: boolean;
+      error?: string;
+    } | null;
+
   if (
     !response.ok ||
-    !data?.success
+    !result?.success
   ) {
     throw new Error(
-      data?.error ||
+      result?.error ||
         "WhatsApp message failed."
     );
   }
 
-  return data;
+  return result;
+}
+
+// ==========================================
+// Manual Repair Received WhatsApp
+//
+// Used from Actions button.
+// Tracking is ONLY added here.
+// ==========================================
+
+async function sendManualReceivedWhatsApp(
+  repair: Repair
+) {
+  const mobile =
+    repair.customer.mobile?.replace(
+      /\D/g,
+      ""
+    );
+
+  if (!mobile) {
+    throw new Error(
+      "Customer mobile number is missing."
+    );
+  }
+
+  const whatsappNumber =
+    mobile.length === 10
+      ? `91${mobile}`
+      : mobile;
+
+  const customerName =
+    repair.customer.name?.trim() ||
+    "Customer";
+
+  const repairId =
+    repair.repairId?.trim() ||
+    "-";
+
+  const deviceName = [
+    repair.device.brand?.trim(),
+    repair.device.model?.trim(),
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const trackingUrl =
+    repairId !== "-"
+      ? `https://lappycarepune.in/track/${encodeURIComponent(
+          repairId
+        )}`
+      : "";
+
+  const message = `Hello ${customerName},
+
+Greetings from Lappy Care! 👋
+
+We have received your laptop for repair.
+
+🔹 Repair ID: ${repairId}
+🔹 Tracking ID: ${repairId}
+🔹 Device: ${
+    deviceName || "Laptop"
+  }
+
+📌 Status: Repair Received
+
+Our technician will diagnose the device and keep you informed about the next update.
+
+🔗 Track Your Repair:
+${trackingUrl}
+
+Thank you for choosing Lappy Care.
+
+📞 95950 57006
+
+Regards,
+Lappy Care
+Laptop Repair & Service`;
+
+  const response =
+    await fetch(
+      "/api/whatsapp/send",
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type":
+            "application/json",
+        },
+
+        body: JSON.stringify({
+          to: whatsappNumber,
+          message,
+        }),
+      }
+    );
+
+  let data: unknown = null;
+
+  try {
+    data =
+      await response.json();
+  } catch {
+    data = null;
+  }
+
+  console.log(
+    "MANUAL RECEIVED WHATSAPP RESPONSE:",
+    {
+      status: response.status,
+      data,
+      repairId,
+      trackingUrl,
+    }
+  );
+
+  const result =
+    data as {
+      success?: boolean;
+      error?: string;
+    } | null;
+
+  if (
+    !response.ok ||
+    !result?.success
+  ) {
+    throw new Error(
+      result?.error ||
+        "WhatsApp message failed."
+    );
+  }
+
+  return result;
 }
 
 // ==========================================
@@ -198,7 +353,10 @@ export default function RepairTableRow({
   onDelete,
   onStatusChange,
 }: RepairTableRowProps) {
-  const [currentStatus, setCurrentStatus] =
+  const [
+    currentStatus,
+    setCurrentStatus,
+  ] =
     useState<RepairStatus>(
       repair.status
     );
@@ -206,6 +364,11 @@ export default function RepairTableRow({
   const [
     updating,
     setUpdating,
+  ] = useState(false);
+
+  const [
+    whatsappSending,
+    setWhatsappSending,
   ] = useState(false);
 
   // ==========================================
@@ -240,16 +403,16 @@ export default function RepairTableRow({
       // Updated Repair
       // ==========================================
 
-      const updatedRepair:
-        Repair = {
-        ...repair,
+      const updatedRepair: Repair =
+        {
+          ...repair,
 
-        status:
-          newStatus,
+          status:
+            newStatus,
 
-        updatedAt:
-          new Date().toISOString(),
-      };
+          updatedAt:
+            new Date().toISOString(),
+        };
 
       // ==========================================
       // Save Firestore
@@ -283,7 +446,9 @@ export default function RepairTableRow({
 
         whatsappSent =
           true;
-      } catch (whatsappError) {
+      } catch (
+        whatsappError
+      ) {
         console.error(
           "WhatsApp status send failed:",
           whatsappError
@@ -326,6 +491,37 @@ export default function RepairTableRow({
   }
 
   // ==========================================
+  // Manual Received WhatsApp
+  // ==========================================
+
+  async function handleManualWhatsApp() {
+    try {
+      setWhatsappSending(true);
+
+      await sendManualReceivedWhatsApp(
+        repair
+      );
+
+      alert(
+        `Repair Received WhatsApp message sent successfully to ${repair.customer.name}.`
+      );
+    } catch (error) {
+      console.error(
+        "Manual Repair Received WhatsApp error:",
+        error
+      );
+
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Failed to send WhatsApp message."
+      );
+    } finally {
+      setWhatsappSending(false);
+    }
+  }
+
+  // ==========================================
   // Render
   // ==========================================
 
@@ -345,7 +541,6 @@ export default function RepairTableRow({
       ===================================== */}
 
       <td className="px-4 py-4">
-
         <div className="font-medium text-white">
           {repair.customer.name}
         </div>
@@ -353,7 +548,6 @@ export default function RepairTableRow({
         <div className="text-sm text-gray-400">
           {repair.customer.mobile}
         </div>
-
       </td>
 
       {/* =====================================
@@ -361,7 +555,6 @@ export default function RepairTableRow({
       ===================================== */}
 
       <td className="px-4 py-4">
-
         <div className="font-medium text-white">
           {repair.device.brand}
         </div>
@@ -369,7 +562,6 @@ export default function RepairTableRow({
         <div className="text-sm text-gray-400">
           {repair.device.model}
         </div>
-
       </td>
 
       {/* =====================================
@@ -385,12 +577,11 @@ export default function RepairTableRow({
       ===================================== */}
 
       <td className="px-4 py-4">
-
         <select
           value={currentStatus}
           disabled={updating}
           onChange={(e) =>
-            handleStatusChange(
+            void handleStatusChange(
               e.target.value as RepairStatus
             )
           }
@@ -432,7 +623,6 @@ export default function RepairTableRow({
             Updating...
           </div>
         )}
-
       </td>
 
       {/* =====================================
@@ -440,13 +630,11 @@ export default function RepairTableRow({
       ===================================== */}
 
       <td className="px-4 py-4">
-
         <RepairPaymentBadge
           status={
             repair.paymentStatus
           }
         />
-
       </td>
 
       {/* =====================================
@@ -454,14 +642,12 @@ export default function RepairTableRow({
       ===================================== */}
 
       <td className="px-4 py-4">
-
         <RepairPriorityBadge
           priority={
             repair.estimate
               .priority
           }
         />
-
       </td>
 
       {/* =====================================
@@ -477,7 +663,6 @@ export default function RepairTableRow({
       ===================================== */}
 
       <td className="px-4 py-4">
-
         <RepairActions
           onView={() =>
             onView?.(repair)
@@ -494,8 +679,15 @@ export default function RepairTableRow({
           onDelete={() =>
             onDelete?.(repair)
           }
-        />
 
+          onWhatsApp={() =>
+            void handleManualWhatsApp()
+          }
+
+          whatsappSending={
+            whatsappSending
+          }
+        />
       </td>
 
     </tr>

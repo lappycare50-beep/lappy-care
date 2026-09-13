@@ -1,15 +1,22 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useState,
+} from "react";
 
 import Link from "next/link";
 
 import {
   Eye,
   FilePlus2,
+  MessageCircle,
   Pencil,
+  Phone,
   Search,
   Trash2,
+  UserRound,
 } from "lucide-react";
 
 import {
@@ -96,6 +103,31 @@ function getStatusColor(
     default:
       return "bg-gray-500 text-white";
   }
+}
+
+// ==========================================
+// Extract Numeric Repair ID
+//
+// Example:
+// WKD-LC000041 -> 41
+// WKD-LC000040 -> 40
+// ==========================================
+
+function extractRepairNumber(
+  repairId?: string
+) {
+  if (!repairId) {
+    return 0;
+  }
+
+  const match =
+    repairId.match(/(\d+)$/);
+
+  if (!match) {
+    return 0;
+  }
+
+  return Number(match[1]);
 }
 
 // ==========================================
@@ -376,7 +408,7 @@ Laptop Repair & Service`;
 }
 
 // ==========================================
-// Send WhatsApp
+// Send Status WhatsApp
 // ==========================================
 
 async function sendStatusWhatsApp(
@@ -427,7 +459,137 @@ async function sendStatusWhatsApp(
   const rawResponse =
     await response.text();
 
-  let data: any = null;
+  let data: {
+    success?: boolean;
+    error?: string;
+    raw?: string;
+  } | null = null;
+
+  try {
+    data = rawResponse
+      ? JSON.parse(rawResponse)
+      : null;
+  } catch {
+    data = {
+      raw: rawResponse,
+    };
+  }
+
+  if (
+    !response.ok ||
+    !data?.success
+  ) {
+    throw new Error(
+      data?.error ||
+        data?.raw ||
+        `WhatsApp request failed with status ${response.status}.`
+    );
+  }
+
+  return data;
+}
+
+// ==========================================
+// Manual Repair Received WhatsApp
+//
+// Tracking is ONLY included here.
+// ==========================================
+
+async function sendManualReceivedWhatsApp(
+  repair: Repair
+) {
+  const mobile =
+    repair.customer?.mobile?.replace(
+      /\D/g,
+      ""
+    );
+
+  if (!mobile) {
+    throw new Error(
+      "Customer mobile number is missing."
+    );
+  }
+
+  const whatsappNumber =
+    mobile.length === 10
+      ? `91${mobile}`
+      : mobile;
+
+  const customerName =
+    repair.customer?.name?.trim() ||
+    "Customer";
+
+  const repairId =
+    repair.repairId?.trim() ||
+    "-";
+
+  const deviceName = [
+    repair.device?.brand?.trim(),
+    repair.device?.model?.trim(),
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const trackingUrl =
+    repairId !== "-"
+      ? `https://lappycarepune.in/track/${encodeURIComponent(
+          repairId
+        )}`
+      : "";
+
+  const message = `Hello ${customerName},
+
+Greetings from Lappy Care! 👋
+
+We have received your laptop for repair.
+
+🔹 Repair ID: ${repairId}
+🔹 Tracking ID: ${repairId}
+🔹 Device: ${
+    deviceName || "Laptop"
+  }
+
+📌 Status: Repair Received
+
+Our technician will diagnose the device and keep you informed about the next update.
+
+🔗 Track Your Repair:
+${trackingUrl}
+
+Thank you for choosing Lappy Care.
+
+📞 95950 57006
+
+Regards,
+Lappy Care
+Laptop Repair & Service`;
+
+  const response =
+    await fetch(
+      "/api/whatsapp/send",
+      {
+        method: "POST",
+
+        headers: {
+          "Content-Type":
+            "application/json",
+        },
+
+        body: JSON.stringify({
+          to: whatsappNumber,
+          message,
+        }),
+      }
+    );
+
+  const rawResponse =
+    await response.text();
+
+  let data: {
+    success?: boolean;
+    error?: string;
+    raw?: string;
+  } | null = null;
 
   try {
     data = rawResponse
@@ -470,6 +632,13 @@ export default function RepairTable({
   const [
     updatingRepairId,
     setUpdatingRepairId,
+  ] = useState<string | null>(
+    null
+  );
+
+  const [
+    whatsappRepairId,
+    setWhatsappRepairId,
   ] = useState<string | null>(
     null
   );
@@ -517,11 +686,11 @@ export default function RepairTable({
   }
 
   useEffect(() => {
-    loadRepairs();
+    void loadRepairs();
   }, []);
 
   // ==========================================
-  // Search
+  // Search + Latest Repair First
   // ==========================================
 
   const filteredRepairs =
@@ -531,31 +700,44 @@ export default function RepairTable({
           .trim()
           .toLowerCase();
 
-      if (!keyword) {
-        return repairs;
-      }
+      const filtered =
+        !keyword
+          ? [...repairs]
+          : repairs.filter(
+              (repair) =>
+                (repair.repairId ?? "")
+                  .toLowerCase()
+                  .includes(keyword) ||
 
-      return repairs.filter(
-        (repair) =>
-          (repair.repairId ?? "")
-            .toLowerCase()
-            .includes(keyword) ||
+                (repair.customer?.name ?? "")
+                  .toLowerCase()
+                  .includes(keyword) ||
 
-          (repair.customer?.name ?? "")
-            .toLowerCase()
-            .includes(keyword) ||
+                (repair.customer?.mobile ?? "")
+                  .toLowerCase()
+                  .includes(keyword) ||
 
-          (repair.customer?.mobile ?? "")
-            .toLowerCase()
-            .includes(keyword) ||
+                (repair.device?.brand ?? "")
+                  .toLowerCase()
+                  .includes(keyword) ||
 
-          (repair.device?.brand ?? "")
-            .toLowerCase()
-            .includes(keyword) ||
+                (repair.device?.model ?? "")
+                  .toLowerCase()
+                  .includes(keyword) ||
 
-          (repair.device?.model ?? "")
-            .toLowerCase()
-            .includes(keyword)
+                (repair.problem?.complaint ?? "")
+                  .toLowerCase()
+                  .includes(keyword)
+            );
+
+      return filtered.sort(
+        (a, b) =>
+          extractRepairNumber(
+            b.repairId
+          ) -
+          extractRepairNumber(
+            a.repairId
+          )
       );
     }, [repairs, search]);
 
@@ -597,8 +779,7 @@ export default function RepairTable({
         repairAmount,
     };
 
-    const prefilledInvoice:
-      Invoice = {
+    const prefilledInvoice: Invoice = {
       invoiceNo: "",
 
       customerId:
@@ -694,14 +875,10 @@ export default function RepairTable({
           new Date().toISOString(),
       };
 
-      // Save status
-
       await updateRepair(
         repair.id,
         updatedRepair
       );
-
-      // Update UI
 
       setRepairs((current) =>
         current.map((item) =>
@@ -710,8 +887,6 @@ export default function RepairTable({
             : item
         )
       );
-
-      // WhatsApp
 
       let whatsappSent =
         false;
@@ -724,7 +899,9 @@ export default function RepairTable({
 
         whatsappSent =
           true;
-      } catch (whatsappError) {
+      } catch (
+        whatsappError
+      ) {
         console.error(
           "Status WhatsApp Error:",
           whatsappError
@@ -755,6 +932,54 @@ export default function RepairTable({
       );
     } finally {
       setUpdatingRepairId(
+        null
+      );
+    }
+  }
+
+  // ==========================================
+  // Manual Repair Received WhatsApp
+  // ==========================================
+
+  async function handleManualWhatsApp(
+    repair: Repair
+  ) {
+    if (!repair.id) {
+      alert(
+        "Invalid Repair ID."
+      );
+
+      return;
+    }
+
+    try {
+      setWhatsappRepairId(
+        repair.id
+      );
+
+      await sendManualReceivedWhatsApp(
+        repair
+      );
+
+      alert(
+        `Repair Received WhatsApp message sent successfully to ${
+          repair.customer?.name ||
+          "Customer"
+        }.`
+      );
+    } catch (error) {
+      console.error(
+        "Manual Repair Received WhatsApp Error:",
+        error
+      );
+
+      alert(
+        error instanceof Error
+          ? error.message
+          : "Failed to send WhatsApp message."
+      );
+    } finally {
+      setWhatsappRepairId(
         null
       );
     }
@@ -865,6 +1090,10 @@ export default function RepairTable({
                     </th>
 
                     <th className="px-6 py-4 text-left text-sm font-semibold text-yellow-400">
+                      Complaint
+                    </th>
+
+                    <th className="px-6 py-4 text-left text-sm font-semibold text-yellow-400">
                       Technician
                     </th>
 
@@ -893,6 +1122,13 @@ export default function RepairTable({
                         updatingRepairId ===
                         repair.id;
 
+                      const isSendingWhatsApp =
+                        whatsappRepairId ===
+                        repair.id;
+
+                      const customerId =
+  repair.customer?.customerId || "";
+
                       return (
                         <tr
                           key={repair.id}
@@ -902,7 +1138,6 @@ export default function RepairTable({
                           {/* Repair ID */}
 
                           <td className="px-6 py-4">
-
                             <div className="font-semibold text-yellow-400">
                               {repair.repairId}
                             </div>
@@ -910,29 +1145,65 @@ export default function RepairTable({
                             <div className="mt-1 text-xs text-gray-500">
                               {repair.createdAt}
                             </div>
-
                           </td>
 
                           {/* Customer */}
 
                           <td className="px-6 py-4">
 
-                            <div className="font-semibold text-white">
-                              {repair.customer?.name ||
-                                "-"}
-                            </div>
+                            {customerId ? (
+                              <Link
+                                href={`/admin/customers/${customerId}`}
+                                title="Open Customer Profile"
+                                className="group flex items-center gap-2"
+                              >
+                                <UserRound
+                                  size={15}
+                                  className="shrink-0 text-zinc-500 transition group-hover:text-yellow-400"
+                                />
 
-                            <div className="mt-1 text-sm text-gray-400">
-                              {repair.customer?.mobile ||
-                                "-"}
-                            </div>
+                                <span className="font-semibold text-white transition group-hover:text-yellow-400 group-hover:underline">
+                                  {repair.customer?.name ||
+                                    "-"}
+                                </span>
+                              </Link>
+                            ) : (
+                              <div className="font-semibold text-white">
+                                {repair.customer?.name ||
+                                  "-"}
+                              </div>
+                            )}
+
+                            {repair.customer?.mobile ? (
+                              <a
+                                href={`tel:${repair.customer.mobile}`}
+                                title={`Call ${repair.customer.name || "Customer"}`}
+                                className="mt-1 flex items-center gap-2 text-sm text-gray-400 transition hover:text-green-400 hover:underline"
+                              >
+                                <Phone
+                                  size={13}
+                                  className="shrink-0"
+                                />
+
+                                <span>
+                                  {
+                                    repair
+                                      .customer
+                                      .mobile
+                                  }
+                                </span>
+                              </a>
+                            ) : (
+                              <div className="mt-1 text-sm text-gray-500">
+                                No mobile
+                              </div>
+                            )}
 
                           </td>
 
                           {/* Device */}
 
                           <td className="px-6 py-4">
-
                             <div className="font-semibold text-white">
                               {repair.device?.brand ||
                                 "-"}
@@ -947,13 +1218,28 @@ export default function RepairTable({
                               {repair.device?.type ||
                                 "-"}
                             </div>
+                          </td>
 
+                          {/* Complaint */}
+
+                          <td className="max-w-[260px] px-6 py-4">
+                            <div
+                              className="max-w-[260px] truncate font-medium text-white"
+                              title={
+                                repair.problem
+                                  ?.complaint ||
+                                "No complaint"
+                              }
+                            >
+                              {repair.problem
+                                ?.complaint ||
+                                "No complaint"}
+                            </div>
                           </td>
 
                           {/* Technician */}
 
                           <td className="px-6 py-4">
-
                             <div className="text-white">
                               {repair.estimate
                                 ?.technician ||
@@ -965,15 +1251,12 @@ export default function RepairTable({
                                 ?.priority ||
                                 ""}
                             </div>
-
                           </td>
 
                           {/* Amount */}
 
                           <td className="px-6 py-4">
-
                             <div className="font-bold text-green-400">
-
                               ₹
                               {Number(
                                 repair.estimate
@@ -982,14 +1265,10 @@ export default function RepairTable({
                               ).toLocaleString(
                                 "en-IN"
                               )}
-
                             </div>
 
                             <div className="mt-1 text-xs text-gray-500">
-
-                              Advance:
-                              {" "}
-                              ₹
+                              Advance: ₹
                               {Number(
                                 repair.estimate
                                   ?.advancePaid ||
@@ -997,9 +1276,7 @@ export default function RepairTable({
                               ).toLocaleString(
                                 "en-IN"
                               )}
-
                             </div>
-
                           </td>
 
                           {/* Status */}
@@ -1014,7 +1291,7 @@ export default function RepairTable({
                                 isUpdating
                               }
                               onChange={(e) =>
-                                handleStatusChange(
+                                void handleStatusChange(
                                   repair,
                                   e.target.value as RepairStatus
                                 )
@@ -1038,7 +1315,6 @@ export default function RepairTable({
                                 )}
                               `}
                             >
-
                               {STATUS_OPTIONS.map(
                                 (option) => (
                                   <option
@@ -1050,7 +1326,6 @@ export default function RepairTable({
                                   </option>
                                 )
                               )}
-
                             </select>
 
                             {isUpdating && (
@@ -1096,6 +1371,35 @@ export default function RepairTable({
                                 />
                               </button>
 
+                              {/* WhatsApp */}
+
+                              <button
+                                type="button"
+                                title={
+                                  isSendingWhatsApp
+                                    ? "Sending WhatsApp..."
+                                    : "Send Repair Received WhatsApp"
+                                }
+                                disabled={
+                                  isSendingWhatsApp
+                                }
+                                onClick={() =>
+                                  void handleManualWhatsApp(
+                                    repair
+                                  )
+                                }
+                                className="rounded-lg bg-green-600 p-2 text-white transition hover:bg-green-500 disabled:cursor-wait disabled:opacity-50"
+                              >
+                                <MessageCircle
+                                  size={18}
+                                  className={
+                                    isSendingWhatsApp
+                                      ? "animate-pulse"
+                                      : ""
+                                  }
+                                />
+                              </button>
+
                               {/* New Invoice */}
 
                               <button
@@ -1106,7 +1410,7 @@ export default function RepairTable({
                                     repair
                                   )
                                 }
-                                className="rounded-lg bg-green-600 p-2 text-white transition hover:bg-green-500"
+                                className="rounded-lg bg-emerald-600 p-2 text-white transition hover:bg-emerald-500"
                               >
                                 <FilePlus2
                                   size={18}
@@ -1119,7 +1423,7 @@ export default function RepairTable({
                                 type="button"
                                 title="Delete Repair"
                                 onClick={() =>
-                                  handleDelete(
+                                  void handleDelete(
                                     repair
                                   )
                                 }

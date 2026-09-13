@@ -5,6 +5,7 @@ import {
   Pencil,
   Printer,
   Trash2,
+  MessageCircle,
 } from "lucide-react";
 
 interface RepairActionsProps {
@@ -12,6 +13,8 @@ interface RepairActionsProps {
   onEdit?: () => void;
   onPrint?: () => void;
   onDelete?: () => void;
+  onWhatsApp?: () => void;
+  whatsappSending?: boolean;
 }
 
 export default function RepairActions({
@@ -19,9 +22,13 @@ export default function RepairActions({
   onEdit,
   onPrint,
   onDelete,
+  onWhatsApp,
+  whatsappSending = false,
 }: RepairActionsProps) {
   return (
     <div className="flex items-center justify-center gap-2">
+
+      {/* View */}
       <button
         type="button"
         onClick={onView}
@@ -31,6 +38,7 @@ export default function RepairActions({
         <Eye size={18} />
       </button>
 
+      {/* Edit */}
       <button
         type="button"
         onClick={onEdit}
@@ -40,6 +48,29 @@ export default function RepairActions({
         <Pencil size={18} />
       </button>
 
+      {/* WhatsApp */}
+      <button
+        type="button"
+        onClick={onWhatsApp}
+        disabled={whatsappSending}
+        title={
+          whatsappSending
+            ? "Sending WhatsApp..."
+            : "Send Repair Received WhatsApp"
+        }
+        className="rounded-lg p-2 text-green-400 transition hover:bg-green-500/10 disabled:cursor-wait disabled:opacity-50"
+      >
+        <MessageCircle
+          size={18}
+          className={
+            whatsappSending
+              ? "animate-pulse"
+              : ""
+          }
+        />
+      </button>
+
+      {/* Print */}
       <button
         type="button"
         onClick={onPrint}
@@ -49,6 +80,7 @@ export default function RepairActions({
         <Printer size={18} />
       </button>
 
+      {/* Delete */}
       <button
         type="button"
         onClick={onDelete}
@@ -57,6 +89,7 @@ export default function RepairActions({
       >
         <Trash2 size={18} />
       </button>
+
     </div>
   );
 }
