@@ -1,3 +1,5 @@
+"use client";
+
 import Sidebar from "@/components/admin/Sidebar";
 import ProtectedRoute from "@/components/auth/ProtectedRoute";
 
@@ -11,7 +13,7 @@ export default function AdminLayout({
       <div className="flex min-h-screen bg-black text-white">
         <Sidebar />
 
-        <main className="min-h-screen min-w-0 flex-1 overflow-y-auto">
+        <main className="min-h-screen flex-1 overflow-y-auto">
           {children}
         </main>
       </div>

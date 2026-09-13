@@ -1,8 +1,15 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import {
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 
-import { Repair, RepairStatus } from "@/types/repair";
+import {
+  Repair,
+  RepairStatus,
+} from "@/types/repair";
 
 import CustomerSection from "./CustomerSection";
 import DeviceSection from "./DeviceSection";
@@ -13,17 +20,35 @@ import EstimateSection from "./EstimateSection";
 import StatusSection from "./StatusSection";
 import NotesSection from "./NotesSection";
 
-import { addRepair, updateRepair } from "@/services/repairService";
-import { generateId } from "@/services/idGenerator";
-import { syncCustomer } from "@/services/customerService";
+import {
+  addRepair,
+  updateRepair,
+} from "@/services/repairService";
+
+import {
+  generateId,
+} from "@/services/idGenerator";
+
+import {
+  syncCustomer,
+} from "@/services/customerService";
+
+import {
+  getAdminSettings,
+} from "@/services/adminSettingsService";
 
 type Props = {
   editRepair?: Repair | null;
   onSuccess?: () => void;
 };
 
+// =====================================================
+// DEFAULT REPAIR
+// =====================================================
+
 const defaultRepair: Repair = {
   repairId: "",
+
   customer: {
     customerId: "",
     name: "",
@@ -35,6 +60,7 @@ const defaultRepair: Repair = {
     state: "",
     pincode: "",
   },
+
   device: {
     type: "Laptop",
     brand: "",
@@ -47,10 +73,12 @@ const defaultRepair: Repair = {
     image: "",
     devicePhotos: [],
   },
+
   accessories: {
     items: [],
     other: "",
   },
+
   problem: {
     complaint: "",
     physicalCondition: "",
@@ -58,6 +86,7 @@ const defaultRepair: Repair = {
     password: "",
     biosPassword: "",
   },
+
   estimate: {
     labourCharge: 0,
     partsCharge: 0,
@@ -69,107 +98,288 @@ const defaultRepair: Repair = {
     technician: "",
     priority: "Medium",
   },
+
   paymentStatus: "Pending",
+
   status: "Received",
+
   warranty: "No Warranty",
+
   remarks: "",
-  createdAt: new Date().toISOString().split("T")[0],
+
+  createdAt:
+    new Date()
+      .toISOString()
+      .split("T")[0],
+
   updatedAt: "",
+
   deliveredAt: "",
+
   timeline: [],
 };
+
+// =====================================================
+// CREATE FRESH REPAIR
+// =====================================================
 
 function createFreshRepair(): Repair {
   return {
     ...defaultRepair,
-    customer: { ...defaultRepair.customer },
-    device: { ...defaultRepair.device, devicePhotos: [] },
-    accessories: { ...defaultRepair.accessories, items: [] },
-    problem: { ...defaultRepair.problem },
-    estimate: { ...defaultRepair.estimate },
+
+    customer: {
+      ...defaultRepair.customer,
+    },
+
+    device: {
+      ...defaultRepair.device,
+      devicePhotos: [],
+    },
+
+    accessories: {
+      ...defaultRepair.accessories,
+      items: [],
+    },
+
+    problem: {
+      ...defaultRepair.problem,
+    },
+
+    estimate: {
+      ...defaultRepair.estimate,
+    },
+
     timeline: [],
   };
 }
+
+// =====================================================
+// COMPONENT
+// =====================================================
 
 export default function RepairForm({
   editRepair,
   onSuccess,
 }: Props) {
-  const [repair, setRepair] = useState<Repair>(createFreshRepair());
-  const [loading, setLoading] = useState(false);
+  const [
+    repair,
+    setRepair,
+  ] = useState<Repair>(
+    createFreshRepair()
+  );
 
-  const originalStatusRef = useRef<RepairStatus | null>(null);
-  const statusChangedRef = useRef(false);
+  const [
+    loading,
+    setLoading,
+  ] = useState(false);
+
+  // ===================================================
+  // STATUS TRACKING
+  // ===================================================
+
+  const originalStatusRef =
+    useRef<RepairStatus | null>(
+      null
+    );
+
+  const statusChangedRef =
+    useRef(false);
+
+  // ===================================================
+  // LOAD EDIT / DEFAULT SETTINGS
+  // ===================================================
 
   useEffect(() => {
+    let mounted = true;
+
+    async function loadRepairDefaults() {
+      try {
+        const settings =
+          await getAdminSettings();
+
+        if (!mounted) {
+          return;
+        }
+
+        setRepair(
+          (current) => ({
+            ...current,
+
+            warranty:
+              settings.repair
+                .defaultWarranty ||
+              current.warranty,
+
+            estimate: {
+              ...current.estimate,
+
+              priority:
+                settings.repair
+                  .defaultPriority ||
+                current.estimate
+                  .priority,
+            },
+          })
+        );
+      } catch (error) {
+        console.error(
+          "Repair settings load error:",
+          error
+        );
+      }
+    }
+
+    // =================================================
+    // EDIT REPAIR
+    // =================================================
+
     if (editRepair) {
       setRepair({
         ...createFreshRepair(),
+
         ...editRepair,
+
         customer: {
-          ...createFreshRepair().customer,
+          ...createFreshRepair()
+            .customer,
+
           ...editRepair.customer,
         },
+
         device: {
-          ...createFreshRepair().device,
+          ...createFreshRepair()
+            .device,
+
           ...editRepair.device,
-          devicePhotos: editRepair.device?.devicePhotos || [],
+
+          devicePhotos:
+            editRepair.device
+              ?.devicePhotos || [],
         },
+
         accessories: {
-          ...createFreshRepair().accessories,
+          ...createFreshRepair()
+            .accessories,
+
           ...editRepair.accessories,
         },
+
         problem: {
-          ...createFreshRepair().problem,
+          ...createFreshRepair()
+            .problem,
+
           ...editRepair.problem,
         },
+
         estimate: {
-          ...createFreshRepair().estimate,
+          ...createFreshRepair()
+            .estimate,
+
           ...editRepair.estimate,
         },
-        timeline: editRepair.timeline || [],
+
+        timeline:
+          editRepair.timeline ||
+          [],
       });
 
-      originalStatusRef.current = editRepair.status;
-      statusChangedRef.current = false;
-      return;
+      originalStatusRef.current =
+        editRepair.status;
+
+      statusChangedRef.current =
+        false;
+
+      return () => {
+        mounted = false;
+      };
     }
 
-    setRepair(createFreshRepair());
-    originalStatusRef.current = null;
-    statusChangedRef.current = false;
+    // =================================================
+    // NEW REPAIR
+    // =================================================
+
+    setRepair(
+      createFreshRepair()
+    );
+
+    originalStatusRef.current =
+      null;
+
+    statusChangedRef.current =
+      false;
+
+    void loadRepairDefaults();
+
+    return () => {
+      mounted = false;
+    };
   }, [editRepair]);
 
+  // ===================================================
+  // VALIDATION
+  // ===================================================
+
   function validateRepair() {
-    if (!repair.customer.name.trim()) {
-      alert("Customer Name is required.");
+    if (
+      !repair.customer.name.trim()
+    ) {
+      alert(
+        "Customer Name is required."
+      );
+
       return false;
     }
 
-    const mobile = repair.customer.mobile.trim();
+    const mobile =
+      repair.customer.mobile.trim();
 
     if (!mobile) {
-      alert("Mobile Number is required.");
+      alert(
+        "Mobile Number is required."
+      );
+
       return false;
     }
 
-    if (!/^\d{10}$/.test(mobile)) {
-      alert("Please enter a valid 10-digit mobile number.");
+    if (
+      !/^\d{10}$/.test(
+        mobile
+      )
+    ) {
+      alert(
+        "Please enter a valid 10-digit mobile number."
+      );
+
       return false;
     }
 
-    if (!repair.device.brand.trim()) {
-      alert("Device Brand is required.");
+    if (
+      !repair.device.brand.trim()
+    ) {
+      alert(
+        "Device Brand is required."
+      );
+
       return false;
     }
 
-    if (!repair.device.model.trim()) {
-      alert("Device Model is required.");
+    if (
+      !repair.device.model.trim()
+    ) {
+      alert(
+        "Device Model is required."
+      );
+
       return false;
     }
 
-    if (!repair.problem.complaint.trim()) {
-      alert("Customer Complaint is required.");
+    if (
+      !repair.problem.complaint.trim()
+    ) {
+      alert(
+        "Customer Complaint is required."
+      );
+
       return false;
     }
 
@@ -179,8 +389,8 @@ export default function RepairForm({
   // ===================================================
   // WHATSAPP MESSAGE
   //
-  // Tracking ID + Tracking URL are added ONLY for
-  // the "Received" status.
+  // Tracking ID + Tracking URL are added ONLY
+  // for the Received status.
   // ===================================================
 
   function buildStatusWhatsAppMessage(
@@ -188,10 +398,12 @@ export default function RepairForm({
     newStatus: RepairStatus
   ) {
     const customerName =
-      repairData.customer.name?.trim() || "Customer";
+      repairData.customer.name?.trim() ||
+      "Customer";
 
     const repairId =
-      repairData.repairId?.trim() || "-";
+      repairData.repairId?.trim() ||
+      "-";
 
     const deviceName = [
       repairData.device.brand?.trim(),
@@ -202,10 +414,16 @@ export default function RepairForm({
 
     const trackingUrl =
       repairId !== "-"
-        ? `https://lappycarepune.in/track/${encodeURIComponent(repairId)}`
+        ? `https://lappycarepune.in/track/${encodeURIComponent(
+            repairId
+          )}`
         : "";
 
     switch (newStatus) {
+      // =================================================
+      // RECEIVED
+      // =================================================
+
       case "Received":
         return `Hello ${customerName},
 
@@ -215,7 +433,9 @@ We have received your laptop for repair.
 
 🔹 Repair ID: ${repairId}
 🔹 Tracking ID: ${repairId}
-🔹 Device: ${deviceName || "Laptop"}
+🔹 Device: ${
+          deviceName || "Laptop"
+        }
 
 📌 Status: Repair Received
 
@@ -232,6 +452,10 @@ Regards,
 Lappy Care
 Laptop Repair & Service`;
 
+      // =================================================
+      // DIAGNOSING
+      // =================================================
+
       case "Diagnosing":
         return `Hello ${customerName},
 
@@ -240,7 +464,9 @@ Greetings from Lappy Care! 👋
 Your laptop is currently under diagnosis.
 
 🔹 Repair ID: ${repairId}
-🔹 Device: ${deviceName || "Laptop"}
+🔹 Device: ${
+          deviceName || "Laptop"
+        }
 
 📌 Status: Diagnosis in Progress
 
@@ -254,6 +480,10 @@ Regards,
 Lappy Care
 Laptop Repair & Service`;
 
+      // =================================================
+      // WAITING APPROVAL
+      // =================================================
+
       case "Waiting Approval":
         return `Hello ${customerName},
 
@@ -262,7 +492,9 @@ Greetings from Lappy Care! 👋
 Your laptop diagnosis has been completed and the repair is awaiting your approval.
 
 🔹 Repair ID: ${repairId}
-🔹 Device: ${deviceName || "Laptop"}
+🔹 Device: ${
+          deviceName || "Laptop"
+        }
 
 📌 Status: Waiting for Approval
 
@@ -276,6 +508,10 @@ Regards,
 Lappy Care
 Laptop Repair & Service`;
 
+      // =================================================
+      // WAITING PARTS
+      // =================================================
+
       case "Waiting Parts":
         return `Hello ${customerName},
 
@@ -284,7 +520,9 @@ Greetings from Lappy Care! 👋
 Your laptop repair is currently waiting for the required parts.
 
 🔹 Repair ID: ${repairId}
-🔹 Device: ${deviceName || "Laptop"}
+🔹 Device: ${
+          deviceName || "Laptop"
+        }
 
 📌 Status: Waiting for Parts
 
@@ -298,6 +536,10 @@ Regards,
 Lappy Care
 Laptop Repair & Service`;
 
+      // =================================================
+      // REPAIRING
+      // =================================================
+
       case "Repairing":
         return `Hello ${customerName},
 
@@ -306,7 +548,9 @@ Greetings from Lappy Care! 👋
 Repair work on your laptop is currently in progress.
 
 🔹 Repair ID: ${repairId}
-🔹 Device: ${deviceName || "Laptop"}
+🔹 Device: ${
+          deviceName || "Laptop"
+        }
 
 📌 Status: Repair in Progress
 
@@ -320,6 +564,10 @@ Regards,
 Lappy Care
 Laptop Repair & Service`;
 
+      // =================================================
+      // TESTING
+      // =================================================
+
       case "Testing":
         return `Hello ${customerName},
 
@@ -328,7 +576,9 @@ Greetings from Lappy Care! 👋
 The repair work on your laptop has been completed and the device is now undergoing final testing.
 
 🔹 Repair ID: ${repairId}
-🔹 Device: ${deviceName || "Laptop"}
+🔹 Device: ${
+          deviceName || "Laptop"
+        }
 
 📌 Status: Final Testing
 
@@ -342,6 +592,10 @@ Regards,
 Lappy Care
 Laptop Repair & Service`;
 
+      // =================================================
+      // READY
+      // =================================================
+
       case "Ready":
         return `Hello ${customerName},
 
@@ -350,7 +604,9 @@ Greetings from Lappy Care! 👋
 Your laptop repair has been completed successfully.
 
 🔹 Repair ID: ${repairId}
-🔹 Device: ${deviceName || "Laptop"}
+🔹 Device: ${
+          deviceName || "Laptop"
+        }
 
 ✅ Status: Ready for Pickup
 
@@ -364,6 +620,10 @@ Regards,
 Lappy Care
 Laptop Repair & Service`;
 
+      // =================================================
+      // DELIVERED
+      // =================================================
+
       case "Delivered":
         return `Hello ${customerName},
 
@@ -372,7 +632,9 @@ Greetings from Lappy Care! 👋
 Your repaired laptop has been successfully delivered.
 
 🔹 Repair ID: ${repairId}
-🔹 Device: ${deviceName || "Laptop"}
+🔹 Device: ${
+          deviceName || "Laptop"
+        }
 
 ✅ Status: Delivered
 
@@ -384,6 +646,10 @@ Regards,
 Lappy Care
 Laptop Repair & Service`;
 
+      // =================================================
+      // CANCELLED
+      // =================================================
+
       case "Cancelled":
         return `Hello ${customerName},
 
@@ -392,7 +658,9 @@ Greetings from Lappy Care.
 Your laptop repair request has been cancelled.
 
 🔹 Repair ID: ${repairId}
-🔹 Device: ${deviceName || "Laptop"}
+🔹 Device: ${
+          deviceName || "Laptop"
+        }
 
 📌 Status: Repair Cancelled
 
@@ -404,6 +672,10 @@ Regards,
 Lappy Care
 Laptop Repair & Service`;
 
+      // =================================================
+      // DEFAULT
+      // =================================================
+
       default:
         return `Hello ${customerName},
 
@@ -412,7 +684,9 @@ Greetings from Lappy Care! 👋
 Here is an update regarding your laptop repair.
 
 🔹 Repair ID: ${repairId}
-🔹 Device: ${deviceName || "Laptop"}
+🔹 Device: ${
+          deviceName || "Laptop"
+        }
 
 📌 Status: ${newStatus}
 
@@ -426,17 +700,23 @@ Laptop Repair & Service`;
     }
   }
 
+  // ===================================================
+  // SEND WHATSAPP STATUS
+  // ===================================================
+
   async function sendStatusWhatsApp(
     repairData: Repair,
     newStatus: RepairStatus
   ) {
     const mobile =
-      repairData.customer.mobile?.replace(/\D/g, "");
+      repairData.customer.mobile
+        ?.replace(/\D/g, "");
 
     if (!mobile) {
       return {
         sent: false,
-        error: "Customer mobile number is missing.",
+        error:
+          "Customer mobile number is missing.",
       };
     }
 
@@ -452,34 +732,44 @@ Laptop Repair & Service`;
       );
 
     try {
-      const response = await fetch(
-        "/api/whatsapp/send",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            to: whatsappNumber,
-            message,
-          }),
-        }
-      );
+      const response =
+        await fetch(
+          "/api/whatsapp/send",
+          {
+            method: "POST",
 
-      let data: unknown = null;
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body: JSON.stringify({
+              to: whatsappNumber,
+              message,
+            }),
+          }
+        );
+
+      let data: unknown =
+        null;
 
       try {
-        data = await response.json();
+        data =
+          await response.json();
       } catch {
         data = null;
       }
 
-      const result = data as {
-        success?: boolean;
-        error?: string;
-      } | null;
+      const result =
+        data as {
+          success?: boolean;
+          error?: string;
+        } | null;
 
-      if (!response.ok || !result?.success) {
+      if (
+        !response.ok ||
+        !result?.success
+      ) {
         return {
           sent: false,
           error:
@@ -488,9 +778,14 @@ Laptop Repair & Service`;
         };
       }
 
-      return { sent: true };
+      return {
+        sent: true,
+      };
     } catch (error) {
-      console.error("WhatsApp error:", error);
+      console.error(
+        "WhatsApp error:",
+        error
+      );
 
       return {
         sent: false,
@@ -502,6 +797,10 @@ Laptop Repair & Service`;
     }
   }
 
+  // ===================================================
+  // SAVE REPAIR
+  // ===================================================
+
   async function handleSave() {
     if (!validateRepair()) {
       return;
@@ -510,58 +809,84 @@ Laptop Repair & Service`;
     try {
       setLoading(true);
 
-      const labourCharge = Math.max(
-        Number(
-          repair.estimate.labourCharge || 0
-        ),
-        0
-      );
+      // ================================================
+      // RECALCULATE ESTIMATE
+      // ================================================
 
-      const partsCharge = Math.max(
-        Number(
-          repair.estimate.partsCharge || 0
-        ),
-        0
-      );
+      const labourCharge =
+        Math.max(
+          Number(
+            repair.estimate
+              .labourCharge || 0
+          ),
+          0
+        );
 
-      const discount = Math.max(
-        Number(
-          repair.estimate.discount || 0
-        ),
-        0
-      );
+      const partsCharge =
+        Math.max(
+          Number(
+            repair.estimate
+              .partsCharge || 0
+          ),
+          0
+        );
 
-      const advancePaid = Math.max(
-        Number(
-          repair.estimate.advancePaid || 0
-        ),
-        0
-      );
+      const discount =
+        Math.max(
+          Number(
+            repair.estimate
+              .discount || 0
+          ),
+          0
+        );
 
-      const totalAmount = Math.max(
-        labourCharge +
-          partsCharge -
-          discount,
-        0
-      );
+      const advancePaid =
+        Math.max(
+          Number(
+            repair.estimate
+              .advancePaid || 0
+          ),
+          0
+        );
 
-      const balanceAmount = Math.max(
-        totalAmount -
-          advancePaid,
-        0
-      );
+      const totalAmount =
+        Math.max(
+          labourCharge +
+            partsCharge -
+            discount,
+          0
+        );
+
+      const balanceAmount =
+        Math.max(
+          totalAmount -
+            advancePaid,
+          0
+        );
+
+      // ================================================
+      // FINAL REPAIR DATA
+      // ================================================
 
       const repairData: Repair = {
         ...repair,
+
         estimate: {
           ...repair.estimate,
+
           labourCharge,
+
           partsCharge,
+
           discount,
+
           advancePaid,
+
           totalAmount,
+
           balanceAmount,
         },
+
         updatedAt:
           new Date().toISOString(),
       };
@@ -586,14 +911,18 @@ Laptop Repair & Service`;
           repairData
         );
 
-        if (shouldSendWhatsApp) {
+        if (
+          shouldSendWhatsApp
+        ) {
           const whatsappResult =
             await sendStatusWhatsApp(
               repairData,
               newStatus
             );
 
-          if (whatsappResult.sent) {
+          if (
+            whatsappResult.sent
+          ) {
             alert(
               "Repair Updated Successfully.\n\nWhatsApp status message sent successfully."
             );
@@ -620,6 +949,7 @@ Laptop Repair & Service`;
           false;
 
         onSuccess?.();
+
         return;
       }
 
@@ -628,19 +958,28 @@ Laptop Repair & Service`;
       // =================================================
 
       const repairId =
-        await generateId("repair");
+        await generateId(
+          "repair"
+        );
 
       const newRepair: Repair = {
         ...repairData,
+
         repairId,
+
         createdAt:
           new Date()
             .toISOString()
             .split("T")[0],
+
         timeline: [
           {
-            status: "Received",
-            note: "Repair Created",
+            status:
+              "Received",
+
+            note:
+              "Repair Created",
+
             createdAt:
               new Date().toISOString(),
           },
@@ -653,17 +992,38 @@ Laptop Repair & Service`;
 
       const customerDocId =
         await syncCustomer({
-          name: newRepair.customer.name,
-          mobile: newRepair.customer.mobile,
+          name:
+            newRepair.customer.name,
+
+          mobile:
+            newRepair.customer.mobile,
+
           alternateMobile:
-            newRepair.customer.alternateMobile,
-          email: newRepair.customer.email,
-          address: newRepair.customer.address,
-          city: newRepair.customer.city,
-          state: newRepair.customer.state,
-          pincode: newRepair.customer.pincode,
-          repairId: newRepair.repairId,
+            newRepair.customer
+              .alternateMobile,
+
+          email:
+            newRepair.customer.email,
+
+          address:
+            newRepair.customer.address,
+
+          city:
+            newRepair.customer.city,
+
+          state:
+            newRepair.customer.state,
+
+          pincode:
+            newRepair.customer.pincode,
+
+          repairId:
+            newRepair.repairId,
         });
+
+      // =================================================
+      // SAVE CUSTOMER ID
+      // =================================================
 
       newRepair.customer.customerId =
         customerDocId;
@@ -672,10 +1032,15 @@ Laptop Repair & Service`;
       // SAVE REPAIR
       // =================================================
 
-      await addRepair(newRepair);
+      await addRepair(
+        newRepair
+      );
 
       // =================================================
-      // WHATSAPP
+      // SEND RECEIVED WHATSAPP
+      //
+      // Tracking ID + Tracking URL included
+      // only in Received message.
       // =================================================
 
       const whatsappResult =
@@ -684,7 +1049,9 @@ Laptop Repair & Service`;
           "Received"
         );
 
-      if (whatsappResult.sent) {
+      if (
+        whatsappResult.sent
+      ) {
         alert(
           "Repair Saved Successfully.\n\nWhatsApp status message sent successfully."
         );
@@ -698,6 +1065,10 @@ Laptop Repair & Service`;
           "Repair Saved Successfully.\n\nWhatsApp status message could not be sent."
         );
       }
+
+      // =================================================
+      // RESET
+      // =================================================
 
       setRepair(
         createFreshRepair()
@@ -726,19 +1097,28 @@ Laptop Repair & Service`;
     }
   }
 
+  // ===================================================
+  // JSX
+  // ===================================================
+
   return (
     <form
       onSubmit={(event) => {
         event.preventDefault();
+
         void handleSave();
       }}
       className="space-y-6"
     >
+      {/* Customer */}
+
       <CustomerSection
         customer={
           repair.customer
         }
-        setCustomer={(customer) =>
+        setCustomer={(
+          customer
+        ) =>
           setRepair(
             (previous) => ({
               ...previous,
@@ -748,11 +1128,15 @@ Laptop Repair & Service`;
         }
       />
 
+      {/* Device */}
+
       <DeviceSection
         device={
           repair.device
         }
-        setDevice={(device) =>
+        setDevice={(
+          device
+        ) =>
           setRepair(
             (previous) => ({
               ...previous,
@@ -762,11 +1146,15 @@ Laptop Repair & Service`;
         }
       />
 
+      {/* Accessories */}
+
       <AccessoriesSection
         accessories={
           repair.accessories
         }
-        setAccessories={(accessories) =>
+        setAccessories={(
+          accessories
+        ) =>
           setRepair(
             (previous) => ({
               ...previous,
@@ -776,11 +1164,15 @@ Laptop Repair & Service`;
         }
       />
 
+      {/* Problem */}
+
       <ProblemSection
         problem={
           repair.problem
         }
-        setProblem={(problem) =>
+        setProblem={(
+          problem
+        ) =>
           setRepair(
             (previous) => ({
               ...previous,
@@ -789,12 +1181,16 @@ Laptop Repair & Service`;
           )
         }
       />
+
+      {/* Condition */}
 
       <ConditionSection
         problem={
           repair.problem
         }
-        setProblem={(problem) =>
+        setProblem={(
+          problem
+        ) =>
           setRepair(
             (previous) => ({
               ...previous,
@@ -804,11 +1200,15 @@ Laptop Repair & Service`;
         }
       />
 
+      {/* Estimate */}
+
       <EstimateSection
         estimate={
           repair.estimate
         }
-        setEstimate={(estimate) =>
+        setEstimate={(
+          estimate
+        ) =>
           setRepair(
             (previous) => ({
               ...previous,
@@ -818,11 +1218,15 @@ Laptop Repair & Service`;
         }
       />
 
+      {/* Status */}
+
       <StatusSection
         status={
           repair.status
         }
-        setStatus={(status) => {
+        setStatus={(
+          status
+        ) => {
           statusChangedRef.current =
             true;
 
@@ -836,7 +1240,9 @@ Laptop Repair & Service`;
         warranty={
           repair.warranty
         }
-        setWarranty={(warranty) =>
+        setWarranty={(
+          warranty
+        ) =>
           setRepair(
             (previous) => ({
               ...previous,
@@ -847,7 +1253,9 @@ Laptop Repair & Service`;
         createdAt={
           repair.createdAt
         }
-        setCreatedAt={(createdAt) =>
+        setCreatedAt={(
+          createdAt
+        ) =>
           setRepair(
             (previous) => ({
               ...previous,
@@ -856,7 +1264,8 @@ Laptop Repair & Service`;
           )
         }
         deliveredAt={
-          repair.deliveredAt || ""
+          repair.deliveredAt ||
+          ""
         }
         setDeliveredAt={(
           deliveredAt
@@ -870,11 +1279,15 @@ Laptop Repair & Service`;
         }
       />
 
+      {/* Notes */}
+
       <NotesSection
         remarks={
           repair.remarks
         }
-        setRemarks={(remarks) =>
+        setRemarks={(
+          remarks
+        ) =>
           setRepair(
             (previous) => ({
               ...previous,
@@ -884,7 +1297,10 @@ Laptop Repair & Service`;
         }
       />
 
+      {/* Buttons */}
+
       <div className="flex justify-end gap-4 pt-4">
+
         <button
           type="button"
           disabled={loading}
@@ -898,6 +1314,40 @@ Laptop Repair & Service`;
 
             statusChangedRef.current =
               false;
+
+            // Re-apply defaults after reset.
+            void (async () => {
+              try {
+                const settings =
+                  await getAdminSettings();
+
+                setRepair(
+                  (current) => ({
+                    ...current,
+
+                    warranty:
+                      settings.repair
+                        .defaultWarranty ||
+                      current.warranty,
+
+                    estimate: {
+                      ...current.estimate,
+
+                      priority:
+                        settings.repair
+                          .defaultPriority ||
+                        current.estimate
+                          .priority,
+                    },
+                  })
+                );
+              } catch (error) {
+                console.error(
+                  "Repair default settings reload error:",
+                  error
+                );
+              }
+            })();
           }}
           className="rounded-xl border border-gray-600 px-6 py-3 font-semibold text-gray-300 transition hover:border-gray-500 hover:bg-[#202020] disabled:cursor-not-allowed disabled:opacity-60"
         >
@@ -915,6 +1365,7 @@ Laptop Repair & Service`;
             ? "Update Repair"
             : "Save Repair"}
         </button>
+
       </div>
     </form>
   );

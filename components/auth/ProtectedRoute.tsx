@@ -1,38 +1,188 @@
 "use client";
 
-import { useEffect } from "react";
-import { useRouter } from "next/navigation";
+import {
+  useEffect,
+} from "react";
 
-import { useAuth } from "@/context/AuthContext";
+import {
+  usePathname,
+  useRouter,
+} from "next/navigation";
+
+import {
+  useAuth,
+} from "@/context/AuthContext";
+
+import type {
+  UserRole,
+} from "@/types/user";
 
 type Props = {
   children: React.ReactNode;
+
+  allowedRoles?: UserRole[];
 };
 
 export default function ProtectedRoute({
   children,
+  allowedRoles,
 }: Props) {
-  const router = useRouter();
+  const router =
+    useRouter();
 
-  const { user, loading } = useAuth();
+  const pathname =
+    usePathname();
+
+  const {
+    user,
+    role,
+    loading,
+    roleLoading,
+  } = useAuth();
+
+  // =====================================================
+  // AUTH CHECK
+  // =====================================================
 
   useEffect(() => {
-    if (!loading && !user) {
-      router.replace("/login");
+    if (
+      !loading &&
+      !user
+    ) {
+      router.replace(
+        "/login"
+      );
     }
-  }, [user, loading, router]);
+  }, [
+    user,
+    loading,
+    router,
+  ]);
 
-  if (loading) {
+  // =====================================================
+  // ROLE CHECK
+  // =====================================================
+
+  useEffect(() => {
+    if (
+      loading ||
+      roleLoading ||
+      !user
+    ) {
+      return;
+    }
+
+    // No role restriction on this route.
+    if (
+      !allowedRoles ||
+      allowedRoles.length === 0
+    ) {
+      return;
+    }
+
+    // Role not available.
+    if (!role) {
+      router.replace(
+        "/admin"
+      );
+
+      return;
+    }
+
+    // Role allowed.
+    if (
+      allowedRoles.includes(
+        role
+      )
+    ) {
+      return;
+    }
+
+    // =================================================
+    // UNAUTHORIZED
+    // =================================================
+
+    console.warn(
+      "Unauthorized route access:",
+      {
+        pathname,
+        role,
+        allowedRoles,
+      }
+    );
+
+    router.replace(
+      "/admin"
+    );
+  }, [
+    allowedRoles,
+    loading,
+    roleLoading,
+    role,
+    user,
+    router,
+    pathname,
+  ]);
+
+  // =====================================================
+  // LOADING
+  // =====================================================
+
+  if (
+    loading ||
+    roleLoading
+  ) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[#111111]">
-        <p className="text-lg text-yellow-400">
-          Loading...
-        </p>
+        <div className="text-center">
+          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-gray-700 border-t-yellow-400" />
+
+          <p className="mt-4 text-lg text-yellow-400">
+            Loading...
+          </p>
+        </div>
       </div>
     );
   }
 
-  if (!user) return null;
+  // =====================================================
+  // NOT LOGGED IN
+  // =====================================================
 
-  return <>{children}</>;
+  if (!user) {
+    return null;
+  }
+
+  // =====================================================
+  // ROLE RESTRICTED BUT ROLE NOT READY
+  // =====================================================
+
+  if (
+    allowedRoles &&
+    allowedRoles.length > 0 &&
+    !role
+  ) {
+    return null;
+  }
+
+  // =====================================================
+  // ROLE CHECK
+  // =====================================================
+
+  if (
+    allowedRoles &&
+    allowedRoles.length > 0 &&
+    role &&
+    !allowedRoles.includes(
+      role
+    )
+  ) {
+    return null;
+  }
+
+  return (
+    <>
+      {children}
+    </>
+  );
 }

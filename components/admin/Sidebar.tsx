@@ -1,96 +1,194 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
-import { useState } from "react";
+import {
+  usePathname,
+  useRouter,
+} from "next/navigation";
 
 import {
-  BarChart3,
-  Globe,
   LayoutDashboard,
   Laptop,
-  LogOut,
-  Menu,
-  Package,
-  Receipt,
-  Settings,
-  ShoppingCart,
-  Users,
   Wrench,
-  X,
+  Receipt,
+  Users,
+  UserCog,
+  Package,
+  ShoppingCart,
+  Globe,
+  BarChart3,
+  Settings,
+  LogOut,
 } from "lucide-react";
+
+import type { ComponentType } from "react";
 
 import { useAuth } from "@/context/AuthContext";
 
-const menus = [
+import type {
+  UserRole,
+} from "@/types/user";
+
+// =====================================================
+// MENU TYPE
+// =====================================================
+
+type MenuItem = {
+  title: string;
+  href: string;
+  icon: ComponentType<{
+    size?: number;
+    className?: string;
+  }>;
+  roles: UserRole[];
+};
+
+// =====================================================
+// MENU
+// =====================================================
+
+const menus: MenuItem[] = [
   {
     title: "Dashboard",
     href: "/admin/dashboard",
     icon: LayoutDashboard,
+    roles: [
+      "admin",
+      "manager",
+      "technician",
+    ],
   },
+
   {
     title: "Products",
     href: "/admin/products",
     icon: Laptop,
+    roles: [
+      "admin",
+      "manager",
+    ],
   },
+
   {
     title: "Repairs",
     href: "/admin/repairs",
     icon: Wrench,
+    roles: [
+      "admin",
+      "manager",
+      "technician",
+    ],
   },
+
   {
     title: "Invoices",
     href: "/admin/invoices",
     icon: Receipt,
+    roles: [
+      "admin",
+      "manager",
+      "technician",
+    ],
   },
+
   {
     title: "Customers",
     href: "/admin/customers",
     icon: Users,
+    roles: [
+      "admin",
+      "manager",
+      "technician",
+    ],
   },
+
   {
     title: "Inventory",
     href: "/admin/inventory",
     icon: Package,
+    roles: [
+      "admin",
+      "manager",
+    ],
   },
+
   {
     title: "Sales",
     href: "/admin/sales",
     icon: ShoppingCart,
+    roles: [
+      "admin",
+      "manager",
+    ],
   },
+
   {
     title: "Website Requests",
     href: "/admin/website-requests",
     icon: Globe,
+    roles: [
+      "admin",
+      "manager",
+    ],
   },
+
   {
     title: "Reports",
     href: "/admin/reports",
     icon: BarChart3,
+    roles: [
+      "admin",
+      "manager",
+    ],
   },
+
+  {
+    title: "Staff",
+    href: "/admin/staff",
+    icon: UserCog,
+    roles: [
+      "admin",
+    ],
+  },
+
   {
     title: "Settings",
     href: "/admin/settings",
     icon: Settings,
+    roles: [
+      "admin",
+    ],
   },
 ];
 
+// =====================================================
+// SIDEBAR
+// =====================================================
+
 export default function Sidebar() {
-  const router = useRouter();
-  const pathname = usePathname();
+  const router =
+    useRouter();
 
-  const { logoutUser } = useAuth();
+  const pathname =
+    usePathname();
 
-  const [mobileOpen, setMobileOpen] =
-    useState(false);
+  const {
+    logoutUser,
+    role,
+    appUser,
+  } = useAuth();
+
+  // ===================================================
+  // LOGOUT
+  // ===================================================
 
   async function handleLogout() {
     try {
       await logoutUser();
 
-      setMobileOpen(false);
-
-      router.replace("/login");
+      router.replace(
+        "/login"
+      );
     } catch (error) {
       console.error(
         "Logout Error:",
@@ -103,376 +201,213 @@ export default function Sidebar() {
     }
   }
 
-  function isActive(href: string) {
-    if (href === "/admin/dashboard") {
-      return pathname === href;
+  // ===================================================
+  // ACTIVE MENU
+  // ===================================================
+
+  function isActive(
+    href: string
+  ) {
+    if (
+      href ===
+      "/admin/dashboard"
+    ) {
+      return (
+        pathname ===
+        href
+      );
     }
 
     return (
       pathname === href ||
-      pathname.startsWith(`${href}/`)
+      pathname.startsWith(
+        `${href}/`
+      )
     );
   }
 
-  function closeMobileMenu() {
-    setMobileOpen(false);
+  // ===================================================
+  // ROLE LABEL
+  // ===================================================
+
+  function getRoleLabel() {
+    switch (role) {
+      case "admin":
+        return "Admin";
+
+      case "manager":
+        return "Manager";
+
+      case "technician":
+        return "Technician";
+
+      default:
+        return "Loading";
+    }
   }
 
+  // ===================================================
+  // VISIBLE MENUS
+  // ===================================================
+
+  const visibleMenus =
+    role
+      ? menus.filter(
+          (item) =>
+            item.roles.includes(
+              role
+            )
+        )
+      : [];
+
+  // ===================================================
+  // RENDER
+  // ===================================================
+
   return (
-    <>
-      {/* ==================================================
-          DESKTOP / TABLET SIDEBAR
-      ================================================== */}
+    <aside className="flex h-screen w-72 shrink-0 flex-col border-r border-yellow-500/20 bg-[#111111]">
 
-      <aside
-        className="
-          hidden
-          h-screen
-          shrink-0
-          flex-col
-          border-r
-          border-yellow-500/20
-          bg-[#111111]
-          md:flex
-          md:w-20
-          lg:w-72
-        "
-      >
-        {/* Header */}
+      {/* =================================================
+          HEADER
+      ================================================= */}
 
-        <div
-          className="
-            border-b
-            border-yellow-500/20
-            p-4
-            lg:p-6
-          "
-        >
-          <h1
-            className="
-              text-center
-              text-2xl
-              font-bold
-              text-white
-              lg:text-left
-              lg:text-3xl
-            "
-          >
-            <span className="lg:hidden">
-              LC
-            </span>
+      <div className="border-b border-yellow-500/20 p-6">
 
-            <span className="hidden lg:inline">
-              Lappy
-              <span className="text-yellow-400">
-                Care
-              </span>
-            </span>
-          </h1>
+        <h1 className="text-3xl font-bold text-white">
+          Lappy
+          <span className="text-yellow-400">
+            Care
+          </span>
+        </h1>
 
-          <p
-            className="
-              mt-1
-              hidden
-              text-sm
-              text-gray-400
-              lg:block
-            "
-          >
-            Admin Panel
-          </p>
-        </div>
+        <p className="mt-1 text-sm text-gray-400">
+          Admin Panel
+        </p>
 
-        {/* Navigation */}
+        {/* User Info */}
 
-        <nav
-          className="
-            flex-1
-            space-y-2
-            overflow-y-auto
-            p-3
-            lg:p-5
-          "
-        >
-          {menus.map((item) => {
-            const Icon = item.icon;
-            const active = isActive(
-              item.href
-            );
+        <div className="mt-4 flex items-center justify-between rounded-xl border border-gray-800 bg-black/50 px-3 py-2">
 
-            return (
-              <Link
-                key={item.title}
-                href={item.href}
-                title={item.title}
-                className={`
-                  group
-                  flex
-                  items-center
-                  justify-center
-                  gap-4
-                  rounded-xl
-                  px-3
-                  py-3
-                  transition
-                  lg:justify-start
-                  lg:px-4
+          <div className="min-w-0">
 
-                  ${
-                    active
-                      ? "bg-yellow-400 text-black"
-                      : "text-gray-300 hover:bg-yellow-400 hover:text-black"
-                  }
-                `}
-              >
-                <Icon
-                  size={20}
-                  className="shrink-0"
-                />
-
-                <span className="hidden lg:inline">
-                  {item.title}
-                </span>
-              </Link>
-            );
-          })}
-        </nav>
-
-        {/* Logout */}
-
-        <div
-          className="
-            border-t
-            border-yellow-500/20
-            p-3
-            lg:p-5
-          "
-        >
-          <button
-            type="button"
-            onClick={handleLogout}
-            title="Logout"
-            className="
-              flex
-              w-full
-              items-center
-              justify-center
-              gap-4
-              rounded-xl
-              bg-red-500
-              px-3
-              py-3
-              font-semibold
-              text-white
-              transition
-              hover:bg-red-600
-              lg:justify-start
-              lg:px-4
-            "
-          >
-            <LogOut
-              size={20}
-              className="shrink-0"
-            />
-
-            <span className="hidden lg:inline">
-              Logout
-            </span>
-          </button>
-        </div>
-      </aside>
-
-      {/* ==================================================
-          MOBILE MENU BUTTON
-      ================================================== */}
-
-      <button
-        type="button"
-        onClick={() =>
-          setMobileOpen(true)
-        }
-        aria-label="Open admin menu"
-        className="
-          fixed
-          left-4
-          top-4
-          z-[100]
-          flex
-          h-11
-          w-11
-          items-center
-          justify-center
-          rounded-xl
-          border
-          border-yellow-500/20
-          bg-[#111111]
-          text-white
-          shadow-lg
-          transition
-          hover:bg-yellow-400
-          hover:text-black
-          md:hidden
-        "
-      >
-        <Menu size={22} />
-      </button>
-
-      {/* ==================================================
-          MOBILE BACKDROP
-      ================================================== */}
-
-      {mobileOpen && (
-        <button
-          type="button"
-          aria-label="Close admin menu"
-          onClick={closeMobileMenu}
-          className="
-            fixed
-            inset-0
-            z-[110]
-            bg-black/70
-            backdrop-blur-sm
-            md:hidden
-          "
-        />
-      )}
-
-      {/* ==================================================
-          MOBILE DRAWER
-      ================================================== */}
-
-      <aside
-        className={`
-          fixed
-          inset-y-0
-          left-0
-          z-[120]
-          flex
-          w-[280px]
-          flex-col
-          border-r
-          border-yellow-500/20
-          bg-[#111111]
-          shadow-2xl
-          transition-transform
-          duration-300
-          ease-out
-          md:hidden
-
-          ${
-            mobileOpen
-              ? "translate-x-0"
-              : "-translate-x-full"
-          }
-        `}
-      >
-        {/* Mobile Header */}
-
-        <div className="flex items-center justify-between border-b border-yellow-500/20 p-5">
-          <div>
-            <h1 className="text-2xl font-bold text-white">
-              Lappy
-              <span className="text-yellow-400">
-                Care
-              </span>
-            </h1>
-
-            <p className="mt-1 text-sm text-gray-400">
-              Admin Panel
+            <p className="truncate text-xs text-gray-500">
+              Signed in as
             </p>
+
+            <p className="truncate text-sm font-semibold text-white">
+              {appUser?.name ||
+                "User"}
+            </p>
+
           </div>
 
-          <button
-            type="button"
-            onClick={closeMobileMenu}
-            aria-label="Close admin menu"
-            className="
-              flex
-              h-10
-              w-10
-              items-center
-              justify-center
-              rounded-xl
-              bg-red-500
-              text-white
-              transition
-              hover:bg-red-600
-            "
+          <span
+            className={`
+              rounded-full
+              px-2.5
+              py-1
+              text-[10px]
+              font-bold
+              uppercase
+              ${
+                role ===
+                "admin"
+                  ? "bg-red-500/10 text-red-400"
+                  : role ===
+                    "manager"
+                  ? "bg-purple-500/10 text-purple-400"
+                  : role ===
+                    "technician"
+                  ? "bg-blue-500/10 text-blue-400"
+                  : "bg-gray-500/10 text-gray-500"
+              }
+            `}
           >
-            <X size={20} />
-          </button>
+            {getRoleLabel()}
+          </span>
+
         </div>
 
-        {/* Mobile Navigation */}
+      </div>
 
-        <nav className="flex-1 space-y-2 overflow-y-auto p-4">
-          {menus.map((item) => {
-            const Icon = item.icon;
-            const active = isActive(
-              item.href
-            );
+      {/* =================================================
+          NAVIGATION
+      ================================================= */}
+
+      <nav className="flex-1 space-y-2 overflow-y-auto p-5">
+
+        {visibleMenus.map(
+          (item) => {
+            const Icon =
+              item.icon;
 
             return (
               <Link
-                key={item.title}
-                href={item.href}
-                onClick={closeMobileMenu}
+                key={
+                  item.title
+                }
+                href={
+                  item.href
+                }
                 className={`
                   flex
                   items-center
                   gap-4
                   rounded-xl
                   px-4
-                  py-3.5
+                  py-3
                   transition
-
                   ${
-                    active
+                    isActive(
+                      item.href
+                    )
                       ? "bg-yellow-400 font-semibold text-black"
                       : "text-gray-300 hover:bg-yellow-400 hover:text-black"
                   }
                 `}
               >
+
                 <Icon
                   size={20}
-                  className="shrink-0"
                 />
 
                 <span>
-                  {item.title}
+                  {
+                    item.title
+                  }
                 </span>
+
               </Link>
             );
-          })}
-        </nav>
+          }
+        )}
 
-        {/* Mobile Logout */}
+      </nav>
 
-        <div className="border-t border-yellow-500/20 p-4">
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="
-              flex
-              w-full
-              items-center
-              gap-4
-              rounded-xl
-              bg-red-500
-              px-4
-              py-3.5
-              font-semibold
-              text-white
-              transition
-              hover:bg-red-600
-            "
-          >
-            <LogOut size={20} />
+      {/* =================================================
+          LOGOUT
+      ================================================= */}
 
-            Logout
-          </button>
-        </div>
-      </aside>
-    </>
+      <div className="border-t border-yellow-500/20 p-5">
+
+        <button
+          type="button"
+          onClick={
+            handleLogout
+          }
+          className="flex w-full items-center gap-4 rounded-xl bg-red-500 px-4 py-3 font-semibold text-white transition hover:bg-red-600"
+        >
+
+          <LogOut
+            size={20}
+          />
+
+          Logout
+
+        </button>
+
+      </div>
+
+    </aside>
   );
 }
