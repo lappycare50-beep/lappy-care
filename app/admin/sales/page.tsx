@@ -17,7 +17,7 @@ import {
 } from "lucide-react";
 
 import {
-  toPng,
+  toJpeg,
 } from "html-to-image";
 
 import jsPDF from "jspdf";
@@ -221,14 +221,14 @@ export default function SalesPage() {
   >([]);
 
   const [
-    salesLoading,
-    setSalesLoading,
-  ] = useState(true);
-
-  const [
     salesSearch,
     setSalesSearch,
   ] = useState("");
+
+  const [
+    salesLoading,
+    setSalesLoading,
+  ] = useState(true);
 
   // ===================================================
   // TOTALS
@@ -335,9 +335,7 @@ export default function SalesPage() {
 
   async function loadSales() {
     try {
-      setSalesLoading(
-        true
-      );
+      setSalesLoading(true);
 
       const data =
         await getSales();
@@ -355,9 +353,7 @@ export default function SalesPage() {
           : "Failed to load sales."
       );
     } finally {
-      setSalesLoading(
-        false
-      );
+      setSalesLoading(false);
     }
   }
 
@@ -948,17 +944,14 @@ export default function SalesPage() {
         ""
       );
 
-    if (
-      !normalizedMobile
-    ) {
+    if (!normalizedMobile) {
       throw new Error(
         "Customer mobile number is missing for WhatsApp."
       );
     }
 
     const whatsappNumber =
-      normalizedMobile.length ===
-      10
+      normalizedMobile.length === 10
         ? `91${normalizedMobile}`
         : normalizedMobile;
 
@@ -973,27 +966,65 @@ export default function SalesPage() {
       );
     }
 
+    // =================================================
+    // HTML -> COMPRESSED JPEG
+    // =================================================
+
     const imageData =
-      await toPng(
+      await toJpeg(
         pdfElement,
         {
           cacheBust: true,
-          pixelRatio: 2,
-          backgroundColor:
-            "#ffffff",
+          backgroundColor: "#ffffff",
+          pixelRatio: 1.25,
+          quality: 0.70,
+          width: pdfElement.scrollWidth,
+          height: pdfElement.scrollHeight,
         }
       );
 
+    if (!imageData) {
+      throw new Error(
+        "Invoice image generation failed."
+      );
+    }
+
+    // =================================================
+    // LOAD IMAGE
+    // =================================================
+
+    const image = new Image();
+
+    image.src = imageData;
+
+    await new Promise<void>(
+      (resolve, reject) => {
+        image.onload = () => resolve();
+        image.onerror = () =>
+          reject(
+            new Error(
+              "Failed to load invoice image."
+            )
+          );
+      }
+    );
+
+    if (!image.width || !image.height) {
+      throw new Error(
+        "Invoice image dimensions are invalid."
+      );
+    }
+
+    // =================================================
+    // CREATE A4 PDF
+    // =================================================
+
     const pdf =
       new jsPDF({
-        orientation:
-          "portrait",
-
-        unit:
-          "mm",
-
-        format:
-          "a4",
+        orientation: "portrait",
+        unit: "mm",
+        format: "a4",
+        compress: true,
       });
 
     const pageWidth =
@@ -1002,63 +1033,40 @@ export default function SalesPage() {
     const pageHeight =
       pdf.internal.pageSize.getHeight();
 
-    const image =
-      new Image();
-
-    image.src =
-      imageData;
-
-    await new Promise<void>(
-      (resolve, reject) => {
-        image.onload =
-          () => resolve();
-
-        image.onerror =
-          () =>
-            reject(
-              new Error(
-                "Failed to load invoice image."
-              )
-            );
-      }
-    );
-
     const imageHeight =
-      (
-        image.height *
-        pageWidth
-      ) /
+      (image.height * pageWidth) /
       image.width;
 
     let position = 0;
+    let remainingHeight = imageHeight;
 
-    let remainingHeight =
-      imageHeight;
+    // =================================================
+    // MULTI-PAGE INVOICE
+    // =================================================
 
-    while (
-      remainingHeight > 0
-    ) {
+    while (remainingHeight > 0) {
       pdf.addImage(
         imageData,
-        "PNG",
+        "JPEG",
         0,
         position,
         pageWidth,
-        imageHeight
+        imageHeight,
+        undefined,
+        "FAST"
       );
 
-      remainingHeight -=
-        pageHeight;
+      remainingHeight -= pageHeight;
 
-      if (
-        remainingHeight > 0
-      ) {
+      if (remainingHeight > 0) {
         pdf.addPage();
-
-        position -=
-          pageHeight;
+        position -= pageHeight;
       }
     }
+
+    // =================================================
+    // PDF -> BASE64
+    // =================================================
 
     const dataUri =
       pdf.output(
@@ -1074,11 +1082,65 @@ export default function SalesPage() {
       );
     }
 
+    // =================================================
+    // SIZE CHECK
+    // =================================================
+
+    const approximateBytes =
+      Math.floor(
+        (pdfBase64.length * 3) / 4
+      );
+
+    const approximateMb =
+      approximateBytes /
+      (1024 * 1024);
+
+    console.log(
+      "========================================"
+    );
+
+    console.log(
+      "INVOICE PDF SIZE"
+    );
+
+    console.log(
+      JSON.stringify(
+        {
+          invoiceNo: invoiceData.invoiceNo,
+          bytes: approximateBytes,
+          sizeMB: approximateMb.toFixed(2),
+        },
+        null,
+        2
+      )
+    );
+
+    console.log(
+      "========================================"
+    );
+
+    if (
+      approximateBytes >
+      1024 * 1024
+    ) {
+      throw new Error(
+        `Invoice PDF is ${approximateMb.toFixed(2)} MB. It is still above the 1 MB target.`
+      );
+    }
+
+    // =================================================
+    // SAFE FILE NAME
+    // =================================================
+
     const safeInvoiceNo =
       invoiceData.invoiceNo.replace(
         /[^a-zA-Z0-9-_]/g,
         "_"
       );
+
+    // =================================================
+    // SEND TO WHATSAPP API
+    // =================================================
 
     const response =
       await fetch(
@@ -1091,45 +1153,33 @@ export default function SalesPage() {
               "application/json",
           },
 
-          body:
-            JSON.stringify({
-              to:
-                whatsappNumber,
-
-              pdfBase64,
-
-              filename:
-                `Lappy-Care-${safeInvoiceNo}.pdf`,
-
-              caption:
-                `Hello ${
-                  invoiceData.customerName ||
-                  "Customer"
-                },\n\nYour Lappy Care invoice ${
-                  invoiceData.invoiceNo
-                } is attached.\n\nThank you for choosing Lappy Care.\n\n📞 95950 57006`,
-            }),
+          body: JSON.stringify({
+            to: whatsappNumber,
+            pdfBase64,
+            filename:
+              `Lappy-Care-${safeInvoiceNo}.pdf`,
+            caption:
+              `Hello ${
+                invoiceData.customerName ||
+                "Customer"
+              },\n\nYour Lappy Care invoice ${
+                invoiceData.invoiceNo
+              } is attached.\n\nThank you for choosing Lappy Care.\n\n📞 95950 57006`,
+          }),
         }
       );
 
     const rawResponse =
       await response.text();
 
-    let data:
-      any = null;
+    let data: any = null;
 
     try {
-      data =
-        rawResponse
-          ? JSON.parse(
-              rawResponse
-            )
-          : null;
+      data = rawResponse
+        ? JSON.parse(rawResponse)
+        : null;
     } catch {
-      data = {
-        raw:
-          rawResponse,
-      };
+      data = { raw: rawResponse };
     }
 
     if (
@@ -1142,6 +1192,15 @@ export default function SalesPage() {
           "Invoice WhatsApp sending failed."
       );
     }
+
+    console.log(
+      "Invoice PDF sent successfully on WhatsApp.",
+      {
+        invoiceNo: invoiceData.invoiceNo,
+        recipient: whatsappNumber,
+        sizeMB: approximateMb.toFixed(2),
+      }
+    );
 
     return true;
   }
@@ -1517,7 +1576,7 @@ ${
         getToday()
       );
 
-      await loadInventory(true);
+      await loadInventory();
       await loadSales();
     } catch (error) {
       console.error(
@@ -2351,7 +2410,7 @@ ${
                 </h2>
 
                 <p className="mt-1 text-sm text-zinc-500">
-                  All sales created through the Sales module.
+                  Recent sales from the Sales module.
                 </p>
 
               </div>
@@ -2372,7 +2431,7 @@ ${
                       e.target.value
                     )
                   }
-                  placeholder="Search sale, customer, mobile or item..."
+                  placeholder="Search loaded sales..."
                   className="w-full rounded-xl border border-zinc-800 bg-black py-3 pl-11 pr-4 text-sm text-white outline-none placeholder:text-zinc-600 focus:border-yellow-400"
                 />
 

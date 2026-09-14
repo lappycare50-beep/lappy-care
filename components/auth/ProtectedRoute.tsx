@@ -5,7 +5,6 @@ import {
 } from "react";
 
 import {
-  usePathname,
   useRouter,
 } from "next/navigation";
 
@@ -13,35 +12,23 @@ import {
   useAuth,
 } from "@/context/AuthContext";
 
-import type {
-  UserRole,
-} from "@/types/user";
-
 type Props = {
   children: React.ReactNode;
-
-  allowedRoles?: UserRole[];
 };
 
 export default function ProtectedRoute({
   children,
-  allowedRoles,
 }: Props) {
   const router =
     useRouter();
 
-  const pathname =
-    usePathname();
-
   const {
     user,
-    role,
     loading,
-    roleLoading,
   } = useAuth();
 
   // =====================================================
-  // AUTH CHECK
+  // AUTH REDIRECT
   // =====================================================
 
   useEffect(() => {
@@ -54,91 +41,23 @@ export default function ProtectedRoute({
       );
     }
   }, [
-    user,
     loading,
+    user,
     router,
   ]);
 
   // =====================================================
-  // ROLE CHECK
+  // AUTH LOADING
   // =====================================================
 
-  useEffect(() => {
-    if (
-      loading ||
-      roleLoading ||
-      !user
-    ) {
-      return;
-    }
-
-    // No role restriction on this route.
-    if (
-      !allowedRoles ||
-      allowedRoles.length === 0
-    ) {
-      return;
-    }
-
-    // Role not available.
-    if (!role) {
-      router.replace(
-        "/admin"
-      );
-
-      return;
-    }
-
-    // Role allowed.
-    if (
-      allowedRoles.includes(
-        role
-      )
-    ) {
-      return;
-    }
-
-    // =================================================
-    // UNAUTHORIZED
-    // =================================================
-
-    console.warn(
-      "Unauthorized route access:",
-      {
-        pathname,
-        role,
-        allowedRoles,
-      }
-    );
-
-    router.replace(
-      "/admin"
-    );
-  }, [
-    allowedRoles,
-    loading,
-    roleLoading,
-    role,
-    user,
-    router,
-    pathname,
-  ]);
-
-  // =====================================================
-  // LOADING
-  // =====================================================
-
-  if (
-    loading ||
-    roleLoading
-  ) {
+  if (loading) {
     return (
-      <div className="flex min-h-screen items-center justify-center bg-[#111111]">
+      <div className="flex min-h-screen items-center justify-center bg-black text-white">
         <div className="text-center">
-          <div className="mx-auto h-8 w-8 animate-spin rounded-full border-2 border-gray-700 border-t-yellow-400" />
+          <div className="mx-auto h-10 w-10 animate-spin rounded-full border-2 border-zinc-700 border-t-yellow-400" />
 
-          <p className="mt-4 text-lg text-yellow-400">
-            Loading...
+          <p className="mt-4 text-sm text-zinc-400">
+            Loading Admin Panel...
           </p>
         </div>
       </div>
@@ -154,31 +73,8 @@ export default function ProtectedRoute({
   }
 
   // =====================================================
-  // ROLE RESTRICTED BUT ROLE NOT READY
+  // AUTHORIZED
   // =====================================================
-
-  if (
-    allowedRoles &&
-    allowedRoles.length > 0 &&
-    !role
-  ) {
-    return null;
-  }
-
-  // =====================================================
-  // ROLE CHECK
-  // =====================================================
-
-  if (
-    allowedRoles &&
-    allowedRoles.length > 0 &&
-    role &&
-    !allowedRoles.includes(
-      role
-    )
-  ) {
-    return null;
-  }
 
   return (
     <>

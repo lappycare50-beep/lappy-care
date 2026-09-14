@@ -39,17 +39,34 @@ function normalizeRole(
       return "admin";
 
     default:
-      throw new Error(
-        "Invalid user role."
-      );
+      return "admin";
+  }
+}
+
+function normalizeStoredRole(
+  value: unknown
+): UserRole {
+  switch (value) {
+    case "manager":
+      return "manager";
+
+    case "technician":
+      return "technician";
+
+    case "admin":
+      return "admin";
+
+    default:
+      return "admin";
   }
 }
 
 function normalizeEmail(
   value: unknown
-) {
+): string {
   if (
-    typeof value !== "string"
+    typeof value !==
+    "string"
   ) {
     return "";
   }
@@ -61,9 +78,10 @@ function normalizeEmail(
 
 function normalizeName(
   value: unknown
-) {
+): string {
   if (
-    typeof value !== "string"
+    typeof value !==
+    "string"
   ) {
     return "";
   }
@@ -73,6 +91,13 @@ function normalizeName(
 
 // =====================================================
 // GET USERS
+//
+// IMPORTANT:
+// We intentionally do NOT use:
+// auth.listUsers(1000)
+//
+// Staff profiles are loaded from Firestore.
+// This avoids Firebase Auth listUsers quota usage.
 // =====================================================
 
 export async function GET(
@@ -81,61 +106,52 @@ export async function GET(
   try {
     const {
       appUser,
-    } = await verifyAdminRequest(
-      request.headers.get(
-        "authorization"
-      )
-    );
+    } =
+      await verifyAdminRequest(
+        request.headers.get(
+          "authorization"
+        )
+      );
 
+    // Staff management is Admin only.
     requireAdmin(
       appUser
     );
 
-    const auth =
-      getAdminAuth();
-
     const db =
       getAdminDb();
 
-    const list =
-      await auth.listUsers(
-        1000
-      );
+    const snapshot =
+      await db
+        .collection(
+          "users"
+        )
+        .get();
 
-    const firestoreUsers =
-      await Promise.all(
-        list.users.map(
-          async (
-            user
+    const users =
+      snapshot.docs
+        .map(
+          (
+            document
           ) => {
-            const snapshot =
-              await db
-                .collection(
-                  "users"
-                )
-                .doc(
-                  user.uid
-                )
-                .get();
-
             const data =
-              snapshot.exists
-                ? snapshot.data()
-                : null;
+              document.data();
 
             return {
               id:
-                user.uid,
+                document.id,
 
               email:
-                user.email ||
-                data?.email ||
-                "",
+                typeof data?.email ===
+                "string"
+                  ? data.email
+                  : "",
 
               name:
-                data?.name ||
-                user.displayName ||
-                "User",
+                typeof data?.name ===
+                "string"
+                  ? data.name
+                  : "User",
 
               role:
                 normalizeStoredRole(
@@ -143,41 +159,46 @@ export async function GET(
                 ),
 
               active:
-                data?.active !== false &&
-                !user.disabled,
-
-              firebaseDisabled:
-                user.disabled,
+                data?.active !==
+                false,
 
               createdAt:
-                data?.createdAt ||
-                user.metadata
-                  .creationTime ||
-                "",
+                typeof data?.createdAt ===
+                "string"
+                  ? data.createdAt
+                  : "",
 
-              lastSignIn:
-                user.metadata
-                  .lastSignInTime ||
-                "",
+              updatedAt:
+                typeof data?.updatedAt ===
+                "string"
+                  ? data.updatedAt
+                  : "",
             };
           }
         )
-      );
-
-    firestoreUsers.sort(
-      (a, b) =>
-        a.name
-          .toLowerCase()
-          .localeCompare(
-            b.name
+        .sort(
+          (
+            a,
+            b
+          ) =>
+            a.name
               .toLowerCase()
-          )
-    );
+              .localeCompare(
+                b.name
+                  .toLowerCase()
+              )
+        );
 
-    return NextResponse.json({
-      success: true,
-      users: firestoreUsers,
-    });
+    return NextResponse.json(
+      {
+        success: true,
+
+        users,
+      },
+      {
+        status: 200,
+      }
+    );
   } catch (error) {
     console.error(
       "Admin users GET error:",
@@ -189,15 +210,21 @@ export async function GET(
         ? error.message
         : "Failed to load users.";
 
+    const lowerMessage =
+      message.toLowerCase();
+
     const status =
-      message.includes(
+      lowerMessage.includes(
         "permission"
       ) ||
-      message.includes(
-        "Authentication"
+      lowerMessage.includes(
+        "authentication"
       ) ||
-      message.includes(
+      lowerMessage.includes(
         "token"
+      ) ||
+      lowerMessage.includes(
+        "unauthorized"
       )
         ? 403
         : 500;
@@ -205,7 +232,9 @@ export async function GET(
     return NextResponse.json(
       {
         success: false,
-        error: message,
+
+        error:
+          message,
       },
       {
         status,
@@ -216,6 +245,9 @@ export async function GET(
 
 // =====================================================
 // CREATE USER
+//
+// POST still uses Firebase Admin Auth because we need
+// to create the actual Firebase login account.
 // =====================================================
 
 export async function POST(
@@ -224,12 +256,14 @@ export async function POST(
   try {
     const {
       appUser,
-    } = await verifyAdminRequest(
-      request.headers.get(
-        "authorization"
-      )
-    );
+    } =
+      await verifyAdminRequest(
+        request.headers.get(
+          "authorization"
+        )
+      );
 
+    // Admin only.
     requireAdmin(
       appUser
     );
@@ -258,10 +292,15 @@ export async function POST(
         body?.role
       );
 
+    // =================================================
+    // VALIDATION
+    // =================================================
+
     if (!name) {
       return NextResponse.json(
         {
           success: false,
+
           error:
             "Name is required.",
         },
@@ -275,6 +314,7 @@ export async function POST(
       return NextResponse.json(
         {
           success: false,
+
           error:
             "Email is required.",
         },
@@ -291,6 +331,7 @@ export async function POST(
       return NextResponse.json(
         {
           success: false,
+
           error:
             "Password must be at least 6 characters.",
         },
@@ -317,13 +358,18 @@ export async function POST(
       createdUser =
         await auth.createUser({
           email,
+
           password,
+
           displayName:
             name,
+
           disabled:
             false,
         });
-    } catch (authError) {
+    } catch (
+      authError
+    ) {
       console.error(
         "Firebase create user error:",
         authError
@@ -343,6 +389,7 @@ export async function POST(
         return NextResponse.json(
           {
             success: false,
+
             error:
               "A user with this email already exists.",
           },
@@ -358,6 +405,9 @@ export async function POST(
     // =================================================
     // CREATE FIRESTORE PROFILE
     // =================================================
+
+    const now =
+      new Date().toISOString();
 
     try {
       await db
@@ -382,18 +432,19 @@ export async function POST(
               true,
 
             createdAt:
-              new Date()
-                .toISOString(),
+              now,
 
             updatedAt:
-              new Date()
-                .toISOString(),
+              now,
           },
           {
-            merge: true,
+            merge:
+              true,
           }
         );
-    } catch (firestoreError) {
+    } catch (
+      firestoreError
+    ) {
       // =================================================
       // ROLLBACK AUTH USER
       // =================================================
@@ -414,9 +465,14 @@ export async function POST(
       throw firestoreError;
     }
 
+    // =================================================
+    // SUCCESS
+    // =================================================
+
     return NextResponse.json(
       {
-        success: true,
+        success:
+          true,
 
         message:
           "Staff user created successfully.",
@@ -433,6 +489,12 @@ export async function POST(
 
           active:
             true,
+
+          createdAt:
+            now,
+
+          updatedAt:
+            now,
         },
       },
       {
@@ -450,49 +512,36 @@ export async function POST(
         ? error.message
         : "Failed to create staff user.";
 
+    const lowerMessage =
+      message.toLowerCase();
+
     const status =
-      message.includes(
+      lowerMessage.includes(
         "permission"
       ) ||
-      message.includes(
-        "Authentication"
+      lowerMessage.includes(
+        "authentication"
       ) ||
-      message.includes(
+      lowerMessage.includes(
         "token"
+      ) ||
+      lowerMessage.includes(
+        "unauthorized"
       )
         ? 403
         : 500;
 
     return NextResponse.json(
       {
-        success: false,
-        error: message,
+        success:
+          false,
+
+        error:
+          message,
       },
       {
         status,
       }
     );
-  }
-}
-
-// =====================================================
-// NORMALIZE STORED ROLE
-// =====================================================
-
-function normalizeStoredRole(
-  value: unknown
-): UserRole {
-  switch (value) {
-    case "manager":
-      return "manager";
-
-    case "technician":
-      return "technician";
-
-    case "admin":
-      return "admin";
-
-    default:
-      return "admin";
   }
 }

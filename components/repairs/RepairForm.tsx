@@ -37,6 +37,10 @@ import {
   getAdminSettings,
 } from "@/services/adminSettingsService";
 
+import {
+  generateJobCardPdfBase64,
+} from "@/services/jobCardPdfService";
+
 type Props = {
   editRepair?: Repair | null;
   onSuccess?: () => void;
@@ -387,10 +391,7 @@ export default function RepairForm({
   }
 
   // ===================================================
-  // WHATSAPP MESSAGE
-  //
-  // Tracking ID + Tracking URL are added ONLY
-  // for the Received status.
+  // STATUS WHATSAPP MESSAGE
   // ===================================================
 
   function buildStatusWhatsAppMessage(
@@ -420,10 +421,6 @@ export default function RepairForm({
         : "";
 
     switch (newStatus) {
-      // =================================================
-      // RECEIVED
-      // =================================================
-
       case "Received":
         return `Hello ${customerName},
 
@@ -452,10 +449,6 @@ Regards,
 Lappy Care
 Laptop Repair & Service`;
 
-      // =================================================
-      // DIAGNOSING
-      // =================================================
-
       case "Diagnosing":
         return `Hello ${customerName},
 
@@ -479,10 +472,6 @@ Thank you for your patience.
 Regards,
 Lappy Care
 Laptop Repair & Service`;
-
-      // =================================================
-      // WAITING APPROVAL
-      // =================================================
 
       case "Waiting Approval":
         return `Hello ${customerName},
@@ -508,10 +497,6 @@ Regards,
 Lappy Care
 Laptop Repair & Service`;
 
-      // =================================================
-      // WAITING PARTS
-      // =================================================
-
       case "Waiting Parts":
         return `Hello ${customerName},
 
@@ -535,10 +520,6 @@ Thank you for your patience and understanding.
 Regards,
 Lappy Care
 Laptop Repair & Service`;
-
-      // =================================================
-      // REPAIRING
-      // =================================================
 
       case "Repairing":
         return `Hello ${customerName},
@@ -564,10 +545,6 @@ Regards,
 Lappy Care
 Laptop Repair & Service`;
 
-      // =================================================
-      // TESTING
-      // =================================================
-
       case "Testing":
         return `Hello ${customerName},
 
@@ -591,10 +568,6 @@ Thank you for your patience.
 Regards,
 Lappy Care
 Laptop Repair & Service`;
-
-      // =================================================
-      // READY
-      // =================================================
 
       case "Ready":
         return `Hello ${customerName},
@@ -620,10 +593,6 @@ Regards,
 Lappy Care
 Laptop Repair & Service`;
 
-      // =================================================
-      // DELIVERED
-      // =================================================
-
       case "Delivered":
         return `Hello ${customerName},
 
@@ -646,10 +615,6 @@ Regards,
 Lappy Care
 Laptop Repair & Service`;
 
-      // =================================================
-      // CANCELLED
-      // =================================================
-
       case "Cancelled":
         return `Hello ${customerName},
 
@@ -671,10 +636,6 @@ For any clarification or assistance, please contact us.
 Regards,
 Lappy Care
 Laptop Repair & Service`;
-
-      // =================================================
-      // DEFAULT
-      // =================================================
 
       default:
         return `Hello ${customerName},
@@ -701,7 +662,7 @@ Laptop Repair & Service`;
   }
 
   // ===================================================
-  // SEND WHATSAPP STATUS
+  // SEND STATUS WHATSAPP
   // ===================================================
 
   async function sendStatusWhatsApp(
@@ -710,7 +671,10 @@ Laptop Repair & Service`;
   ) {
     const mobile =
       repairData.customer.mobile
-        ?.replace(/\D/g, "");
+        ?.replace(
+          /\D/g,
+          ""
+        );
 
     if (!mobile) {
       return {
@@ -743,10 +707,12 @@ Laptop Repair & Service`;
                 "application/json",
             },
 
-            body: JSON.stringify({
-              to: whatsappNumber,
-              message,
-            }),
+            body:
+              JSON.stringify({
+                to:
+                  whatsappNumber,
+                message,
+              }),
           }
         );
 
@@ -793,6 +759,122 @@ Laptop Repair & Service`;
           error instanceof Error
             ? error.message
             : "WhatsApp message failed.",
+      };
+    }
+  }
+
+  // ===================================================
+  // SEND JOB CARD PDF
+  // ===================================================
+
+  async function sendJobCardPdf(
+    repairData: Repair
+  ) {
+    const mobile =
+      repairData.customer.mobile
+        ?.replace(
+          /\D/g,
+          ""
+        );
+
+    if (!mobile) {
+      return {
+        sent: false,
+        error:
+          "Customer mobile number is missing.",
+      };
+    }
+
+    try {
+      // ===============================================
+      // GENERATE THE SAME JOB CARD PREVIEW AS PDF
+      // ===============================================
+
+      const pdfBase64 =
+        await generateJobCardPdfBase64(
+          repairData
+        );
+
+      if (!pdfBase64) {
+        return {
+          sent: false,
+          error:
+            "Job Card PDF generation failed.",
+        };
+      }
+
+      // ===============================================
+      // SEND PDF TO WHATSAPP API
+      // ===============================================
+
+      const response =
+        await fetch(
+          "/api/whatsapp/send-job-card",
+          {
+            method: "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify({
+                to: mobile,
+
+                pdfBase64,
+
+                filename:
+                  `Lappy-Care-Job-Card-${repairData.repairId}.pdf`,
+
+                caption:
+                  `Hello ${
+                    repairData.customer.name ||
+                    "Customer"
+                  }, your Lappy Care Job Card ${
+                    repairData.repairId
+                  } is attached.`,
+              }),
+          }
+        );
+
+      let data:
+        any = null;
+
+      try {
+        data =
+          await response.json();
+      } catch {
+        data = null;
+      }
+
+      if (
+        !response.ok ||
+        !data?.success
+      ) {
+        return {
+          sent: false,
+          error:
+            data?.error ||
+            "Job Card PDF could not be sent.",
+        };
+      }
+
+      return {
+        sent: true,
+      };
+    } catch (error) {
+      console.error(
+        "Job Card PDF send error:",
+        error
+      );
+
+      return {
+        sent: false,
+        error:
+          error instanceof Error
+            ? error.message
+            : "Job Card PDF could not be sent.",
       };
     }
   }
@@ -892,7 +974,7 @@ Laptop Repair & Service`;
       };
 
       // =================================================
-      // EDIT
+      // EDIT REPAIR
       // =================================================
 
       if (editRepair?.id) {
@@ -1038,9 +1120,6 @@ Laptop Repair & Service`;
 
       // =================================================
       // SEND RECEIVED WHATSAPP
-      //
-      // Tracking ID + Tracking URL included
-      // only in Received message.
       // =================================================
 
       const whatsappResult =
@@ -1049,22 +1128,40 @@ Laptop Repair & Service`;
           "Received"
         );
 
-      if (
-        whatsappResult.sent
-      ) {
-        alert(
-          "Repair Saved Successfully.\n\nWhatsApp status message sent successfully."
-        );
-      } else {
-        console.error(
-          "WhatsApp failed:",
-          whatsappResult.error
+      // =================================================
+      // SEND JOB CARD PDF
+      // =================================================
+
+      const jobCardResult =
+        await sendJobCardPdf(
+          newRepair
         );
 
-        alert(
-          "Repair Saved Successfully.\n\nWhatsApp status message could not be sent."
-        );
-      }
+      // =================================================
+      // FINAL USER MESSAGE
+      // =================================================
+
+      const statusMessage =
+        whatsappResult.sent
+          ? "Received WhatsApp message sent successfully."
+          : `Received WhatsApp message could not be sent${
+              whatsappResult.error
+                ? `: ${whatsappResult.error}`
+                : "."
+            }`;
+
+      const pdfMessage =
+        jobCardResult.sent
+          ? "Job Card PDF sent successfully."
+          : `Job Card PDF could not be sent${
+              jobCardResult.error
+                ? `: ${jobCardResult.error}`
+                : "."
+            }`;
+
+      alert(
+        `Repair Saved Successfully.\n\n${statusMessage}\n\n${pdfMessage}`
+      );
 
       // =================================================
       // RESET
@@ -1264,8 +1361,7 @@ Laptop Repair & Service`;
           )
         }
         deliveredAt={
-          repair.deliveredAt ||
-          ""
+          repair.deliveredAt || ""
         }
         setDeliveredAt={(
           deliveredAt
