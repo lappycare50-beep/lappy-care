@@ -117,9 +117,6 @@ export default function DeviceSection({
 
   // ===================================================
   // COMPRESS IMAGE
-  //
-  // Camera photos can be very large.
-  // Convert them to JPEG and resize before upload.
   // ===================================================
 
   async function compressImage(
@@ -133,170 +130,169 @@ export default function DeviceSection({
         const reader =
           new FileReader();
 
-        reader.onload =
-          () => {
-            const image =
-              new Image();
+        reader.onload = () => {
+          const image =
+            new Image();
 
-            image.onload =
-              () => {
-                let width =
-                  image.width;
+          image.onload = () => {
+            let width =
+              image.width;
 
-                let height =
-                  image.height;
+            let height =
+              image.height;
 
-                // -----------------------------------------
-                // KEEP ASPECT RATIO
-                // -----------------------------------------
+            // -------------------------------------------
+            // RESIZE WIDTH
+            // -------------------------------------------
 
-                if (
-                  width >
-                  MAX_OUTPUT_WIDTH
-                ) {
-                  const ratio =
-                    MAX_OUTPUT_WIDTH /
-                    width;
+            if (
+              width >
+              MAX_OUTPUT_WIDTH
+            ) {
+              const ratio =
+                MAX_OUTPUT_WIDTH /
+                width;
 
-                  width =
-                    MAX_OUTPUT_WIDTH;
+              width =
+                MAX_OUTPUT_WIDTH;
 
-                  height =
-                    Math.round(
-                      height *
-                        ratio
-                    );
-                }
+              height =
+                Math.round(
+                  height * ratio
+                );
+            }
 
-                if (
-                  height >
-                  MAX_OUTPUT_HEIGHT
-                ) {
-                  const ratio =
-                    MAX_OUTPUT_HEIGHT /
-                    height;
+            // -------------------------------------------
+            // RESIZE HEIGHT
+            // -------------------------------------------
 
-                  height =
-                    MAX_OUTPUT_HEIGHT;
+            if (
+              height >
+              MAX_OUTPUT_HEIGHT
+            ) {
+              const ratio =
+                MAX_OUTPUT_HEIGHT /
+                height;
 
-                  width =
-                    Math.round(
-                      width *
-                        ratio
-                    );
-                }
+              height =
+                MAX_OUTPUT_HEIGHT;
 
-                // -----------------------------------------
-                // CANVAS
-                // -----------------------------------------
+              width =
+                Math.round(
+                  width * ratio
+                );
+            }
 
-                const canvas =
-                  document.createElement(
-                    "canvas"
-                  );
+            // -------------------------------------------
+            // CANVAS
+            // -------------------------------------------
 
-                canvas.width =
-                  width;
+            const canvas =
+              document.createElement(
+                "canvas"
+              );
 
-                canvas.height =
-                  height;
+            canvas.width =
+              width;
 
-                const context =
-                  canvas.getContext(
-                    "2d"
-                  );
+            canvas.height =
+              height;
 
-                if (!context) {
+            const context =
+              canvas.getContext(
+                "2d"
+              );
+
+            if (!context) {
+              reject(
+                new Error(
+                  "Could not create image canvas."
+                )
+              );
+
+              return;
+            }
+
+            // White background for transparent images.
+            context.fillStyle =
+              "#ffffff";
+
+            context.fillRect(
+              0,
+              0,
+              width,
+              height
+            );
+
+            context.drawImage(
+              image,
+              0,
+              0,
+              width,
+              height
+            );
+
+            // -------------------------------------------
+            // EXPORT JPEG
+            // -------------------------------------------
+
+            canvas.toBlob(
+              (
+                blob
+              ) => {
+                if (!blob) {
                   reject(
                     new Error(
-                      "Could not create image canvas."
+                      "Image compression failed."
                     )
                   );
 
                   return;
                 }
 
-                // White background prevents
-                // transparent PNG issues.
-                context.fillStyle =
-                  "#ffffff";
+                const baseName =
+                  file.name.replace(
+                    /\.[^/.]+$/,
+                    ""
+                  );
 
-                context.fillRect(
-                  0,
-                  0,
-                  width,
-                  height
-                );
-
-                context.drawImage(
-                  image,
-                  0,
-                  0,
-                  width,
-                  height
-                );
-
-                // -----------------------------------------
-                // JPEG OUTPUT
-                // -----------------------------------------
-
-                canvas.toBlob(
-                  (
-                    blob
-                  ) => {
-                    if (!blob) {
-                      reject(
-                        new Error(
-                          "Image compression failed."
-                        )
-                      );
-
-                      return;
+                const compressedFile =
+                  new File(
+                    [
+                      blob,
+                    ],
+                    `${baseName}.jpg`,
+                    {
+                      type:
+                        "image/jpeg",
+                      lastModified:
+                        Date.now(),
                     }
+                  );
 
-                    const baseName =
-                      file.name.replace(
-                        /\.[^/.]+$/,
-                        ""
-                      );
-
-                    const compressedFile =
-                      new File(
-                        [
-                          blob,
-                        ],
-                        `${baseName}.jpg`,
-                        {
-                          type:
-                            "image/jpeg",
-                          lastModified:
-                            Date.now(),
-                        }
-                      );
-
-                    resolve(
-                      compressedFile
-                    );
-                  },
-                  "image/jpeg",
-                  JPEG_QUALITY
+                resolve(
+                  compressedFile
                 );
-              };
-
-            image.onerror =
-              () => {
-                reject(
-                  new Error(
-                    "Could not decode selected image."
-                  )
-                );
-              };
-
-            image.src =
-              String(
-                reader.result
-              );
+              },
+              "image/jpeg",
+              JPEG_QUALITY
+            );
           };
+
+          image.onerror =
+            () => {
+              reject(
+                new Error(
+                  "Could not decode selected image."
+                )
+              );
+            };
+
+          image.src =
+            String(
+              reader.result
+            );
+        };
 
         reader.onerror =
           () => {
@@ -315,25 +311,16 @@ export default function DeviceSection({
   }
 
   // ===================================================
-  // UPLOAD ONE IMAGE TO CLOUDINARY
+  // UPLOAD IMAGE
+  //
+  // IMPORTANT:
+  // Browser does NOT talk directly to Cloudinary.
+  // Browser sends the compressed image to our API.
   // ===================================================
 
   async function uploadImage(
     file: File
   ): Promise<string> {
-    const cloudName =
-      process.env
-        .NEXT_PUBLIC_CLOUDINARY_CLOUD_NAME;
-
-    if (!cloudName) {
-      throw new Error(
-        "Cloudinary cloud name is not configured."
-      );
-    }
-
-    const uploadPreset =
-      "lappycare_upload";
-
     const formData =
       new FormData();
 
@@ -342,14 +329,9 @@ export default function DeviceSection({
       file
     );
 
-    formData.append(
-      "upload_preset",
-      uploadPreset
-    );
-
     const response =
       await fetch(
-        `https://api.cloudinary.com/v1_1/${cloudName}/image/upload`,
+        "/api/cloudinary/upload",
         {
           method:
             "POST",
@@ -359,24 +341,44 @@ export default function DeviceSection({
         }
       );
 
-    const data =
-      await response.json();
+    const raw =
+      await response.text();
+
+    let data:
+      | {
+          success?: boolean;
+          url?: string;
+          error?: string;
+        }
+      | null = null;
+
+    try {
+      data =
+        raw
+          ? JSON.parse(
+              raw
+            )
+          : null;
+    } catch {
+      data = null;
+    }
 
     if (
       !response.ok ||
-      !data?.secure_url
+      !data?.success ||
+      !data.url
     ) {
       throw new Error(
-        data?.error?.message ||
-          "Image upload failed."
+        data?.error ||
+          `Image upload failed. (${response.status})`
       );
     }
 
-    return data.secure_url;
+    return data.url;
   }
 
   // ===================================================
-  // PHOTO UPLOAD
+  // HANDLE PHOTO UPLOAD
   // ===================================================
 
   async function handlePhotoUpload(
@@ -388,9 +390,6 @@ export default function DeviceSection({
     ) {
       return;
     }
-
-    const selectedFiles =
-      Array.from(files);
 
     const existingPhotos =
       device.devicePhotos || [];
@@ -409,14 +408,14 @@ export default function DeviceSection({
       return;
     }
 
-    const filesToUpload =
-      selectedFiles.slice(
+    const selectedFiles =
+      Array.from(files).slice(
         0,
         remainingSlots
       );
 
     if (
-      selectedFiles.length >
+      files.length >
       remainingSlots
     ) {
       alert(
@@ -434,14 +433,14 @@ export default function DeviceSection({
       for (
         let index = 0;
         index <
-        filesToUpload.length;
+        selectedFiles.length;
         index++
       ) {
         const originalFile =
-          filesToUpload[index];
+          selectedFiles[index];
 
         // =============================================
-        // IMAGE VALIDATION
+        // VALIDATE FILE
         // =============================================
 
         if (
@@ -495,7 +494,7 @@ export default function DeviceSection({
         );
 
         // =============================================
-        // CLOUDINARY UPLOAD
+        // SERVER UPLOAD
         // =============================================
 
         const uploadedUrl =
@@ -512,9 +511,9 @@ export default function DeviceSection({
         );
       }
 
-      // ===============================================
+      // =============================================
       // NOTHING UPLOADED
-      // ===============================================
+      // =============================================
 
       if (
         uploadedUrls.length ===
@@ -525,9 +524,9 @@ export default function DeviceSection({
         );
       }
 
-      // ===============================================
-      // UPDATE DEVICE PHOTOS
-      // ===============================================
+      // =============================================
+      // UPDATE REPAIR DEVICE
+      // =============================================
 
       const updatedPhotos = [
         ...existingPhotos,
@@ -537,8 +536,6 @@ export default function DeviceSection({
       setDevice({
         ...device,
 
-        // First uploaded/existing photo
-        // remains the main image.
         image:
           device.image ||
           updatedPhotos[0] ||
@@ -676,7 +673,8 @@ export default function DeviceSection({
         </div>
 
         <div className="rounded-full border border-yellow-500/20 bg-yellow-500/10 px-4 py-2 text-xs font-bold text-yellow-400">
-          Photos: {photos.length}/{MAX_PHOTOS}
+          Photos: {photos.length}/
+          {MAX_PHOTOS}
         </div>
 
       </div>
@@ -998,7 +996,7 @@ export default function DeviceSection({
           MAX_PHOTOS && (
           <div className="grid gap-3 sm:grid-cols-2">
 
-            {/* Camera */}
+            {/* CAMERA */}
 
             <button
               type="button"
@@ -1049,7 +1047,7 @@ export default function DeviceSection({
 
             </button>
 
-            {/* Gallery */}
+            {/* GALLERY */}
 
             <button
               type="button"
@@ -1095,7 +1093,9 @@ export default function DeviceSection({
                   <p className="mt-2 text-center text-xs text-zinc-500">
                     Select JPG, PNG or WEBP
                     <br />
-                    Maximum {MAX_PHOTOS} photos
+                    Maximum{" "}
+                    {MAX_PHOTOS}{" "}
+                    photos
                   </p>
                 </>
               )}
@@ -1117,9 +1117,7 @@ export default function DeviceSection({
           hidden
           accept="image/*"
           capture="environment"
-          onChange={(
-            event
-          ) =>
+          onChange={(event) =>
             void handlePhotoUpload(
               event.target.files
             )
@@ -1138,9 +1136,7 @@ export default function DeviceSection({
           hidden
           multiple
           accept="image/jpeg,image/png,image/webp,image/*"
-          onChange={(
-            event
-          ) =>
+          onChange={(event) =>
             void handlePhotoUpload(
               event.target.files
             )
