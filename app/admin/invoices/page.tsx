@@ -1,27 +1,20 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useState } from "react";
 
 import {
   FileText,
   Plus,
-  Search,
   IndianRupee,
   CreditCard,
   Clock3,
   CheckCircle2,
-  RefreshCw,
-  Eye,
   X,
   Printer,
 } from "lucide-react";
 
 import InvoiceTable from "@/components/invoice/InvoiceTable";
 import InvoiceModal from "@/components/invoice/InvoiceModal";
-
-import {
-  getInvoices,
-} from "@/services/invoiceService";
 
 import type { Invoice } from "@/types/invoice";
 
@@ -36,38 +29,6 @@ export default function InvoicesPage() {
 
   const [viewingInvoice, setViewingInvoice] =
     useState<Invoice | null>(null);
-
-  const [invoices, setInvoices] =
-    useState<Invoice[]>([]);
-
-  const [loading, setLoading] =
-    useState(true);
-
-  // =====================================================
-  // LOAD INVOICES
-  // =====================================================
-
-  async function loadInvoices() {
-    try {
-      setLoading(true);
-
-      const data =
-        await getInvoices();
-
-      setInvoices(data);
-    } catch (error) {
-      console.error(
-        "Failed to load invoices:",
-        error
-      );
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    loadInvoices();
-  }, []);
 
   // =====================================================
   // CREATE
@@ -107,50 +68,10 @@ export default function InvoicesPage() {
   // SUCCESS
   // =====================================================
 
-  async function handleSuccess() {
+  function handleSuccess() {
     setModalOpen(false);
     setEditingInvoice(null);
-
-    await loadInvoices();
   }
-
-  // =====================================================
-  // TOTALS
-  // =====================================================
-
-  const totalInvoices =
-    invoices.length;
-
-  const totalAmount =
-    invoices.reduce(
-      (sum, invoice) =>
-        sum + Number(invoice.grandTotal || 0),
-      0
-    );
-
-  const cashAmount =
-    invoices
-      .filter(
-        (invoice) =>
-          invoice.paymentMethod === "Cash"
-      )
-      .reduce(
-        (sum, invoice) =>
-          sum + Number(invoice.grandTotal || 0),
-        0
-      );
-
-  const onlineAmount =
-    invoices
-      .filter(
-        (invoice) =>
-          invoice.paymentMethod !== "Cash"
-      )
-      .reduce(
-        (sum, invoice) =>
-          sum + Number(invoice.grandTotal || 0),
-        0
-      );
 
   return (
     <div className="min-h-screen bg-black text-white">
@@ -214,29 +135,28 @@ export default function InvoicesPage() {
           </div>
 
           {/* =================================================
-              SUMMARY CARDS
+              SUMMARY
+              
+              InvoiceTable handles pagination.
+              Summary cards are therefore shown inside
+              the table's loaded-data flow.
           ================================================= */}
 
           <div className="mb-8 grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
 
             <SummaryCard
-              title="Total Invoices"
-              value={totalInvoices.toLocaleString("en-IN")}
-              subtitle="All invoices"
+              title="Invoice Loading"
+              value="10"
+              subtitle="Latest invoices loaded initially"
               icon={
                 <FileText size={20} />
               }
             />
 
             <SummaryCard
-              title="Total Amount"
-              value={`₹${totalAmount.toLocaleString(
-                "en-IN",
-                {
-                  maximumFractionDigits: 2,
-                }
-              )}`}
-              subtitle="Invoice value"
+              title="Pagination"
+              value="10 / Page"
+              subtitle="More invoices load on demand"
               icon={
                 <IndianRupee size={20} />
               }
@@ -244,13 +164,8 @@ export default function InvoicesPage() {
 
             <SummaryCard
               title="Cash"
-              value={`₹${cashAmount.toLocaleString(
-                "en-IN",
-                {
-                  maximumFractionDigits: 2,
-                }
-              )}`}
-              subtitle="Cash payments"
+              value="Loaded Data"
+              subtitle="Based on loaded invoices"
               icon={
                 <CheckCircle2 size={20} />
               }
@@ -258,12 +173,7 @@ export default function InvoicesPage() {
 
             <SummaryCard
               title="Online"
-              value={`₹${onlineAmount.toLocaleString(
-                "en-IN",
-                {
-                  maximumFractionDigits: 2,
-                }
-              )}`}
+              value="Loaded Data"
               subtitle="UPI / Card / Bank"
               icon={
                 <CreditCard size={20} />
@@ -276,51 +186,40 @@ export default function InvoicesPage() {
               TOOLBAR
           ================================================= */}
 
-          <div className="mb-5 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="mb-5">
 
             <div className="relative w-full sm:max-w-md">
-
-              <Search
-                size={18}
-                className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500"
-              />
 
               <input
                 type="text"
                 value={search}
                 onChange={(event) =>
-                  setSearch(event.target.value)
+                  setSearch(
+                    event.target.value
+                  )
                 }
                 placeholder="Search invoice, customer or mobile..."
-                className="w-full rounded-xl border border-zinc-800 bg-zinc-900 py-3 pl-11 pr-4 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-yellow-400"
+                className="w-full rounded-xl border border-zinc-800 bg-zinc-900 py-3 px-4 text-sm text-white outline-none transition placeholder:text-zinc-600 focus:border-yellow-400"
               />
 
             </div>
 
-            <button
-              type="button"
-              onClick={loadInvoices}
-              disabled={loading}
-              className="inline-flex items-center justify-center gap-2 rounded-xl border border-zinc-800 bg-zinc-900 px-4 py-3 text-sm font-bold text-zinc-300 transition hover:bg-zinc-800 disabled:opacity-50"
-            >
-
-              <RefreshCw
-                size={16}
-                className={
-                  loading
-                    ? "animate-spin"
-                    : ""
-                }
-              />
-
-              Refresh
-
-            </button>
-
           </div>
 
           {/* =================================================
-              TABLE
+              INVOICE TABLE
+              
+              IMPORTANT:
+              No onInvoiceChange prop.
+              
+              InvoiceTable itself handles:
+              - First 10 invoices
+              - Load More
+              - Search
+              - Edit
+              - View
+              - WhatsApp
+              - Print
           ================================================= */}
 
           <InvoiceTable
@@ -352,12 +251,10 @@ export default function InvoicesPage() {
       ================================================= */}
 
       {viewingInvoice && (
-
         <InvoiceViewModal
           invoice={viewingInvoice}
           onClose={handleCloseView}
         />
-
       )}
 
     </div>
@@ -422,36 +319,56 @@ function InvoiceViewModal({
   invoice: Invoice;
   onClose: () => void;
 }) {
-
   const subtotal =
-    Number(invoice.subTotal || 0);
+    Number(
+      invoice.subTotal || 0
+    );
 
   const discount =
-    Number(invoice.discount || 0);
+    Number(
+      invoice.discount || 0
+    );
 
   const gst =
-    Number(invoice.gst || 0);
+    Number(
+      invoice.gst || 0
+    );
 
   const grandTotal =
-    Number(invoice.grandTotal || 0);
+    Number(
+      invoice.grandTotal || 0
+    );
 
   const date =
     invoice.createdAt
       ? new Date(
           invoice.createdAt
-        ).toLocaleDateString("en-IN", {
-          day: "2-digit",
-          month: "short",
-          year: "numeric",
-        })
+        ).toLocaleDateString(
+          "en-IN",
+          {
+            day: "2-digit",
+            month: "short",
+            year: "numeric",
+          }
+        )
       : "-";
 
   function handlePrint() {
-    window.print();
+    if (!invoice.id) {
+      window.alert(
+        "Invoice ID is missing."
+      );
+      return;
+    }
+
+    window.open(
+      `/admin/invoices/${invoice.id}/print`,
+      "_blank",
+      "noopener,noreferrer"
+    );
   }
 
   return (
-
     <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-4">
 
       <div className="flex max-h-[92vh] w-full max-w-4xl flex-col overflow-hidden rounded-3xl border border-zinc-800 bg-[#181818] shadow-2xl">
@@ -480,9 +397,7 @@ function InvoiceViewModal({
             className="rounded-xl p-2 text-zinc-400 transition hover:bg-zinc-800 hover:text-white"
             title="Close"
           >
-
             <X size={24} />
-
           </button>
 
         </div>
@@ -493,7 +408,7 @@ function InvoiceViewModal({
 
         <div className="overflow-y-auto p-6">
 
-          {/* Customer */}
+          {/* CUSTOMER + DETAILS */}
 
           <div className="grid gap-5 md:grid-cols-2">
 
@@ -504,15 +419,20 @@ function InvoiceViewModal({
               </p>
 
               <h3 className="mt-2 text-xl font-bold text-white">
-                {invoice.customerName}
+                {invoice.customerName ||
+                  "-"}
               </h3>
 
               <p className="mt-2 text-sm text-zinc-400">
-                Mobile: {invoice.mobile || "-"}
+                Mobile:{" "}
+                {invoice.mobile ||
+                  "-"}
               </p>
 
               <p className="mt-1 text-sm text-zinc-400">
-                Email: {invoice.email || "-"}
+                Email:{" "}
+                {invoice.email ||
+                  "-"}
               </p>
 
             </div>
@@ -526,31 +446,28 @@ function InvoiceViewModal({
               <div className="mt-3 space-y-2 text-sm">
 
                 <div className="flex justify-between gap-4">
-
                   <span className="text-zinc-500">
                     Invoice No
                   </span>
 
                   <span className="font-bold text-yellow-400">
-                    {invoice.invoiceNo}
+                    {invoice.invoiceNo ||
+                      "-"}
                   </span>
-
                 </div>
 
                 <div className="flex justify-between gap-4">
-
                   <span className="text-zinc-500">
                     Repair ID
                   </span>
 
                   <span className="font-medium text-white">
-                    {invoice.repairId || "-"}
+                    {invoice.repairId ||
+                      "-"}
                   </span>
-
                 </div>
 
                 <div className="flex justify-between gap-4">
-
                   <span className="text-zinc-500">
                     Date
                   </span>
@@ -558,19 +475,17 @@ function InvoiceViewModal({
                   <span className="text-white">
                     {date}
                   </span>
-
                 </div>
 
                 <div className="flex justify-between gap-4">
-
                   <span className="text-zinc-500">
                     Payment
                   </span>
 
                   <span className="font-bold text-green-400">
-                    {invoice.paymentMethod}
+                    {invoice.paymentMethod ||
+                      "-"}
                   </span>
-
                 </div>
 
               </div>
@@ -579,7 +494,9 @@ function InvoiceViewModal({
 
           </div>
 
-          {/* Items */}
+          {/* =================================================
+              ITEMS
+          ================================================= */}
 
           <div className="mt-6 overflow-hidden rounded-2xl border border-zinc-800">
 
@@ -613,44 +530,54 @@ function InvoiceViewModal({
 
                 <tbody>
 
-                  {invoice.items?.map((item) => (
+                  {invoice.items?.map(
+                    (item, index) => (
+                      <tr
+                        key={
+                          item.id ||
+                          `invoice-item-${index}`
+                        }
+                        className="border-t border-zinc-800"
+                      >
 
-                    <tr
-                      key={item.id}
-                      className="border-t border-zinc-800"
-                    >
+                        <td className="px-4 py-4 font-medium text-white">
+                          {item.name ||
+                            "-"}
+                        </td>
 
-                      <td className="px-4 py-4 font-medium text-white">
-                        {item.name}
-                      </td>
+                        <td className="px-4 py-4 text-center text-zinc-400">
+                          {item.qty}
+                        </td>
 
-                      <td className="px-4 py-4 text-center text-zinc-400">
-                        {item.qty}
-                      </td>
+                        <td className="px-4 py-4 text-right text-zinc-400">
+                          ₹
+                          {Number(
+                            item.price ||
+                              0
+                          ).toLocaleString(
+                            "en-IN",
+                            {
+                              maximumFractionDigits: 2,
+                            }
+                          )}
+                        </td>
 
-                      <td className="px-4 py-4 text-right text-zinc-400">
-                        ₹
-                        {Number(item.price || 0).toLocaleString(
-                          "en-IN",
-                          {
-                            maximumFractionDigits: 2,
-                          }
-                        )}
-                      </td>
+                        <td className="px-4 py-4 text-right font-bold text-white">
+                          ₹
+                          {Number(
+                            item.total ||
+                              0
+                          ).toLocaleString(
+                            "en-IN",
+                            {
+                              maximumFractionDigits: 2,
+                            }
+                          )}
+                        </td>
 
-                      <td className="px-4 py-4 text-right font-bold text-white">
-                        ₹
-                        {Number(item.total || 0).toLocaleString(
-                          "en-IN",
-                          {
-                            maximumFractionDigits: 2,
-                          }
-                        )}
-                      </td>
-
-                    </tr>
-
-                  ))}
+                      </tr>
+                    )
+                  )}
 
                 </tbody>
 
@@ -660,7 +587,9 @@ function InvoiceViewModal({
 
           </div>
 
-          {/* Totals */}
+          {/* =================================================
+              TOTALS
+          ================================================= */}
 
           <div className="mt-6 flex justify-end">
 
@@ -744,10 +673,11 @@ function InvoiceViewModal({
 
           </div>
 
-          {/* Remarks */}
+          {/* =================================================
+              REMARKS
+          ================================================= */}
 
           {invoice.remarks && (
-
             <div className="mt-6 rounded-2xl border border-zinc-800 bg-zinc-950 p-5">
 
               <p className="text-xs font-bold uppercase tracking-wide text-zinc-500">
@@ -759,7 +689,6 @@ function InvoiceViewModal({
               </p>
 
             </div>
-
           )}
 
         </div>

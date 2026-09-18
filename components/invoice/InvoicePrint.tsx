@@ -4,7 +4,11 @@ type Props = {
   invoice: Invoice;
 };
 
-function formatInvoiceDate(value: unknown) {
+// =====================================================
+// DATE FORMAT
+// =====================================================
+
+function formatInvoiceDate(value: unknown): string {
   if (!value) return "-";
 
   const date = new Date(String(value));
@@ -20,38 +24,72 @@ function formatInvoiceDate(value: unknown) {
   return `${day}/${month}/${year}`;
 }
 
-function money(value: unknown) {
+// =====================================================
+// MONEY FORMAT
+// =====================================================
+
+function money(value: unknown): string {
   return Number(value || 0).toLocaleString("en-IN", {
+    minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   });
 }
 
-export default function InvoicePrint({ invoice }: Props) {
-  const invoiceDate = formatInvoiceDate(invoice.createdAt);
+// =====================================================
+// INVOICE PRINT
+// =====================================================
 
-  const subTotal = Number(invoice.subTotal || 0);
-  const discount = Number(invoice.discount || 0);
-  const gst = Number(invoice.gst || 0);
+export default function InvoicePrint({
+  invoice,
+}: Props) {
+  const invoiceDate = formatInvoiceDate(
+    invoice.createdAt
+  );
 
-  const gstAmount = (subTotal * gst) / 100;
+  const subTotal = Number(
+    invoice.subTotal || 0
+  );
 
-  const grandTotal = Number(invoice.grandTotal || 0);
+  const discount = Number(
+    invoice.discount || 0
+  );
+
+  const gst = Number(
+    invoice.gst || 0
+  );
+
+  const grandTotal = Number(
+    invoice.grandTotal || 0
+  );
+
+  // GST calculated on discounted subtotal
+  const taxableAmount =
+    Math.max(
+      subTotal - discount,
+      0
+    );
+
+  const gstAmount =
+    (taxableAmount * gst) / 100;
 
   return (
     <div
       id="invoice-print"
-      className="mx-auto w-full max-w-[794px] bg-white px-6 py-5 text-black"
+      className="mx-auto w-full max-w-[794px] bg-white px-6 py-5 text-black print:max-w-none print:px-5 print:py-4"
     >
+
       {/* =====================================================
           HEADER
       ===================================================== */}
 
       <div className="border-b-2 border-black pb-2">
+
         <div className="flex items-start justify-between gap-8">
 
-          {/* LEFT */}
+          {/* BUSINESS */}
 
           <div className="min-w-0">
+
             <h1 className="text-[20px] font-black leading-none">
               LAPPY CARE
             </h1>
@@ -67,16 +105,19 @@ export default function InvoicePrint({ invoice }: Props) {
             <p className="text-[10px] leading-tight">
               Mobile : +91 9595057006
             </p>
+
           </div>
 
-          {/* RIGHT */}
+          {/* INVOICE INFO */}
 
           <div className="w-[255px] shrink-0 text-right">
+
             <h2 className="text-[18px] font-black leading-none">
               TAX INVOICE
             </h2>
 
             <div className="mt-1.5 space-y-0.5 text-[10px] leading-tight">
+
               <p>
                 <strong>Invoice No:</strong>{" "}
                 {invoice.invoiceNo || "-"}
@@ -91,10 +132,13 @@ export default function InvoicePrint({ invoice }: Props) {
                 <strong>Repair ID:</strong>{" "}
                 {invoice.repairId || "-"}
               </p>
+
             </div>
+
           </div>
 
         </div>
+
       </div>
 
       {/* =====================================================
@@ -102,6 +146,7 @@ export default function InvoicePrint({ invoice }: Props) {
       ===================================================== */}
 
       <div className="mt-2 rounded border border-black px-3 py-2">
+
         <h3 className="mb-1 text-[9px] font-black uppercase">
           Bill To
         </h3>
@@ -110,20 +155,29 @@ export default function InvoicePrint({ invoice }: Props) {
 
           <div>
             <strong>Customer Name</strong>
-            <p>{invoice.customerName || "-"}</p>
+            <p>
+              {invoice.customerName || "-"}
+            </p>
           </div>
 
           <div>
             <strong>Mobile</strong>
-            <p>{invoice.mobile || "-"}</p>
+            <p>
+              {invoice.mobile || "-"}
+            </p>
           </div>
 
-          <div className="col-span-2">
-            <strong>Email</strong>
-            <p>{invoice.email || "-"}</p>
-          </div>
+          {invoice.email && (
+            <div className="col-span-2">
+              <strong>Email</strong>
+              <p>
+                {invoice.email}
+              </p>
+            </div>
+          )}
 
         </div>
+
       </div>
 
       {/* =====================================================
@@ -131,12 +185,15 @@ export default function InvoicePrint({ invoice }: Props) {
       ===================================================== */}
 
       <div className="mt-2">
+
         <h3 className="mb-1 text-[9px] font-black uppercase">
           Invoice Items
         </h3>
 
         <table className="w-full border-collapse border border-black text-[10px]">
+
           <thead>
+
             <tr className="bg-gray-200">
 
               <th className="w-[30px] border border-black px-2 py-1 text-left">
@@ -160,36 +217,48 @@ export default function InvoicePrint({ invoice }: Props) {
               </th>
 
             </tr>
+
           </thead>
 
           <tbody>
-            {invoice.items?.map((item, index) => (
-              <tr key={item.id || index}>
 
-                <td className="border border-black px-2 py-1">
-                  {index + 1}
-                </td>
+            {invoice.items?.map(
+              (item, index) => (
+                <tr
+                  key={
+                    item.id ||
+                    `invoice-item-${index}`
+                  }
+                >
 
-                <td className="border border-black px-2 py-1">
-                  {item.name || "-"}
-                </td>
+                  <td className="border border-black px-2 py-1">
+                    {index + 1}
+                  </td>
 
-                <td className="border border-black px-2 py-1 text-center">
-                  {item.qty}
-                </td>
+                  <td className="border border-black px-2 py-1">
+                    {item.name || "-"}
+                  </td>
 
-                <td className="border border-black px-2 py-1 text-right">
-                  ₹{money(item.price)}
-                </td>
+                  <td className="border border-black px-2 py-1 text-center">
+                    {item.qty}
+                  </td>
 
-                <td className="border border-black px-2 py-1 text-right font-bold">
-                  ₹{money(item.total)}
-                </td>
+                  <td className="border border-black px-2 py-1 text-right">
+                    ₹{money(item.price)}
+                  </td>
 
-              </tr>
-            ))}
+                  <td className="border border-black px-2 py-1 text-right font-bold">
+                    ₹{money(item.total)}
+                  </td>
+
+                </tr>
+              )
+            )}
+
           </tbody>
+
         </table>
+
       </div>
 
       {/* =====================================================
@@ -197,11 +266,15 @@ export default function InvoicePrint({ invoice }: Props) {
       ===================================================== */}
 
       <div className="mt-2 flex justify-end">
+
         <table className="w-[260px] border-collapse border border-black text-[10px]">
 
           <tbody>
 
+            {/* SUB TOTAL */}
+
             <tr>
+
               <td className="border border-black px-2 py-1 font-semibold">
                 Sub Total
               </td>
@@ -209,9 +282,13 @@ export default function InvoicePrint({ invoice }: Props) {
               <td className="border border-black px-2 py-1 text-right">
                 ₹{money(subTotal)}
               </td>
+
             </tr>
 
+            {/* DISCOUNT */}
+
             <tr>
+
               <td className="border border-black px-2 py-1 font-semibold">
                 Discount
               </td>
@@ -219,9 +296,29 @@ export default function InvoicePrint({ invoice }: Props) {
               <td className="border border-black px-2 py-1 text-right">
                 ₹{money(discount)}
               </td>
+
             </tr>
 
+            {/* TAXABLE */}
+
+            {discount > 0 && (
+              <tr>
+
+                <td className="border border-black px-2 py-1 font-semibold">
+                  Taxable Amount
+                </td>
+
+                <td className="border border-black px-2 py-1 text-right">
+                  ₹{money(taxableAmount)}
+                </td>
+
+              </tr>
+            )}
+
+            {/* GST */}
+
             <tr>
+
               <td className="border border-black px-2 py-1 font-semibold">
                 GST ({gst}%)
               </td>
@@ -229,9 +326,13 @@ export default function InvoicePrint({ invoice }: Props) {
               <td className="border border-black px-2 py-1 text-right">
                 ₹{money(gstAmount)}
               </td>
+
             </tr>
 
+            {/* GRAND TOTAL */}
+
             <tr className="bg-gray-200">
+
               <td className="border border-black px-2 py-1 font-black">
                 Grand Total
               </td>
@@ -239,10 +340,13 @@ export default function InvoicePrint({ invoice }: Props) {
               <td className="border border-black px-2 py-1 text-right font-black">
                 ₹{money(grandTotal)}
               </td>
+
             </tr>
 
           </tbody>
+
         </table>
+
       </div>
 
       {/* =====================================================
@@ -258,21 +362,45 @@ export default function InvoicePrint({ invoice }: Props) {
         <div className="grid grid-cols-2 gap-x-10 text-[9px] leading-tight">
 
           <div>
-            <strong>Payment Method</strong>
-            <p>{invoice.paymentMethod || "-"}</p>
+
+            <strong>
+              Payment Method
+            </strong>
+
+            <p>
+              {invoice.paymentMethod || "-"}
+            </p>
+
           </div>
 
           <div>
-            <strong>Invoice Date</strong>
-            <p>{invoiceDate}</p>
+
+            <strong>
+              Invoice Date
+            </strong>
+
+            <p>
+              {invoiceDate}
+            </p>
+
           </div>
 
-          <div className="col-span-2 mt-0.5">
-            <strong>Remarks</strong>
-            <p>{invoice.remarks || "-"}</p>
-          </div>
+          {invoice.remarks && (
+            <div className="col-span-2 mt-0.5">
+
+              <strong>
+                Remarks
+              </strong>
+
+              <p>
+                {invoice.remarks}
+              </p>
+
+            </div>
+          )}
 
         </div>
+
       </div>
 
       {/* =====================================================
@@ -308,6 +436,7 @@ export default function InvoicePrint({ invoice }: Props) {
           </li>
 
         </ul>
+
       </div>
 
       {/* =====================================================
@@ -317,15 +446,19 @@ export default function InvoicePrint({ invoice }: Props) {
       <div className="mt-5 grid grid-cols-2 gap-12">
 
         <div className="text-center">
+
           <div className="border-t border-black pt-1 text-[9px] font-semibold">
             Customer Signature
           </div>
+
         </div>
 
         <div className="text-center">
+
           <div className="border-t border-black pt-1 text-[9px] font-semibold">
             Authorized Signature
           </div>
+
         </div>
 
       </div>
@@ -346,12 +479,24 @@ export default function InvoicePrint({ invoice }: Props) {
 
         <div className="mt-1 space-y-0 text-[7px] text-gray-600">
 
-          <p>📍 Lappy Care, Wakad, Pune</p>
-          <p>📞 +91 9595057006</p>
-          <p>✉️ lappycarepune@gmail.com</p>
-          <p>🌐 www.lappycarepune.in</p>
+          <p>
+            📍 Lappy Care, Wakad, Pune
+          </p>
+
+          <p>
+            📞 +91 9595057006
+          </p>
+
+          <p>
+            ✉️ lappycarepune@gmail.com
+          </p>
+
+          <p>
+            🌐 www.lappycarepune.in
+          </p>
 
         </div>
+
       </div>
 
     </div>

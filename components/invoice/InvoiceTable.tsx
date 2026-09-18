@@ -1,488 +1,1134 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import {
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import {
+  Eye,
   Pencil,
   Trash2,
   Printer,
-  Eye,
+  MessageCircle,
+  Loader2,
+  ChevronDown,
 } from "lucide-react";
 
-import { Invoice } from "@/types/invoice";
+import type {
+  DocumentData,
+  QueryDocumentSnapshot,
+} from "firebase/firestore";
+
+import type { Invoice } from "@/types/invoice";
 
 import {
-  getInvoices,
+  getInvoicesPage,
   deleteInvoice,
+  INVOICE_PAGE_SIZE,
 } from "@/services/invoiceService";
 
-import PrintInvoiceButton from "./PrintInvoiceButton";
+import InvoicePrint from "@/components/invoice/InvoicePrint";
+
+import {
+  generateInvoicePdfBase64,
+} from "@/lib/utils/pdf";
+
+// =====================================================
+// TYPES
+// =====================================================
 
 type Props = {
   search: string;
-  onEdit: (invoice: Invoice) => void;
-  onView: (invoice: Invoice) => void;
+
+  onEdit: (
+    invoice: Invoice
+  ) => void;
+
+  onView: (
+    invoice: Invoice
+  ) => void;
+
+  onInvoiceChange?: (
+    invoices: Invoice[]
+  ) => void;
 };
+
+// =====================================================
+// HELPERS
+// =====================================================
+
+function formatDate(
+  value: unknown
+): string {
+  if (!value) {
+    return "-";
+  }
+
+  const date =
+    new Date(
+      String(value)
+    );
+
+  if (
+    Number.isNaN(
+      date.getTime()
+    )
+  ) {
+    return "-";
+  }
+
+  return date.toLocaleDateString(
+    "en-IN",
+    {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+    }
+  );
+}
+
+// =====================================================
+// MONEY
+// =====================================================
+
+function formatMoney(
+  value: unknown
+): string {
+  return Number(
+    value || 0
+  ).toLocaleString(
+    "en-IN",
+    {
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 2,
+    }
+  );
+}
+
+// =====================================================
+// WHATSAPP NUMBER
+// =====================================================
+
+function normalizeWhatsAppNumber(
+  mobile: string
+): string {
+  let number =
+    String(
+      mobile || ""
+    ).replace(
+      /\D/g,
+      ""
+    );
+
+  // Indian 10 digit number
+  if (
+    number.length === 10
+  ) {
+    number =
+      `91${number}`;
+  }
+
+  // If number starts with 0
+  if (
+    number.startsWith("0") &&
+    number.length === 11
+  ) {
+    number =
+      `91${number.slice(1)}`;
+  }
+
+  return number;
+}
+
+// =====================================================
+// COMPONENT
+// =====================================================
 
 export default function InvoiceTable({
   search,
   onEdit,
   onView,
+  onInvoiceChange,
 }: Props) {
+  // ===================================================
+  // INVOICES
+  // ===================================================
 
-  const [invoices, setInvoices] =
-    useState<Invoice[]>([]);
+  const [
+    invoices,
+    setInvoices,
+  ] = useState<Invoice[]>([]);
 
-  const [loading, setLoading] =
-    useState(true);
+  // ===================================================
+  // PAGINATION
+  // ===================================================
 
-  // =====================================================
-  // LOAD INVOICES
-  // =====================================================
+  const [
+    lastDoc,
+    setLastDoc,
+  ] =
+    useState<
+      QueryDocumentSnapshot<DocumentData> | null
+    >(null);
 
-  async function loadInvoices() {
+  const [
+    hasMore,
+    setHasMore,
+  ] = useState(false);
 
+  const [
+    loading,
+    setLoading,
+  ] = useState(true);
+
+  const [
+    loadingMore,
+    setLoadingMore,
+  ] = useState(false);
+
+  // ===================================================
+  // DELETE
+  // ===================================================
+
+  const [
+    deletingId,
+    setDeletingId,
+  ] = useState<string | null>(
+    null
+  );
+
+  // ===================================================
+  // WHATSAPP
+  // ===================================================
+
+  const [
+    whatsappId,
+    setWhatsappId,
+  ] = useState<string | null>(
+    null
+  );
+
+  // ===================================================
+  // PDF
+  // ===================================================
+
+  const pdfRef =
+    useRef<HTMLDivElement | null>(
+      null
+    );
+
+  const [
+    pdfInvoice,
+    setPdfInvoice,
+  ] = useState<Invoice | null>(
+    null
+  );
+
+  // ===================================================
+  // UPDATE PARENT
+  // ===================================================
+
+  function notifyInvoiceChange(
+    data: Invoice[]
+  ) {
+    setInvoices(data);
+
+    onInvoiceChange?.(
+      data
+    );
+  }
+
+  // ===================================================
+  // LOAD FIRST PAGE
+  // ===================================================
+
+  async function loadFirstPage() {
     try {
-
       setLoading(true);
 
-      const data =
-        await getInvoices();
+      const result =
+        await getInvoicesPage(
+          INVOICE_PAGE_SIZE
+        );
 
-      setInvoices(data);
+      notifyInvoiceChange(
+        result.invoices
+      );
 
+      setLastDoc(
+        result.lastDoc
+      );
+
+      setHasMore(
+        result.hasMore
+      );
     } catch (error) {
-
       console.error(
         "Failed to load invoices:",
         error
       );
-
     } finally {
-
       setLoading(false);
-
     }
-
   }
 
+  // ===================================================
+  // LOAD MORE
+  // ===================================================
+
+  async function loadMoreInvoices() {
+    if (
+      loadingMore ||
+      !hasMore ||
+      !lastDoc
+    ) {
+      return;
+    }
+
+    try {
+      setLoadingMore(true);
+
+      const result =
+        await getInvoicesPage(
+          INVOICE_PAGE_SIZE,
+          lastDoc
+        );
+
+      setInvoices(
+        (current) => {
+          const updated =
+            [
+              ...current,
+              ...result.invoices,
+            ];
+
+          onInvoiceChange?.(
+            updated
+          );
+
+          return updated;
+        }
+      );
+
+      setLastDoc(
+        result.lastDoc
+      );
+
+      setHasMore(
+        result.hasMore
+      );
+    } catch (error) {
+      console.error(
+        "Failed to load more invoices:",
+        error
+      );
+
+      window.alert(
+        "Failed to load more invoices."
+      );
+    } finally {
+      setLoadingMore(false);
+    }
+  }
+
+  // ===================================================
+  // INITIAL LOAD
+  // ===================================================
+
   useEffect(() => {
-
-    loadInvoices();
-
+    loadFirstPage();
   }, []);
 
-  // =====================================================
+  // ===================================================
+  // REFRESH EVENT
+  // ===================================================
+
+  useEffect(() => {
+    function handleRefresh() {
+      loadFirstPage();
+    }
+
+    window.addEventListener(
+      "invoice-refresh",
+      handleRefresh
+    );
+
+    return () => {
+      window.removeEventListener(
+        "invoice-refresh",
+        handleRefresh
+      );
+    };
+  }, []);
+
+  // ===================================================
+  // SEARCH
+  // ===================================================
+
+  const filteredInvoices =
+    useMemo(() => {
+      const term =
+        search
+          .trim()
+          .toLowerCase();
+
+      if (!term) {
+        return invoices;
+      }
+
+      return invoices.filter(
+        (invoice) => {
+          const invoiceNo =
+            String(
+              invoice.invoiceNo ||
+                ""
+            ).toLowerCase();
+
+          const repairId =
+            String(
+              invoice.repairId ||
+                ""
+            ).toLowerCase();
+
+          const customer =
+            String(
+              invoice.customerName ||
+                ""
+            ).toLowerCase();
+
+          const mobile =
+            String(
+              invoice.mobile ||
+                ""
+            ).toLowerCase();
+
+          const email =
+            String(
+              invoice.email ||
+                ""
+            ).toLowerCase();
+
+          return (
+            invoiceNo.includes(
+              term
+            ) ||
+            repairId.includes(
+              term
+            ) ||
+            customer.includes(
+              term
+            ) ||
+            mobile.includes(
+              term
+            ) ||
+            email.includes(
+              term
+            )
+          );
+        }
+      );
+    }, [
+      invoices,
+      search,
+    ]);
+
+  // ===================================================
   // DELETE
-  // =====================================================
+  // ===================================================
 
   async function handleDelete(
     invoice: Invoice
   ) {
+    if (!invoice.id) {
+      window.alert(
+        "Invoice ID is missing."
+      );
 
-    if (!invoice.id) return;
+      return;
+    }
 
     const confirmed =
       window.confirm(
-        `Delete invoice ${invoice.invoiceNo}?`
+        `Delete invoice ${
+          invoice.invoiceNo || ""
+        }?`
       );
 
-    if (!confirmed) return;
+    if (!confirmed) {
+      return;
+    }
 
     try {
+      setDeletingId(
+        invoice.id
+      );
 
       await deleteInvoice(
         invoice.id
       );
 
-      await loadInvoices();
+      const updated =
+        invoices.filter(
+          (item) =>
+            item.id !==
+            invoice.id
+        );
 
+      notifyInvoiceChange(
+        updated
+      );
     } catch (error) {
-
       console.error(
         "Failed to delete invoice:",
         error
       );
 
       window.alert(
-        "Failed to delete invoice."
+        error instanceof Error
+          ? error.message
+          : "Failed to delete invoice."
+      );
+    } finally {
+      setDeletingId(null);
+    }
+  }
+
+  // ===================================================
+  // PRINT
+  // ===================================================
+
+  function handlePrint(
+    invoice: Invoice
+  ) {
+    if (!invoice.id) {
+      window.alert(
+        "Invoice ID is missing."
       );
 
+      return;
     }
 
+    const printUrl =
+      `/admin/invoices/${invoice.id}/print`;
+
+    window.open(
+      printUrl,
+      "_blank",
+      "noopener,noreferrer"
+    );
   }
 
-  // =====================================================
-  // SEARCH
-  // =====================================================
+  // ===================================================
+  // WAIT FOR PDF
+  // ===================================================
 
-  const keyword =
-    search.trim().toLowerCase();
+  async function waitForPdfRender() {
+    await new Promise<void>(
+      (resolve) => {
+        requestAnimationFrame(
+          () => {
+            requestAnimationFrame(
+              () => {
+                resolve();
+              }
+            );
+          }
+        );
+      }
+    );
+  }
 
-  const filteredInvoices =
-    invoices.filter((invoice) => {
+  // ===================================================
+  // WHATSAPP
+  // ===================================================
 
-      return (
-
-        invoice.invoiceNo
-          ?.toLowerCase()
-          .includes(keyword)
-
-        ||
-
-        invoice.customerName
-          ?.toLowerCase()
-          .includes(keyword)
-
-        ||
-
-        invoice.mobile
-          ?.toLowerCase()
-          .includes(keyword)
-
-        ||
-
-        invoice.repairId
-          ?.toLowerCase()
-          .includes(keyword)
-
+  async function handleWhatsApp(
+    invoice: Invoice
+  ) {
+    if (!invoice.id) {
+      window.alert(
+        "Invoice ID is missing."
       );
 
-    });
+      return;
+    }
 
-  // =====================================================
-  // LOADING
-  // =====================================================
+    // =================================================
+    // GET CUSTOMER MOBILE
+    // =================================================
 
-  if (loading) {
+    const mobile =
+      String(
+        invoice.mobile ||
+          ""
+      ).trim();
 
-    return (
+    const digits =
+      mobile.replace(
+        /\D/g,
+        ""
+      );
 
-      <div className="rounded-2xl border border-yellow-500/20 bg-[#181818] p-12 text-center">
+    if (!digits) {
+      window.alert(
+        "Customer mobile number is missing for WhatsApp."
+      );
 
-        <p className="text-sm font-semibold text-gray-400">
-          Loading Invoices...
-        </p>
+      return;
+    }
 
-      </div>
+    // =================================================
+    // NORMALIZE
+    // =================================================
 
-    );
+    const whatsappNumber =
+      normalizeWhatsAppNumber(
+        mobile
+      );
 
+    if (
+      !whatsappNumber ||
+      whatsappNumber.length <
+        12
+    ) {
+      window.alert(
+        "Invalid customer WhatsApp number."
+      );
+
+      return;
+    }
+
+    try {
+      setWhatsappId(
+        invoice.id
+      );
+
+      // =================================================
+      // PREPARE PDF
+      // =================================================
+
+      setPdfInvoice(
+        invoice
+      );
+
+      await waitForPdfRender();
+
+      // =================================================
+      // FIND PDF ELEMENT
+      // =================================================
+
+      const pdfElement =
+        pdfRef.current?.querySelector(
+          "#invoice-print"
+        ) as HTMLElement | null;
+
+      if (!pdfElement) {
+        throw new Error(
+          "Invoice PDF could not be prepared."
+        );
+      }
+
+      // =================================================
+      // GENERATE PDF
+      // =================================================
+
+      const pdfBase64 =
+  await generateInvoicePdfBase64(
+    pdfElement
+  );
+
+      if (!pdfBase64) {
+        throw new Error(
+          "Invoice PDF generation failed."
+        );
+      }
+
+      // =================================================
+      // SAFE FILE NAME
+      // =================================================
+
+      const safeInvoiceNo =
+        String(
+          invoice.invoiceNo ||
+            invoice.id
+        ).replace(
+          /[^a-zA-Z0-9-_]/g,
+          "_"
+        );
+
+      const filename =
+        `Lappy-Care-${safeInvoiceNo}.pdf`;
+
+      // =================================================
+      // CAPTION
+      // =================================================
+
+      const caption =
+        `Hello ${
+          invoice.customerName ||
+          "Customer"
+        },\n\n` +
+        `Your Lappy Care invoice ${
+          invoice.invoiceNo ||
+          ""
+        } is attached.\n\n` +
+        `Thank you for choosing Lappy Care.\n\n` +
+        `📞 95950 57006`;
+
+      // =================================================
+      // API
+      // =================================================
+
+      const response =
+        await fetch(
+          "/api/invoice/send-whatsapp",
+          {
+            method: "POST",
+
+            headers: {
+              "Content-Type":
+                "application/json",
+            },
+
+            body:
+              JSON.stringify({
+                to:
+                  whatsappNumber,
+
+                pdfBase64,
+
+                filename,
+
+                caption,
+              }),
+          }
+        );
+
+      // =================================================
+      // RESPONSE
+      // =================================================
+
+      const rawResponse =
+        await response.text();
+
+      let data: any = null;
+
+      try {
+        data =
+          rawResponse
+            ? JSON.parse(
+                rawResponse
+              )
+            : null;
+      } catch {
+        data = {
+          raw:
+            rawResponse,
+        };
+      }
+
+      if (
+        !response.ok ||
+        !data?.success
+      ) {
+        throw new Error(
+          data?.error ||
+            data?.raw ||
+            "Invoice WhatsApp sending failed."
+        );
+      }
+
+      // =================================================
+      // SUCCESS
+      // =================================================
+
+      window.alert(
+        `✅ Invoice ${
+          invoice.invoiceNo ||
+          ""
+        } sent successfully on WhatsApp.`
+      );
+    } catch (error) {
+      console.error(
+        "WhatsApp invoice error:",
+        error
+      );
+
+      window.alert(
+        error instanceof Error
+          ? error.message
+          : "Failed to send invoice on WhatsApp."
+      );
+    } finally {
+      setPdfInvoice(null);
+      setWhatsappId(null);
+    }
   }
 
-  // =====================================================
+  // ===================================================
+  // LOADING
+  // ===================================================
+
+  if (
+    loading &&
+    invoices.length === 0
+  ) {
+    return (
+      <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/40">
+        <div className="flex min-h-[280px] items-center justify-center">
+          <div className="flex items-center gap-3 text-zinc-500">
+            <Loader2
+              size={20}
+              className="animate-spin"
+            />
+
+            Loading invoices...
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // ===================================================
   // TABLE
-  // =====================================================
+  // ===================================================
 
   return (
-
-    <div className="overflow-hidden rounded-2xl border border-yellow-500/20 bg-[#181818]">
-
-      <div className="overflow-x-auto">
-
-        <table className="min-w-full">
-
-          {/* =================================================
-              HEADER
-          ================================================= */}
-
-          <thead className="bg-[#202020]">
-
-            <tr>
-
-              <th className="whitespace-nowrap px-5 py-4 text-left text-xs font-bold uppercase tracking-wide text-yellow-400">
-                Invoice No
-              </th>
-
-              <th className="whitespace-nowrap px-5 py-4 text-left text-xs font-bold uppercase tracking-wide text-yellow-400">
-                Repair ID
-              </th>
-
-              <th className="whitespace-nowrap px-5 py-4 text-left text-xs font-bold uppercase tracking-wide text-yellow-400">
-                Customer
-              </th>
-
-              <th className="whitespace-nowrap px-5 py-4 text-left text-xs font-bold uppercase tracking-wide text-yellow-400">
-                Mobile
-              </th>
-
-              <th className="whitespace-nowrap px-5 py-4 text-left text-xs font-bold uppercase tracking-wide text-yellow-400">
-                Payment
-              </th>
-
-              <th className="whitespace-nowrap px-5 py-4 text-right text-xs font-bold uppercase tracking-wide text-yellow-400">
-                Total
-              </th>
-
-              <th className="whitespace-nowrap px-5 py-4 text-left text-xs font-bold uppercase tracking-wide text-yellow-400">
-                Date
-              </th>
-
-              <th className="whitespace-nowrap px-5 py-4 text-center text-xs font-bold uppercase tracking-wide text-yellow-400">
-                Actions
-              </th>
-
-            </tr>
-
-          </thead>
-
-          {/* =================================================
-              BODY
-          ================================================= */}
-
-          <tbody>
-
-            {filteredInvoices.map(
-              (invoice) => {
-
-                const total =
-                  Number(
-                    invoice.grandTotal || 0
-                  );
-
-                const date =
-                  invoice.createdAt
-                    ? new Date(
-                        invoice.createdAt
-                      ).toLocaleDateString(
-                        "en-IN"
-                      )
-                    : "-";
-
-                return (
-
-                  <tr
-                    key={invoice.id}
-                    className="border-t border-zinc-800 transition hover:bg-[#202020]"
-                  >
-
-                    {/* Invoice No */}
-
-                    <td className="px-5 py-4">
-
-                      <span className="font-bold text-yellow-400">
-                        {invoice.invoiceNo}
-                      </span>
-
-                    </td>
-
-                    {/* Repair ID */}
-
-                    <td className="px-5 py-4">
-
-                      {invoice.repairId ? (
-
-                        <span className="inline-flex rounded-full bg-purple-500/10 px-3 py-1 text-xs font-bold text-purple-400">
-                          {invoice.repairId}
-                        </span>
-
-                      ) : (
-
-                        <span className="text-sm text-zinc-600">
-                          —
-                        </span>
-
-                      )}
-
-                    </td>
-
-                    {/* Customer */}
-
-                    <td className="px-5 py-4">
-
-                      <span className="font-medium text-white">
-                        {invoice.customerName}
-                      </span>
-
-                    </td>
-
-                    {/* Mobile */}
-
-                    <td className="px-5 py-4">
-
-                      <span className="text-sm text-gray-400">
-                        {invoice.mobile}
-                      </span>
-
-                    </td>
-
-                    {/* Payment */}
-
-                    <td className="px-5 py-4">
-
-                      <span className="inline-flex rounded-full bg-blue-500/10 px-3 py-1 text-xs font-bold text-blue-400">
-                        {invoice.paymentMethod}
-                      </span>
-
-                    </td>
-
-                    {/* Total */}
-
-                    <td className="px-5 py-4 text-right">
-
-                      <span className="font-bold text-green-400">
-
-                        ₹
-                        {total.toLocaleString(
-                          "en-IN",
-                          {
-                            maximumFractionDigits:
-                              2,
-                          }
-                        )}
-
-                      </span>
-
-                    </td>
-
-                    {/* Date */}
-
-                    <td className="px-5 py-4">
-
-                      <span className="text-sm text-gray-400">
-                        {date}
-                      </span>
-
-                    </td>
-
-                    {/* =================================================
-                        ACTIONS
-                    ================================================= */}
-
-                    <td className="px-5 py-4">
-
-                      <div className="flex items-center justify-center gap-2">
-
-                        {/* VIEW */}
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            onView(invoice)
-                          }
-                          className="rounded-lg p-2 text-yellow-400 transition hover:bg-yellow-500/10 hover:text-yellow-300"
-                          title="View Invoice"
-                        >
-
-                          <Eye
-                            size={18}
-                          />
-
-                        </button>
-
-                        {/* EDIT */}
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            onEdit(invoice)
-                          }
-                          className="rounded-lg p-2 text-blue-400 transition hover:bg-blue-500/10 hover:text-blue-300"
-                          title="Edit Invoice"
-                        >
-
-                          <Pencil
-                            size={18}
-                          />
-
-                        </button>
-
-                        {/* DELETE */}
-
-                        <button
-                          type="button"
-                          onClick={() =>
-                            handleDelete(
-                              invoice
-                            )
-                          }
-                          className="rounded-lg p-2 text-red-400 transition hover:bg-red-500/10 hover:text-red-300"
-                          title="Delete Invoice"
-                        >
-
-                          <Trash2
-                            size={18}
-                          />
-
-                        </button>
-
-                        {/* PRINT */}
-
-                        <PrintInvoiceButton
-                          invoice={invoice}
-                          label=""
-                        />
-
-                      </div>
-
-                    </td>
-
-                  </tr>
-
-                );
-
-              }
-            )}
-
+    <>
+      {/* =================================================
+          HIDDEN PDF
+      ================================================= */}
+
+      {pdfInvoice && (
+        <div
+          ref={pdfRef}
+          className="fixed left-[-10000px] top-0 z-[-1] bg-white"
+          style={{
+            width: "794px",
+          }}
+        >
+          <InvoicePrint
+            invoice={
+              pdfInvoice
+            }
+          />
+        </div>
+      )}
+
+      {/* =================================================
+          TABLE
+      ================================================= */}
+
+      <div className="overflow-hidden rounded-2xl border border-zinc-800 bg-zinc-900/40">
+        <div className="overflow-x-auto">
+          <table className="min-w-[1000px] w-full">
             {/* =================================================
-                EMPTY STATE
+                HEADER
             ================================================= */}
 
-            {filteredInvoices.length === 0 && (
+            <thead>
+              <tr className="border-b border-zinc-800 bg-zinc-900/80">
+                <th className="px-4 py-4 text-left text-[11px] font-black uppercase tracking-wide text-yellow-400">
+                  Invoice No
+                </th>
 
-              <tr>
+                <th className="px-4 py-4 text-left text-[11px] font-black uppercase tracking-wide text-yellow-400">
+                  Repair ID
+                </th>
 
-                <td
-                  colSpan={8}
-                  className="px-6 py-14 text-center"
-                >
+                <th className="px-4 py-4 text-left text-[11px] font-black uppercase tracking-wide text-yellow-400">
+                  Customer
+                </th>
 
-                  <div className="flex flex-col items-center">
+                <th className="px-4 py-4 text-left text-[11px] font-black uppercase tracking-wide text-yellow-400">
+                  Mobile
+                </th>
 
-                    <div className="mb-3 rounded-full bg-zinc-800 p-4">
+                <th className="px-4 py-4 text-left text-[11px] font-black uppercase tracking-wide text-yellow-400">
+                  Payment
+                </th>
 
-                      <Printer
-                        size={24}
-                        className="text-zinc-500"
-                      />
+                <th className="px-4 py-4 text-right text-[11px] font-black uppercase tracking-wide text-yellow-400">
+                  Total
+                </th>
 
-                    </div>
+                <th className="px-4 py-4 text-left text-[11px] font-black uppercase tracking-wide text-yellow-400">
+                  Date
+                </th>
 
-                    <p className="font-semibold text-gray-400">
-
-                      {keyword
-                        ? "No invoices found for your search."
-                        : "No invoices found."}
-
-                    </p>
-
-                    {keyword && (
-
-                      <p className="mt-1 text-xs text-zinc-600">
-
-                        Try a different invoice,
-                        customer, repair ID
-                        or mobile number.
-
-                      </p>
-
-                    )}
-
-                  </div>
-
-                </td>
-
+                <th className="px-4 py-4 text-center text-[11px] font-black uppercase tracking-wide text-yellow-400">
+                  Actions
+                </th>
               </tr>
+            </thead>
 
-            )}
+            {/* =================================================
+                BODY
+            ================================================= */}
 
-          </tbody>
+            <tbody>
+              {filteredInvoices.length ===
+              0 ? (
+                <tr>
+                  <td
+                    colSpan={8}
+                    className="px-5 py-16 text-center text-sm text-zinc-500"
+                  >
+                    {search.trim()
+                      ? "No matching invoices found."
+                      : "No invoices found."}
+                  </td>
+                </tr>
+              ) : (
+                filteredInvoices.map(
+                  (invoice) => (
+                    <tr
+                      key={
+                        invoice.id
+                      }
+                      className="border-b border-zinc-800 transition hover:bg-zinc-900/70"
+                    >
+                      {/* INVOICE NO */}
 
-        </table>
+                      <td className="px-4 py-4">
+                        <span className="font-black text-yellow-400">
+                          {invoice.invoiceNo ||
+                            "-"}
+                        </span>
+                      </td>
 
+                      {/* REPAIR ID */}
+
+                      <td className="px-4 py-4">
+                        {invoice.repairId ? (
+                          <span className="inline-flex rounded-full border border-purple-500/20 bg-purple-500/10 px-2.5 py-1 text-[10px] font-bold text-purple-300">
+                            {
+                              invoice.repairId
+                            }
+                          </span>
+                        ) : (
+                          <span className="text-zinc-600">
+                            —
+                          </span>
+                        )}
+                      </td>
+
+                      {/* CUSTOMER */}
+
+                      <td className="px-4 py-4">
+                        <span className="font-semibold text-white">
+                          {invoice.customerName ||
+                            "-"}
+                        </span>
+                      </td>
+
+                      {/* MOBILE */}
+
+                      <td className="px-4 py-4">
+                        <span className="text-sm text-zinc-400">
+                          {invoice.mobile ||
+                            "-"}
+                        </span>
+                      </td>
+
+                      {/* PAYMENT */}
+
+                      <td className="px-4 py-4">
+                        <span className="inline-flex rounded-full border border-blue-500/20 bg-blue-500/10 px-2.5 py-1 text-[10px] font-bold text-blue-400">
+                          {invoice.paymentMethod ||
+                            "-"}
+                        </span>
+                      </td>
+
+                      {/* TOTAL */}
+
+                      <td className="px-4 py-4 text-right">
+                        <span className="font-black text-green-400">
+                          ₹
+                          {formatMoney(
+                            invoice.grandTotal
+                          )}
+                        </span>
+                      </td>
+
+                      {/* DATE */}
+
+                      <td className="px-4 py-4">
+                        <span className="text-sm text-zinc-400">
+                          {formatDate(
+                            invoice.createdAt
+                          )}
+                        </span>
+                      </td>
+
+                      {/* ACTIONS */}
+
+                      <td className="px-4 py-4">
+                        <div className="flex items-center justify-center gap-4">
+                          {/* VIEW */}
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onView(
+                                invoice
+                              )
+                            }
+                            className="text-yellow-400 transition hover:text-yellow-300"
+                            title="View Invoice"
+                            aria-label="View Invoice"
+                          >
+                            <Eye
+                              size={17}
+                            />
+                          </button>
+
+                          {/* EDIT */}
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onEdit(
+                                invoice
+                              )
+                            }
+                            className="text-sky-400 transition hover:text-sky-300"
+                            title="Edit Invoice"
+                            aria-label="Edit Invoice"
+                          >
+                            <Pencil
+                              size={17}
+                            />
+                          </button>
+
+                          {/* DELETE */}
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleDelete(
+                                invoice
+                              )
+                            }
+                            disabled={
+                              deletingId ===
+                              invoice.id
+                            }
+                            className="text-red-400 transition hover:text-red-300 disabled:opacity-40"
+                            title="Delete Invoice"
+                            aria-label="Delete Invoice"
+                          >
+                            {deletingId ===
+                            invoice.id ? (
+                              <Loader2
+                                size={17}
+                                className="animate-spin"
+                              />
+                            ) : (
+                              <Trash2
+                                size={17}
+                              />
+                            )}
+                          </button>
+
+                          {/* PRINT */}
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handlePrint(
+                                invoice
+                              )
+                            }
+                            className="text-emerald-400 transition hover:text-emerald-300"
+                            title="Print Invoice"
+                            aria-label="Print Invoice"
+                          >
+                            <Printer
+                              size={17}
+                            />
+                          </button>
+
+                          {/* WHATSAPP */}
+
+                          <button
+                            type="button"
+                            onClick={() =>
+                              handleWhatsApp(
+                                invoice
+                              )
+                            }
+                            disabled={
+                              whatsappId ===
+                              invoice.id
+                            }
+                            className="text-green-400 transition hover:scale-110 hover:text-green-300 disabled:cursor-wait disabled:opacity-50"
+                            title="Send Invoice on WhatsApp"
+                            aria-label="Send Invoice on WhatsApp"
+                          >
+                            {whatsappId ===
+                            invoice.id ? (
+                              <Loader2
+                                size={18}
+                                className="animate-spin"
+                              />
+                            ) : (
+                              <MessageCircle
+                                size={18}
+                              />
+                            )}
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  )
+                )
+              )}
+            </tbody>
+          </table>
+        </div>
+
+        {/* =================================================
+            LOAD MORE
+        ================================================= */}
+
+        {hasMore && (
+          <div className="flex justify-center border-t border-zinc-800 px-5 py-4">
+            <button
+              type="button"
+              onClick={
+                loadMoreInvoices
+              }
+              disabled={
+                loadingMore
+              }
+              className="inline-flex items-center gap-2 rounded-xl border border-yellow-500/30 bg-yellow-500/10 px-5 py-2.5 text-sm font-black text-yellow-400 transition hover:bg-yellow-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {loadingMore ? (
+                <>
+                  <Loader2
+                    size={16}
+                    className="animate-spin"
+                  />
+
+                  Loading...
+                </>
+              ) : (
+                <>
+                  <ChevronDown
+                    size={17}
+                  />
+
+                  Load More Invoices
+                </>
+              )}
+            </button>
+          </div>
+        )}
       </div>
-
-    </div>
-
+    </>
   );
 }

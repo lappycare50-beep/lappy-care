@@ -3,15 +3,19 @@ import {
   NextResponse,
 } from "next/server";
 
-const WHATSAPP_API_VERSION =
-  "v23.0";
+const WHATSAPP_API_VERSION = "v26.0";
+
+// =====================================================
+// NORMALIZE WHATSAPP NUMBER
+// =====================================================
 
 function normalizeWhatsAppNumber(
   value: string
 ): string {
-  let number = String(
-    value ?? ""
-  ).replace(/\D/g, "");
+  let number = String(value ?? "").replace(
+    /\D/g,
+    ""
+  );
 
   if (number.length === 10) {
     number = `91${number}`;
@@ -26,12 +30,15 @@ function normalizeWhatsAppNumber(
   return number;
 }
 
+// =====================================================
+// POST
+// =====================================================
+
 export async function POST(
   request: NextRequest
 ) {
   try {
-    const body =
-      await request.json();
+    const body = await request.json();
 
     const {
       to,
@@ -40,9 +47,9 @@ export async function POST(
       caption,
     } = body ?? {};
 
-    // ==========================================
+    // ===================================================
     // VALIDATE INPUT
-    // ==========================================
+    // ===================================================
 
     if (!to) {
       return NextResponse.json(
@@ -70,9 +77,9 @@ export async function POST(
       );
     }
 
-    // ==========================================
+    // ===================================================
     // META CONFIG
-    // ==========================================
+    // ===================================================
 
     const accessToken =
       process.env.META_ACCESS_TOKEN?.trim();
@@ -92,21 +99,20 @@ export async function POST(
       );
     }
 
-    // ==========================================
+    // ===================================================
     // CLEAN BASE64
-    // ==========================================
+    // ===================================================
 
-    const cleanBase64 =
-      String(pdfBase64)
-        .replace(
-          /^data:application\/pdf;base64,/,
-          ""
-        )
-        .replace(
-          /^data:.*;base64,/,
-          ""
-        )
-        .trim();
+    const cleanBase64 = String(pdfBase64)
+      .replace(
+        /^data:application\/pdf;base64,/i,
+        ""
+      )
+      .replace(
+        /^data:.*;base64,/i,
+        ""
+      )
+      .trim();
 
     if (!cleanBase64) {
       throw new Error(
@@ -114,15 +120,14 @@ export async function POST(
       );
     }
 
-    // ==========================================
+    // ===================================================
     // PDF BUFFER
-    // ==========================================
+    // ===================================================
 
-    const pdfBuffer =
-      Buffer.from(
-        cleanBase64,
-        "base64"
-      );
+    const pdfBuffer = Buffer.from(
+      cleanBase64,
+      "base64"
+    );
 
     if (!pdfBuffer.length) {
       throw new Error(
@@ -131,20 +136,66 @@ export async function POST(
     }
 
     const finalFilename =
-      filename ||
-      "Lappy-Care-Invoice.pdf";
+      typeof filename === "string" &&
+      filename.trim()
+        ? filename.trim()
+        : "Lappy-Care-Invoice.pdf";
 
-    // ==========================================
-    // WHATSAPP MEDIA UPLOAD
-    // ==========================================
+    // ===================================================
+    // LOG CONFIG
+    // ===================================================
+
+    console.log(
+      "========================================"
+    );
+
+    console.log(
+      "WHATSAPP INVOICE SEND"
+    );
+
+    console.log(
+      JSON.stringify(
+        {
+          apiVersion:
+            WHATSAPP_API_VERSION,
+
+          phoneNumberId:
+            phoneNumberId,
+
+          recipient:
+            normalizeWhatsAppNumber(to),
+
+          filename:
+            finalFilename,
+
+          pdfBytes:
+            pdfBuffer.length,
+
+          pdfMB:
+            (
+              pdfBuffer.length /
+              (1024 * 1024)
+            ).toFixed(2),
+        },
+        null,
+        2
+      )
+    );
+
+    console.log(
+      "========================================"
+    );
+
+    // ===================================================
+    // UPLOAD PDF TO WHATSAPP MEDIA API
+    // ===================================================
 
     const mediaUrl =
       `https://graph.facebook.com/` +
       `${WHATSAPP_API_VERSION}/` +
       `${phoneNumberId}/media`;
 
-    const formData =
-      new FormData();
+    const formData = new FormData();
 
     formData.append(
       "messaging_product",
@@ -156,14 +207,12 @@ export async function POST(
       "application/pdf"
     );
 
-    const pdfBlob =
-      new Blob(
-        [pdfBuffer],
-        {
-          type:
-            "application/pdf",
-        }
-      );
+    const pdfBlob = new Blob(
+      [pdfBuffer],
+      {
+        type: "application/pdf",
+      }
+    );
 
     formData.append(
       "file",
@@ -172,13 +221,10 @@ export async function POST(
     );
 
     console.log(
-      "Uploading invoice PDF directly to WhatsApp Media API...",
+      "Uploading invoice PDF to WhatsApp Media API...",
       {
-        filename:
-          finalFilename,
-
-        bytes:
-          pdfBuffer.length,
+        filename: finalFilename,
+        bytes: pdfBuffer.length,
       }
     );
 
@@ -203,28 +249,43 @@ export async function POST(
     let mediaData: any = null;
 
     try {
-      mediaData =
-        mediaRaw
-          ? JSON.parse(
-              mediaRaw
-            )
-          : null;
+      mediaData = mediaRaw
+        ? JSON.parse(mediaRaw)
+        : null;
     } catch {
       mediaData = {
         raw: mediaRaw,
       };
     }
 
+    // ===================================================
+    // MEDIA ERROR
+    // ===================================================
+
     if (!mediaResponse.ok) {
       console.error(
-        "WhatsApp Media Upload Error:",
-        {
-          status:
-            mediaResponse.status,
+        "========================================"
+      );
 
-          data:
-            mediaData,
-        }
+      console.error(
+        "WHATSAPP MEDIA UPLOAD ERROR"
+      );
+
+      console.error(
+        "Status:",
+        mediaResponse.status
+      );
+
+      console.error(
+        JSON.stringify(
+          mediaData,
+          null,
+          2
+        )
+      );
+
+      console.error(
+        "========================================"
       );
 
       throw new Error(
@@ -236,28 +297,45 @@ export async function POST(
       );
     }
 
+    // ===================================================
+    // MEDIA ID
+    // ===================================================
+
     const mediaId =
       mediaData?.id;
 
     if (!mediaId) {
+      console.error(
+        "WhatsApp Media API response:",
+        JSON.stringify(
+          mediaData,
+          null,
+          2
+        )
+      );
+
       throw new Error(
         "WhatsApp Media API did not return a media ID."
       );
     }
 
     console.log(
-      "Invoice PDF uploaded to WhatsApp successfully:",
+      "Invoice PDF uploaded successfully:",
       {
         mediaId,
       }
     );
 
-    // ==========================================
-    // SEND DOCUMENT MESSAGE
-    // ==========================================
+    // ===================================================
+    // NORMALIZE RECIPIENT
+    // ===================================================
 
     const recipient =
       normalizeWhatsAppNumber(to);
+
+    // ===================================================
+    // SEND DOCUMENT
+    // ===================================================
 
     const messagesUrl =
       `https://graph.facebook.com/` +
@@ -288,13 +366,26 @@ export async function POST(
     };
 
     console.log(
-      "Sending invoice document to customer:",
-      {
-        recipient,
-        mediaId,
-        filename:
-          finalFilename,
-      }
+      "========================================"
+    );
+
+    console.log(
+      "SENDING WHATSAPP DOCUMENT"
+    );
+
+    console.log(
+      JSON.stringify(
+        {
+          url: messagesUrl,
+          payload,
+        },
+        null,
+        2
+      )
+    );
+
+    console.log(
+      "========================================"
     );
 
     const messageResponse =
@@ -320,8 +411,7 @@ export async function POST(
     const messageRaw =
       await messageResponse.text();
 
-    let messageData: any =
-      null;
+    let messageData: any = null;
 
     try {
       messageData =
@@ -336,61 +426,118 @@ export async function POST(
       };
     }
 
-    // ==========================================
+    // ===================================================
     // MESSAGE ERROR
-    // ==========================================
+    // ===================================================
 
     if (!messageResponse.ok) {
       console.error(
-        "WhatsApp Invoice Document Error:",
-        {
-          status:
-            messageResponse.status,
-
-          data:
-            messageData,
-        }
+        "========================================"
       );
 
+      console.error(
+        "WHATSAPP DOCUMENT SEND ERROR"
+      );
+
+      console.error(
+        "HTTP STATUS:",
+        messageResponse.status
+      );
+
+      console.error(
+        "FULL META RESPONSE:"
+      );
+
+      console.error(
+        JSON.stringify(
+          messageData,
+          null,
+          2
+        )
+      );
+
+      console.error(
+        "========================================"
+      );
+
+      const details =
+        messageData?.error?.error_data
+          ?.details;
+
+      const message =
+        messageData?.error?.message;
+
+      const userMessage =
+        messageData?.error
+          ?.error_user_msg;
+
       throw new Error(
-        messageData?.error?.message ||
-          messageData?.error?.error_user_msg ||
-          messageData?.error?.error_data
-            ?.details ||
+        details ||
+          userMessage ||
+          message ||
           `WhatsApp document send failed with status ${messageResponse.status}.`
       );
     }
 
-    // ==========================================
+    // ===================================================
     // SUCCESS
-    // ==========================================
+    // ===================================================
 
     console.log(
-      "Invoice PDF sent successfully on WhatsApp:",
-      {
-        recipient,
-
-        mediaId,
-
-        whatsapp:
-          messageData,
-      }
+      "========================================"
     );
 
-    return NextResponse.json({
-      success: true,
+    console.log(
+      "WHATSAPP INVOICE SENT SUCCESSFULLY"
+    );
 
-      data: {
-        mediaId,
+    console.log(
+      JSON.stringify(
+        {
+          recipient,
+          mediaId,
+          whatsapp:
+            messageData,
+        },
+        null,
+        2
+      )
+    );
 
-        whatsapp:
-          messageData,
+    console.log(
+      "========================================"
+    );
+
+    return NextResponse.json(
+      {
+        success: true,
+
+        data: {
+          mediaId,
+
+          whatsapp:
+            messageData,
+        },
       },
-    });
+      {
+        status: 200,
+      }
+    );
   } catch (error) {
     console.error(
-      "Invoice WhatsApp API error:",
+      "========================================"
+    );
+
+    console.error(
+      "INVOICE WHATSAPP API ERROR"
+    );
+
+    console.error(
       error
+    );
+
+    console.error(
+      "========================================"
     );
 
     return NextResponse.json(

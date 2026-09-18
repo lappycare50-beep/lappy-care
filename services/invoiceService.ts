@@ -8,21 +8,30 @@ import {
   orderBy,
   query,
   runTransaction,
+  startAfter,
   updateDoc,
   where,
+  type DocumentData,
+  type QueryDocumentSnapshot,
 } from "firebase/firestore";
 
 import { db } from "@/lib/firebase";
 
-import {
+import type {
   Invoice,
 } from "@/types/invoice";
 
-const COLLECTION =
-  "invoices";
+// =====================================================
+// COLLECTIONS
+// =====================================================
 
-const COUNTER_COLLECTION =
-  "counters";
+const COLLECTION = "invoices";
+
+const COUNTER_COLLECTION = "counters";
+
+// =====================================================
+// FIRESTORE COLLECTION
+// =====================================================
 
 const invoiceCollection =
   collection(
@@ -31,67 +40,29 @@ const invoiceCollection =
   );
 
 // =====================================================
-// CACHE
+// CONSTANTS
 // =====================================================
 
-let invoicesCache:
-  Invoice[] | null = null;
-
-let invoicesCacheTime = 0;
-
-const INVOICE_CACHE_TTL =
-  30 * 1000;
-
-// =====================================================
-// INVALIDATE
-// =====================================================
-
-function invalidateInvoiceCache() {
-  invoicesCache = null;
-  invoicesCacheTime = 0;
-}
-
-// =====================================================
-// FINANCIAL YEAR
-// =====================================================
-
-function getFinancialYear(): string {
-  const today =
-    new Date();
-
-  const year =
-    today.getFullYear();
-
-  const month =
-    today.getMonth() + 1;
-
-  if (
-    month >= 4
-  ) {
-    return `${String(
-      year
-    ).slice(-2)}-${String(
-      year + 1
-    ).slice(-2)}`;
-  }
-
-  return `${String(
-    year - 1
-  ).slice(-2)}-${String(
-    year
-  ).slice(-2)}`;
-}
+export const INVOICE_PAGE_SIZE = 10;
 
 // =====================================================
 // INVOICE SEQUENCE
+// =====================================================
+//
+// Example:
+// WKD-INV-26-27-000086
+//                         ↑
+//                         86
+//
+// Used only where we need to sort
+// invoices returned from a query
+// that does not already have ordering.
 // =====================================================
 
 function getInvoiceSequence(
   invoiceNo?: string
 ): number {
-  if (
-    !invoiceNo
-  ) {
+  if (!invoiceNo) {
     return 0;
   }
 
@@ -114,60 +85,273 @@ function getInvoiceSequence(
 }
 
 // =====================================================
+// FINANCIAL YEAR
+// =====================================================
+//
+// Example:
+// April 2026 → 26-27
+// March 2027 → 26-27
+// =====================================================
+
+function getFinancialYear(): string {
+  const today =
+    new Date();
+
+  const year =
+    today.getFullYear();
+
+  const month =
+    today.getMonth() + 1;
+
+  if (month >= 4) {
+    return `${String(
+      year
+    ).slice(-2)}-${String(
+      year + 1
+    ).slice(-2)}`;
+  }
+
+  return `${String(
+    year - 1
+  ).slice(-2)}-${String(
+    year
+  ).slice(-2)}`;
+}
+
+// =====================================================
+// FIRESTORE DOC → INVOICE
+// =====================================================
+
+function mapInvoiceDoc(
+  document: QueryDocumentSnapshot<DocumentData>
+): Invoice {
+  return {
+    id: document.id,
+
+    ...(document.data() as Omit<
+      Invoice,
+      "id"
+    >),
+  };
+}
+
+// =====================================================
+// GET INVOICES - PAGINATED
+// =====================================================
+//
+// IMPORTANT
+//
+// This is the main function for InvoiceTable.
+//
+// First request:
+//   latest 10 invoices
+//
+// Next request:
+//   next 10 invoices using cursor
+//
+// We request pageSize + 1 documents.
+// The extra document tells us whether
+// more invoices exist.
+//
+// Example:
+// pageSize = 10
+//
+// Firestore reads max 11 docs.
+// UI displays max 10 docs.
+// =====================================================
+
+export async function getInvoicesPage(
+  pageSize: number = INVOICE_PAGE_SIZE,
+  lastDoc?: QueryDocumentSnapshot<DocumentData> | null
+): Promise<{
+  invoices: Invoice[];
+  lastDoc:
+    | QueryDocumentSnapshot<DocumentData>
+    | null;
+  hasMore: boolean;
+}> {
+  try {
+    const safePageSize =
+      Math.max(
+        1,
+        Math.min(
+          pageSize,
+          50
+        )
+      );
+
+    // =================================================
+    // FIRST PAGE
+    // =================================================
+
+    if (!lastDoc) {
+      const q =
+        query(
+          invoiceCollection,
+
+          orderBy(
+            "invoiceNo",
+            "desc"
+          ),
+
+          limit(
+            safePageSize + 1
+          )
+        );
+
+      const snapshot =
+        await getDocs(q);
+
+      const documents =
+        snapshot.docs;
+
+      const hasMore =
+        documents.length >
+        safePageSize;
+
+      const visibleDocuments =
+        documents.slice(
+          0,
+          safePageSize
+        );
+
+      const invoices =
+        visibleDocuments.map(
+          mapInvoiceDoc
+        );
+
+      const newLastDoc =
+        visibleDocuments.length >
+        0
+          ? visibleDocuments[
+              visibleDocuments.length -
+                1
+            ]
+          : null;
+
+      return {
+        invoices,
+
+        lastDoc:
+          newLastDoc,
+
+        hasMore,
+      };
+    }
+
+    // =================================================
+    // NEXT PAGE
+    // =================================================
+
+    const q =
+      query(
+        invoiceCollection,
+
+        orderBy(
+          "invoiceNo",
+          "desc"
+        ),
+
+        startAfter(
+          lastDoc
+        ),
+
+        limit(
+          safePageSize + 1
+        )
+      );
+
+    const snapshot =
+      await getDocs(q);
+
+    const documents =
+      snapshot.docs;
+
+    const hasMore =
+      documents.length >
+      safePageSize;
+
+    const visibleDocuments =
+      documents.slice(
+        0,
+        safePageSize
+      );
+
+    const invoices =
+      visibleDocuments.map(
+        mapInvoiceDoc
+      );
+
+    const newLastDoc =
+      visibleDocuments.length >
+      0
+        ? visibleDocuments[
+            visibleDocuments.length -
+              1
+          ]
+        : null;
+
+    return {
+      invoices,
+
+      lastDoc:
+        newLastDoc,
+
+      hasMore,
+    };
+  } catch (error) {
+    console.error(
+      "Error getting paginated invoices:",
+      error
+    );
+
+    throw error;
+  }
+}
+
+// =====================================================
 // GET ALL INVOICES
+// =====================================================
+//
+// LEGACY / COMPATIBILITY FUNCTION
+//
+// ⚠️ This function reads the entire collection.
+//
+// Do NOT use this function inside InvoiceTable.
+//
+// It is kept because other existing ERP pages
+// may still depend on getInvoices().
 // =====================================================
 
 export async function getInvoices(
   forceRefresh = false
 ): Promise<Invoice[]> {
-  const now =
-    Date.now();
+  try {
+    void forceRefresh;
 
-  if (
-    !forceRefresh &&
-    invoicesCache &&
-    now -
-      invoicesCacheTime <
-      INVOICE_CACHE_TTL
-  ) {
-    return invoicesCache;
+    const snapshot =
+      await getDocs(
+        query(
+          invoiceCollection,
+
+          orderBy(
+            "invoiceNo",
+            "desc"
+          )
+        )
+      );
+
+    return snapshot.docs.map(
+      mapInvoiceDoc
+    );
+  } catch (error) {
+    console.error(
+      "Error getting invoices:",
+      error
+    );
+
+    return [];
   }
-
-  const snapshot =
-    await getDocs(
-      invoiceCollection
-    );
-
-  const invoices =
-    snapshot.docs.map(
-      (document) => ({
-        id:
-          document.id,
-
-        ...(document.data() as Omit<
-          Invoice,
-          "id"
-        >),
-      })
-    );
-
-  invoices.sort(
-    (a, b) =>
-      getInvoiceSequence(
-        b.invoiceNo
-      ) -
-      getInvoiceSequence(
-        a.invoiceNo
-      )
-  );
-
-  invoicesCache =
-    invoices;
-
-  invoicesCacheTime =
-    now;
-
-  return invoices;
 }
 
 // =====================================================
@@ -178,13 +362,20 @@ export async function getInvoiceById(
   id: string
 ): Promise<Invoice | null> {
   try {
+    if (!id) {
+      return null;
+    }
+
+    const invoiceRef =
+      doc(
+        db,
+        COLLECTION,
+        id
+      );
+
     const snapshot =
       await getDoc(
-        doc(
-          db,
-          COLLECTION,
-          id
-        )
+        invoiceRef
       );
 
     if (
@@ -250,15 +441,7 @@ export async function getInvoicesByMobile(
 
     const invoices =
       snapshot.docs.map(
-        (document) => ({
-          id:
-            document.id,
-
-          ...(document.data() as Omit<
-            Invoice,
-            "id"
-          >),
-        })
+        mapInvoiceDoc
       );
 
     return invoices.sort(
@@ -288,9 +471,7 @@ export async function getInvoicesByRepairId(
   repairId: string
 ): Promise<Invoice[]> {
   try {
-    if (
-      !repairId
-    ) {
+    if (!repairId) {
       return [];
     }
 
@@ -312,15 +493,7 @@ export async function getInvoicesByRepairId(
 
     const invoices =
       snapshot.docs.map(
-        (document) => ({
-          id:
-            document.id,
-
-          ...(document.data() as Omit<
-            Invoice,
-            "id"
-          >),
-        })
+        mapInvoiceDoc
       );
 
     return invoices.sort(
@@ -344,6 +517,13 @@ export async function getInvoicesByRepairId(
 
 // =====================================================
 // ADD INVOICE
+// =====================================================
+//
+// Uses Firestore transaction for
+// safe invoice number generation.
+//
+// Example:
+// WKD-INV-26-27-000087
 // =====================================================
 
 export async function addInvoice(
@@ -376,6 +556,10 @@ export async function addInvoice(
       async (
         transaction
       ) => {
+        // =============================================
+        // READ COUNTER
+        // =============================================
+
         const counterSnapshot =
           await transaction.get(
             counterRef
@@ -390,6 +574,10 @@ export async function addInvoice(
               )
             : 0;
 
+        // =============================================
+        // NEXT NUMBER
+        // =============================================
+
         const next =
           current + 1;
 
@@ -400,6 +588,10 @@ export async function addInvoice(
             6,
             "0"
           )}`;
+
+        // =============================================
+        // UPDATE COUNTER
+        // =============================================
 
         transaction.set(
           counterRef,
@@ -416,6 +608,10 @@ export async function addInvoice(
           }
         );
 
+        // =============================================
+        // CREATE INVOICE
+        // =============================================
+
         transaction.set(
           invoiceRef,
           {
@@ -429,8 +625,6 @@ export async function addInvoice(
         return generatedInvoiceNo;
       }
     );
-
-  invalidateInvoiceCache();
 
   return {
     id:
@@ -450,7 +644,13 @@ export async function updateInvoice(
     Invoice,
     "id"
   >
-) {
+): Promise<void> {
+  if (!id) {
+    throw new Error(
+      "Invoice ID is missing."
+    );
+  }
+
   await updateDoc(
     doc(
       db,
@@ -459,8 +659,6 @@ export async function updateInvoice(
     ),
     invoice
   );
-
-  invalidateInvoiceCache();
 }
 
 // =====================================================
@@ -469,7 +667,13 @@ export async function updateInvoice(
 
 export async function deleteInvoice(
   id: string
-) {
+): Promise<void> {
+  if (!id) {
+    throw new Error(
+      "Invoice ID is missing."
+    );
+  }
+
   await deleteDoc(
     doc(
       db,
@@ -477,6 +681,4 @@ export async function deleteInvoice(
       id
     )
   );
-
-  invalidateInvoiceCache();
 }
