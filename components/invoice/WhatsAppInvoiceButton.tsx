@@ -8,7 +8,7 @@ import type { Invoice } from "@/types/invoice";
 
 import InvoicePrint from "./InvoicePrint";
 
-import { generateInvoicePdfBase64 } from "@/services/invoicePdfService";
+import { generateInvoicePdfBase64 } from "@/lib/utils/pdf";
 
 type Props = {
   invoice: Invoice;
@@ -77,8 +77,7 @@ export default function WhatsAppInvoiceButton({
 
       const pdfBase64 =
         await generateInvoicePdfBase64(
-          element,
-          invoice
+          element
         );
 
       if (!pdfBase64) {
@@ -205,7 +204,7 @@ export default function WhatsAppInvoiceButton({
 
       {/* =================================================
           HIDDEN INVOICE DOM
-          
+
           Used only for PDF generation.
           No Firestore request.
       ================================================= */}
