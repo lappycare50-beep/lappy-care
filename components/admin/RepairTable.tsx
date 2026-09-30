@@ -86,9 +86,7 @@ const PAGE_SIZE = 20;
 // Status Color
 // ==========================================
 
-function getStatusColor(
-  status: RepairStatus
-) {
+function getStatusColor(status: RepairStatus) {
   switch (status) {
     case "Received":
       return "bg-blue-500 text-white";
@@ -126,15 +124,12 @@ function getStatusColor(
 // Extract Numeric Repair ID
 // ==========================================
 
-function extractRepairNumber(
-  repairId?: string
-) {
+function extractRepairNumber(repairId?: string) {
   if (!repairId) {
     return 0;
   }
 
-  const match =
-    repairId.match(/(\d+)$/);
+  const match = repairId.match(/(\d+)$/);
 
   if (!match) {
     return 0;
@@ -152,12 +147,10 @@ function buildStatusWhatsAppMessage(
   newStatus: RepairStatus
 ) {
   const customerName =
-    repair.customer?.name?.trim() ||
-    "Customer";
+    repair.customer?.name?.trim() || "Customer";
 
   const repairId =
-    repair.repairId?.trim() ||
-    "-";
+    repair.repairId?.trim() || "-";
 
   const deviceName = [
     repair.device?.brand?.trim(),
@@ -409,10 +402,7 @@ async function sendStatusWhatsApp(
   newStatus: RepairStatus
 ) {
   const mobile =
-    repair.customer?.mobile?.replace(
-      /\D/g,
-      ""
-    );
+    repair.customer?.mobile?.replace(/\D/g, "");
 
   if (!mobile) {
     throw new Error(
@@ -431,23 +421,22 @@ async function sendStatusWhatsApp(
       newStatus
     );
 
-  const response =
-    await fetch(
-      "/api/whatsapp/send",
-      {
-        method: "POST",
+  const response = await fetch(
+    "/api/whatsapp/send",
+    {
+      method: "POST",
 
-        headers: {
-          "Content-Type":
-            "application/json",
-        },
+      headers: {
+        "Content-Type":
+          "application/json",
+      },
 
-        body: JSON.stringify({
-          to: whatsappNumber,
-          message,
-        }),
-      }
-    );
+      body: JSON.stringify({
+        to: whatsappNumber,
+        message,
+      }),
+    }
+  );
 
   const rawResponse =
     await response.text();
@@ -490,10 +479,7 @@ async function sendManualReceivedWhatsApp(
   repair: Repair
 ) {
   const mobile =
-    repair.customer?.mobile?.replace(
-      /\D/g,
-      ""
-    );
+    repair.customer?.mobile?.replace(/\D/g, "");
 
   if (!mobile) {
     throw new Error(
@@ -553,23 +539,22 @@ Regards,
 Lappy Care
 Laptop Repair & Service`;
 
-  const response =
-    await fetch(
-      "/api/whatsapp/send",
-      {
-        method: "POST",
+  const response = await fetch(
+    "/api/whatsapp/send",
+    {
+      method: "POST",
 
-        headers: {
-          "Content-Type":
-            "application/json",
-        },
+      headers: {
+        "Content-Type":
+          "application/json",
+      },
 
-        body: JSON.stringify({
-          to: whatsappNumber,
-          message,
-        }),
-      }
-    );
+      body: JSON.stringify({
+        to: whatsappNumber,
+        message,
+      }),
+    }
+  );
 
   const rawResponse =
     await response.text();
@@ -602,6 +587,75 @@ Laptop Repair & Service`;
   }
 
   return data;
+}
+
+// ==========================================
+// Open Customer WhatsApp Web
+// ==========================================
+
+function openCustomerWhatsApp(
+  repair: Repair
+) {
+  const mobile =
+    repair.customer?.mobile?.replace(/\D/g, "");
+
+  if (!mobile) {
+    alert(
+      "Customer mobile number is missing."
+    );
+
+    return;
+  }
+
+  const whatsappNumber =
+    mobile.length === 10
+      ? `91${mobile}`
+      : mobile;
+
+  const customerName =
+    repair.customer?.name?.trim() ||
+    "Customer";
+
+  const repairId =
+    repair.repairId?.trim() ||
+    "-";
+
+  const deviceName = [
+    repair.device?.brand?.trim(),
+    repair.device?.model?.trim(),
+  ]
+    .filter(Boolean)
+    .join(" ");
+
+  const message = `Hello ${customerName},
+
+Welcome to Lappy Care! 👋
+
+Thank you for choosing Lappy Care for your laptop/computer service.
+
+🔹 Repair ID: ${repairId}
+🔹 Device: ${deviceName || "Laptop"}
+
+Our team will keep you updated regarding your repair.
+
+If you need any assistance, please feel free to contact us.
+
+📞 95950 57006
+
+Regards,
+Lappy Care
+Laptop Repair & Service`;
+
+  const whatsappUrl =
+    `https://web.whatsapp.com/send?phone=${whatsappNumber}&text=${encodeURIComponent(
+      message
+    )}`;
+
+  window.open(
+    whatsappUrl,
+    "_blank",
+    "noopener,noreferrer"
+  );
 }
 
 // ==========================================
@@ -736,6 +790,7 @@ export default function RepairTable({
     if (!keyword) {
       setSearchResults(null);
       setSearchLoading(false);
+
       return;
     }
 
@@ -783,6 +838,7 @@ export default function RepairTable({
 
     return () => {
       cancelled = true;
+
       window.clearTimeout(
         timer
       );
@@ -885,75 +941,73 @@ export default function RepairTable({
           ?.totalAmount || 0
       );
 
-    const invoiceItem: InvoiceItem =
-      {
-        id: crypto.randomUUID(),
+    const invoiceItem: InvoiceItem = {
+      id: crypto.randomUUID(),
 
-        name:
-          `Laptop Repair Service${
-            deviceName
-              ? ` - ${deviceName}`
-              : ""
-          }`,
+      name:
+        `Laptop Repair Service${
+          deviceName
+            ? ` - ${deviceName}`
+            : ""
+        }`,
 
-        qty: 1,
+      qty: 1,
 
-        price:
-          repairAmount,
+      price:
+        repairAmount,
 
-        total:
-          repairAmount,
-      };
+      total:
+        repairAmount,
+    };
 
-    const prefilledInvoice: Invoice =
-      {
-        invoiceNo: "",
+    const prefilledInvoice: Invoice = {
+      invoiceNo: "",
 
-        customerId:
-          repair.customer?.customerId ||
-          "",
+      customerId:
+        repair.customer?.customerId ||
+        "",
 
-        customerName:
-          repair.customer?.name ||
-          "",
+      customerName:
+        repair.customer?.name ||
+        "",
 
-        mobile:
-          repair.customer?.mobile ||
-          "",
+      mobile:
+        repair.customer?.mobile ||
+        "",
 
-        email:
-          repair.customer?.email ||
-          "",
+      email:
+        repair.customer?.email ||
+        "",
 
-        repairId:
-          repair.repairId ||
-          "",
+      repairId:
+        repair.repairId ||
+        "",
 
-        items: [
-          invoiceItem,
-        ],
+      items: [
+        invoiceItem,
+      ],
 
-        subTotal:
-          repairAmount,
+      subTotal:
+        repairAmount,
 
-        discount: 0,
+      discount: 0,
 
-        gst: 18,
+      gst: 18,
 
-        grandTotal:
-          Math.round(
-            repairAmount * 1.18
-          ),
+      grandTotal:
+        Math.round(
+          repairAmount * 1.18
+        ),
 
-        paymentMethod:
-          "Cash",
+      paymentMethod:
+        "Cash",
 
-        createdAt:
-          new Date().toISOString(),
+      createdAt:
+        new Date().toISOString(),
 
-        remarks:
-          `Generated from Repair ${repair.repairId}`,
-      };
+      remarks:
+        `Generated from Repair ${repair.repairId}`,
+    };
 
     setInvoiceForRepair(
       prefilledInvoice
@@ -994,16 +1048,15 @@ export default function RepairTable({
         repair.id
       );
 
-      const updatedRepair: Repair =
-        {
-          ...repair,
+      const updatedRepair: Repair = {
+        ...repair,
 
-          status:
-            newStatus,
+        status:
+          newStatus,
 
-          updatedAt:
-            new Date().toISOString(),
-        };
+        updatedAt:
+          new Date().toISOString(),
+      };
 
       await updateRepair(
         repair.id,
@@ -1388,31 +1441,56 @@ WhatsApp status message could not be sent.`
 
                               {repair.customer
                                 ?.mobile ? (
-                                <a
-                                  href={`tel:${repair.customer.mobile}`}
-                                  title={`Call ${
-                                    repair
-                                      .customer
-                                      .name ||
-                                    "Customer"
-                                  }`}
-                                  className="mt-1 flex items-center gap-2 text-sm text-gray-400 transition hover:text-green-400 hover:underline"
-                                >
+                                <div className="mt-1 flex items-center gap-2">
 
-                                  <Phone
-                                    size={13}
-                                    className="shrink-0"
-                                  />
+                                  {/* Call */}
 
-                                  <span>
-                                    {
+                                  <a
+                                    href={`tel:${repair.customer.mobile}`}
+                                    title={`Call ${
                                       repair
                                         .customer
-                                        .mobile
-                                    }
-                                  </span>
+                                        .name ||
+                                      "Customer"
+                                    }`}
+                                    className="flex items-center gap-2 text-sm text-gray-400 transition hover:text-green-400 hover:underline"
+                                  >
 
-                                </a>
+                                    <Phone
+                                      size={13}
+                                      className="shrink-0"
+                                    />
+
+                                    <span>
+                                      {
+                                        repair
+                                          .customer
+                                          .mobile
+                                      }
+                                    </span>
+
+                                  </a>
+
+                                  {/* Dedicated WhatsApp Web */}
+
+                                  <button
+                                    type="button"
+                                    title="Open WhatsApp with Welcome Message"
+                                    onClick={() =>
+                                      openCustomerWhatsApp(
+                                        repair
+                                      )
+                                    }
+                                    className="flex h-7 w-7 items-center justify-center rounded-md bg-green-600 text-white transition hover:bg-green-500"
+                                  >
+
+                                    <MessageCircle
+                                      size={15}
+                                    />
+
+                                  </button>
+
+                                </div>
                               ) : (
                                 <div className="mt-1 text-sm text-gray-500">
                                   No mobile
@@ -1640,7 +1718,7 @@ WhatsApp status message could not be sent.`
                                   />
                                 </button>
 
-                                {/* WhatsApp */}
+                                {/* Existing API WhatsApp */}
 
                                 <button
                                   type="button"
