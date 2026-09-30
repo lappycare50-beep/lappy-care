@@ -2,14 +2,32 @@
 
 import { useEffect, useRef, useState } from "react";
 import { MessageCircle, X } from "lucide-react";
+import { usePathname } from "next/navigation";
 
 import WhatsAppBubble from "./WhatsAppBubble";
 
 export default function FloatingWhatsApp() {
+  const pathname = usePathname();
+
   const [isOpen, setIsOpen] = useState(false);
 
   const containerRef =
     useRef<HTMLDivElement>(null);
+
+  // ==========================================
+  // Hide WhatsApp Expert Button in ERP / Admin
+  // ==========================================
+
+  if (
+    pathname === "/admin" ||
+    pathname.startsWith("/admin/")
+  ) {
+    return null;
+  }
+
+  // ==========================================
+  // Close on Outside Click
+  // ==========================================
 
   useEffect(() => {
     function handleClickOutside(
@@ -65,7 +83,9 @@ export default function FloatingWhatsApp() {
         }
         aria-expanded={isOpen}
         onClick={() =>
-          setIsOpen((previous) => !previous)
+          setIsOpen(
+            (previous) => !previous
+          )
         }
         className="
           flex
