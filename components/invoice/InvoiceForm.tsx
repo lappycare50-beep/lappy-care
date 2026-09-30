@@ -1,6 +1,7 @@
+
 "use client";
 
-import { toPng } from "html-to-image";
+import { toJpeg } from "html-to-image";
 import jsPDF from "jspdf";
 import {
   useEffect,
@@ -36,23 +37,351 @@ type Props = {
   onSuccess?: () => void;
 };
 
-const createEmptyItem =
-  (): InvoiceItem => ({
-    id: crypto.randomUUID(),
-
-    name: "",
-
-    qty: 1,
-
-    price: 0,
-
-    total: 0,
-  });
+const createEmptyItem = (): InvoiceItem => ({
+  id: crypto.randomUUID(),
+  name: "",
+  qty: 1,
+  price: 0,
+  total: 0,
+});
 
 function getToday() {
-  return new Date()
-    .toISOString()
-    .split("T")[0];
+  return new Date().toISOString().split("T")[0];
+}
+
+// =====================================================
+// PDF SIZE HELPERS
+// =====================================================
+
+const TARGET_PDF_BYTES = 950 * 1024;
+
+// Compression attempts.
+// First attempts preserve better quality.
+// Later attempts aggressively reduce file size.
+const PDF_COMPRESSION_LEVELS = [
+  {
+    pixelRatio: 1,
+    quality: 0.72,
+  },
+  {
+    pixelRatio: 1,
+    quality: 0.62,
+  },
+  {
+    pixelRatio: 0.9,
+    quality: 0.55,
+  },
+  {
+    pixelRatio: 0.8,
+    quality: 0.48,
+  },
+  {
+    pixelRatio: 0.7,
+    quality: 0.42,
+  },
+  {
+    pixelRatio: 0.6,
+    quality: 0.36,
+  },
+  {
+    pixelRatio: 0.55,
+    quality: 0.30,
+  },
+];
+
+function getBase64ByteSize(base64: string) {
+  const padding =
+    base64.endsWith("==")
+      ? 2
+      : base64.endsWith("=")
+        ? 1
+        : 0;
+
+  return Math.max(
+    0,
+    Math.floor(
+      (base64.length * 3) / 4
+    ) - padding
+  );
+}
+
+function formatBytes(bytes: number) {
+  if (bytes < 1024) {
+    return `${bytes} B`;
+  }
+
+  if (bytes < 1024 * 1024) {
+    return `${(
+      bytes / 1024
+    ).toFixed(1)} KB`;
+  }
+
+  return `${(
+    bytes /
+    1024 /
+    1024
+  ).toFixed(2)} MB`;
+}
+
+async function waitForImage(
+  src: string
+): Promise<HTMLImageElement> {
+  const image = new Image();
+
+  image.src = src;
+
+  await new Promise<void>(
+    (resolve, reject) => {
+      image.onload = () =>
+        resolve();
+
+      image.onerror = () =>
+        reject(
+          new Error(
+            "Failed to load invoice image."
+          )
+        );
+    }
+  );
+
+  return image;
+}
+
+async function createCompressedPdf(
+  invoiceElement: HTMLElement
+) {
+  let bestResult: {
+    pdfBase64: string;
+    bytes: number;
+    quality: number;
+    pixelRatio: number;
+  } | null = null;
+
+  console.log(
+    "========================================"
+  );
+
+  console.log(
+    "STARTING INVOICE PDF COMPRESSION"
+  );
+
+  console.log(
+    "Target PDF size:",
+    formatBytes(
+      TARGET_PDF_BYTES
+    )
+  );
+
+  for (
+    let i = 0;
+    i <
+    PDF_COMPRESSION_LEVELS.length;
+    i++
+  ) {
+    const level =
+      PDF_COMPRESSION_LEVELS[i];
+
+    try {
+      console.log(
+        `PDF compression attempt ${
+          i + 1
+        }/${PDF_COMPRESSION_LEVELS.length}`,
+        level
+      );
+
+      // ==========================================
+      // HTML → JPEG
+      // ==========================================
+
+      const imageData =
+        await toJpeg(
+          invoiceElement,
+          {
+            cacheBust: true,
+
+            pixelRatio:
+              level.pixelRatio,
+
+            quality:
+              level.quality,
+
+            backgroundColor:
+              "#ffffff",
+
+            // Avoid unnecessary image cache issues.
+            skipFonts: false,
+          }
+        );
+
+      // ==========================================
+      // JPEG → PDF
+      // ==========================================
+
+      const pdf =
+        new jsPDF({
+          orientation:
+            "portrait",
+
+          unit: "mm",
+
+          format: "a4",
+
+          compress: true,
+        });
+
+      const pageWidth =
+        pdf.internal.pageSize.getWidth();
+
+      const pageHeight =
+        pdf.internal.pageSize.getHeight();
+
+      const image =
+        await waitForImage(
+          imageData
+        );
+
+      const pdfImageHeight =
+        (
+          image.height *
+          pageWidth
+        ) /
+        image.width;
+
+      let position = 0;
+
+      let remainingHeight =
+        pdfImageHeight;
+
+      while (
+        remainingHeight > 0
+      ) {
+        pdf.addImage(
+          imageData,
+
+          "JPEG",
+
+          0,
+
+          position,
+
+          pageWidth,
+
+          pdfImageHeight,
+
+          undefined,
+
+          "FAST"
+        );
+
+        remainingHeight -=
+          pageHeight;
+
+        if (
+          remainingHeight > 0
+        ) {
+          pdf.addPage();
+
+          position -=
+            pageHeight;
+        }
+      }
+
+      // ==========================================
+      // PDF → BASE64
+      // ==========================================
+
+      const dataUri =
+        pdf.output(
+          "datauristring"
+        );
+
+      const pdfBase64 =
+        dataUri.split(",")[1];
+
+      if (!pdfBase64) {
+        throw new Error(
+          "Failed to generate PDF base64."
+        );
+      }
+
+      const bytes =
+        getBase64ByteSize(
+          pdfBase64
+        );
+
+      console.log(
+        `Attempt ${
+          i + 1
+        } PDF size:`,
+        formatBytes(bytes)
+      );
+
+      // Keep smallest PDF generated.
+      if (
+        !bestResult ||
+        bytes < bestResult.bytes
+      ) {
+        bestResult = {
+          pdfBase64,
+          bytes,
+          quality:
+            level.quality,
+          pixelRatio:
+            level.pixelRatio,
+        };
+      }
+
+      // Target achieved.
+      if (
+        bytes <=
+        TARGET_PDF_BYTES
+      ) {
+        console.log(
+          "TARGET PDF SIZE ACHIEVED"
+        );
+
+        break;
+      }
+    } catch (error) {
+      console.error(
+        `PDF compression attempt ${
+          i + 1
+        } failed:`,
+        error
+      );
+    }
+  }
+
+  if (!bestResult) {
+    throw new Error(
+      "Unable to generate invoice PDF."
+    );
+  }
+
+  console.log(
+    "FINAL PDF:",
+    {
+      bytes:
+        bestResult.bytes,
+
+      size:
+        formatBytes(
+          bestResult.bytes
+        ),
+
+      quality:
+        bestResult.quality,
+
+      pixelRatio:
+        bestResult.pixelRatio,
+    }
+  );
+
+  console.log(
+    "========================================"
+  );
+
+  return bestResult;
 }
 
 export default function InvoiceForm({
@@ -71,10 +400,12 @@ export default function InvoiceForm({
       null
     );
 
-  const [pdfInvoice, setPdfInvoice] =
-    useState<Invoice | null>(
-      null
-    );
+  const [
+    pdfInvoice,
+    setPdfInvoice,
+  ] = useState<Invoice | null>(
+    null
+  );
 
   // =====================================================
   // CUSTOMER
@@ -122,16 +453,20 @@ export default function InvoiceForm({
   const [
     createdAt,
     setCreatedAt,
-  ] = useState(getToday());
+  ] = useState(
+    getToday()
+  );
 
   // =====================================================
   // ITEMS
   // =====================================================
 
-  const [items, setItems] =
-    useState<InvoiceItem[]>([
-      createEmptyItem(),
-    ]);
+  const [
+    items,
+    setItems,
+  ] = useState<InvoiceItem[]>([
+    createEmptyItem(),
+  ]);
 
   // =====================================================
   // TOTALS
@@ -147,8 +482,10 @@ export default function InvoiceForm({
     setDiscount,
   ] = useState(0);
 
-  const [gst, setGst] =
-    useState(18);
+  const [
+    gst,
+    setGst,
+  ] = useState(18);
 
   const [
     grandTotal,
@@ -172,8 +509,10 @@ export default function InvoiceForm({
     setRemarks,
   ] = useState("");
 
-  const [loading, setLoading] =
-    useState(false);
+  const [
+    loading,
+    setLoading,
+  ] = useState(false);
 
   // =====================================================
   // LOAD EDIT / RESET
@@ -182,15 +521,10 @@ export default function InvoiceForm({
   useEffect(() => {
     if (!invoice) {
       setInvoiceNo("");
-
       setCustomerName("");
-
       setMobile("");
-
       setEmail("");
-
       setRepairId("");
-
       setCreatedAt(
         getToday()
       );
@@ -200,19 +534,13 @@ export default function InvoiceForm({
       ]);
 
       setSubTotal(0);
-
       setDiscount(0);
-
       setGst(18);
-
       setGrandTotal(0);
-
       setPaymentMethod(
         "Cash"
       );
-
       setRemarks("");
-
       setExistingCustomer(
         false
       );
@@ -254,12 +582,14 @@ export default function InvoiceForm({
         ? invoice.items.map(
             (item) => {
               const qty =
-                Number(item.qty) ||
-                0;
+                Number(
+                  item.qty
+                ) || 0;
 
               const price =
-                Number(item.price) ||
-                0;
+                Number(
+                  item.price
+                ) || 0;
 
               return {
                 ...item,
@@ -291,8 +621,9 @@ export default function InvoiceForm({
     );
 
     setGst(
-      Number(invoice.gst) ||
-        0
+      Number(
+        invoice.gst
+      ) || 0
     );
 
     setGrandTotal(
@@ -543,20 +874,22 @@ export default function InvoiceForm({
   function removeItem(
     id: string
   ) {
-    setItems((previous) => {
-      if (
-        previous.length === 1
-      ) {
-        return [
-          createEmptyItem(),
-        ];
-      }
+    setItems(
+      (previous) => {
+        if (
+          previous.length === 1
+        ) {
+          return [
+            createEmptyItem(),
+          ];
+        }
 
-      return previous.filter(
-        (item) =>
-          item.id !== id
-      );
-    });
+        return previous.filter(
+          (item) =>
+            item.id !== id
+        );
+      }
+    );
   }
 
   function updateItem(
@@ -699,7 +1032,7 @@ export default function InvoiceForm({
         : normalizedMobile;
 
     // ==========================================
-    // Render Invoice
+    // RENDER INVOICE
     // ==========================================
 
     setPdfInvoice(
@@ -711,7 +1044,9 @@ export default function InvoiceForm({
         requestAnimationFrame(
           () => {
             requestAnimationFrame(
-              () => resolve()
+              () => {
+                resolve();
+              }
             );
           }
         );
@@ -730,132 +1065,50 @@ export default function InvoiceForm({
     }
 
     // ==========================================
-    // HTML → PNG
+    // CREATE COMPRESSED PDF
     // ==========================================
 
-    const imageData =
-      await toPng(
-        invoiceElement,
-        {
-          cacheBust: true,
-
-          pixelRatio: 2,
-
-          backgroundColor:
-            "#ffffff",
-        }
-      );
-
-    // ==========================================
-    // PNG → PDF
-    // ==========================================
-
-    const pdf =
-      new jsPDF({
-        orientation:
-          "portrait",
-
-        unit: "mm",
-
-        format: "a4",
-      });
-
-    const pageWidth =
-      pdf.internal.pageSize.getWidth();
-
-    const pageHeight =
-      pdf.internal.pageSize.getHeight();
-
-    const image =
-      new Image();
-
-    image.src =
-      imageData;
-
-    await new Promise<void>(
-      (resolve, reject) => {
-        image.onload = () =>
-          resolve();
-
-        image.onerror = () =>
-          reject(
-            new Error(
-              "Failed to load invoice image."
-            )
-          );
-      }
-    );
-
-    const pdfImageHeight =
-      (
-        image.height *
-        pageWidth
-      ) /
-      image.width;
-
-    let position = 0;
-
-    let remainingHeight =
-      pdfImageHeight;
-
-    while (
-      remainingHeight > 0
-    ) {
-      pdf.addImage(
-        imageData,
-
-        "PNG",
-
-        0,
-
-        position,
-
-        pageWidth,
-
-        pdfImageHeight
-      );
-
-      remainingHeight -=
-        pageHeight;
-
-      if (
-        remainingHeight > 0
-      ) {
-        pdf.addPage();
-
-        position -=
-          pageHeight;
-      }
-    }
-
-    // ==========================================
-    // PDF BASE64
-    // ==========================================
-
-    const dataUri =
-      pdf.output(
-        "datauristring"
+    const compressedPdf =
+      await createCompressedPdf(
+        invoiceElement
       );
 
     const pdfBase64 =
-      dataUri.split(",")[1];
+      compressedPdf.pdfBase64;
 
-    if (!pdfBase64) {
-      throw new Error(
-        "Failed to generate invoice PDF."
-      );
-    }
+    const pdfBytes =
+      compressedPdf.bytes;
+
+    console.log(
+      "FINAL INVOICE PDF SIZE:",
+      {
+        bytes: pdfBytes,
+
+        MB: (
+          pdfBytes /
+          1024 /
+          1024
+        ).toFixed(2),
+
+        formatted:
+          formatBytes(
+            pdfBytes
+          ),
+      }
+    );
 
     // ==========================================
-    // Filename
+    // FILENAME
     // ==========================================
 
     const safeInvoiceNo =
-      invoiceData.invoiceNo
-        .replace(
-          /[^a-zA-Z0-9-_]/g,
-          "_"
-        );
+      invoiceData.invoiceNo.replace(
+        /[^a-zA-Z0-9-_]/g,
+        "_"
+      );
+
+    const filename =
+      `Lappy-Care-${safeInvoiceNo}.pdf`;
 
     // ==========================================
     // SEND PDF
@@ -877,8 +1130,7 @@ export default function InvoiceForm({
 
             pdfBase64,
 
-            filename:
-              `Lappy-Care-${safeInvoiceNo}.pdf`,
+            filename,
 
             caption:
               `Hello ${
@@ -922,7 +1174,10 @@ export default function InvoiceForm({
 
     return {
       sent: true,
+
       error: "",
+
+      pdfBytes,
     };
   }
 
@@ -1094,8 +1349,6 @@ export default function InvoiceForm({
 
       // ==========================================
       // CREATE
-      //
-      // Number is allocated INSIDE addInvoice()
       // ==========================================
 
       const created =
@@ -1194,6 +1447,9 @@ export default function InvoiceForm({
       let whatsappError =
         "";
 
+      let generatedPdfBytes =
+        0;
+
       try {
         const result =
           await generateAndSendInvoiceWhatsApp(
@@ -1202,6 +1458,9 @@ export default function InvoiceForm({
 
         whatsappSent =
           result.sent;
+
+        generatedPdfBytes =
+          result.pdfBytes;
       } catch (error) {
         console.error(
           "Invoice PDF WhatsApp Error:",
@@ -1220,7 +1479,9 @@ export default function InvoiceForm({
 
       if (whatsappSent) {
         alert(
-          `✅ Invoice ${created.invoiceNo} created successfully.\n\n📄 Invoice PDF sent successfully on WhatsApp.`
+          `✅ Invoice ${created.invoiceNo} created successfully.\n\n📄 PDF sent successfully on WhatsApp.\n\n📦 PDF Size: ${formatBytes(
+            generatedPdfBytes
+          )}`
         );
       } else {
         alert(
@@ -1229,7 +1490,7 @@ export default function InvoiceForm({
       }
 
       // ==========================================
-      // CLOSE
+      // CLOSE PDF RENDERER
       // ==========================================
 
       setPdfInvoice(null);

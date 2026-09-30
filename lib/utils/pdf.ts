@@ -9,14 +9,78 @@ export type GeneratePdfOptions = {
 };
 
 // =====================================================
-// CONSTANTS
+// PDF SETTINGS
 // =====================================================
 
-const PDF_PIXEL_RATIO = 1.2;
-const PDF_JPEG_QUALITY = 0.65;
+const PDF_PIXEL_RATIO = 1.0;
+const PDF_JPEG_QUALITY = 0.55;
 
 // =====================================================
-// HTML ELEMENT → JPEG DATA URL
+// HELPERS
+// =====================================================
+
+function getBase64Bytes(
+  base64: string
+): number {
+  const cleanBase64 =
+    base64.replace(
+      /\s/g,
+      ""
+    );
+
+  const padding =
+    cleanBase64.endsWith("==")
+      ? 2
+      : cleanBase64.endsWith("=")
+      ? 1
+      : 0;
+
+  return Math.max(
+    0,
+    Math.floor(
+      (cleanBase64.length * 3) /
+        4
+    ) - padding
+  );
+}
+
+function formatMB(
+  bytes: number
+): string {
+  return (
+    bytes /
+    (1024 * 1024)
+  ).toFixed(2);
+}
+
+function waitForImage(
+  src: string
+): Promise<HTMLImageElement> {
+  return new Promise(
+    (
+      resolve,
+      reject
+    ) => {
+      const image =
+        new Image();
+
+      image.onload = () =>
+        resolve(image);
+
+      image.onerror = () =>
+        reject(
+          new Error(
+            "Failed to load generated image."
+          )
+        );
+
+      image.src = src;
+    }
+  );
+}
+
+// =====================================================
+// HTML → JPEG
 // =====================================================
 
 async function generateJpegDataUrl(
@@ -28,28 +92,36 @@ async function generateJpegDataUrl(
     );
   }
 
-  return await toJpeg(element, {
-    cacheBust: true,
+  return await toJpeg(
+    element,
+    {
+      cacheBust: true,
 
-    pixelRatio:
-      PDF_PIXEL_RATIO,
+      backgroundColor:
+        "#ffffff",
 
-    backgroundColor:
-      "#ffffff",
+      pixelRatio:
+        PDF_PIXEL_RATIO,
 
-    quality:
-      PDF_JPEG_QUALITY,
+      quality:
+        PDF_JPEG_QUALITY,
 
-    skipFonts: false,
-  });
+      width:
+        element.scrollWidth,
+
+      height:
+        element.scrollHeight,
+
+      style: {
+        margin: "0",
+      },
+    }
+  );
 }
 
 // =====================================================
-// HTML ELEMENT → PDF
+// NORMAL PDF DOWNLOAD
 // =====================================================
-//
-// Used for normal "Download / Print PDF"
-//
 
 export async function generatePDF({
   element,
@@ -67,16 +139,24 @@ export async function generatePDF({
         element
       );
 
+    const image =
+      await waitForImage(
+        dataUrl
+      );
+
     const pdf =
       new jsPDF({
         orientation:
           "portrait",
 
-        unit: "mm",
+        unit:
+          "mm",
 
-        format: "a4",
+        format:
+          "a4",
 
-        compress: true,
+        compress:
+          true,
       });
 
     const pageWidth =
@@ -85,53 +165,26 @@ export async function generatePDF({
     const pageHeight =
       pdf.internal.pageSize.getHeight();
 
-    const img =
-      new Image();
-
-    img.src =
-      dataUrl;
-
-    await new Promise<void>(
-      (
-        resolve,
-        reject
-      ) => {
-        img.onload = () =>
-          resolve();
-
-        img.onerror = () =>
-          reject(
-            new Error(
-              "Failed to load generated PDF image."
-            )
-          );
-      }
-    );
-
-    const imgWidth =
+    const imageWidth =
       pageWidth;
 
-    const imgHeight =
-      (img.height *
-        imgWidth) /
-      img.width;
+    const imageHeight =
+      (image.height *
+        imageWidth) /
+      image.width;
 
     let heightLeft =
-      imgHeight;
+      imageHeight;
 
     let position = 0;
-
-    // =================================================
-    // FIRST PAGE
-    // =================================================
 
     pdf.addImage(
       dataUrl,
       "JPEG",
       0,
       position,
-      imgWidth,
-      imgHeight,
+      imageWidth,
+      imageHeight,
       undefined,
       "FAST"
     );
@@ -139,16 +192,12 @@ export async function generatePDF({
     heightLeft -=
       pageHeight;
 
-    // =================================================
-    // ADDITIONAL PAGES
-    // =================================================
-
     while (
       heightLeft > 0
     ) {
       position =
         heightLeft -
-        imgHeight;
+        imageHeight;
 
       pdf.addPage();
 
@@ -157,8 +206,8 @@ export async function generatePDF({
         "JPEG",
         0,
         position,
-        imgWidth,
-        imgHeight,
+        imageWidth,
+        imageHeight,
         undefined,
         "FAST"
       );
@@ -167,14 +216,9 @@ export async function generatePDF({
         pageHeight;
     }
 
-    // =================================================
-    // SAVE
-    // =================================================
-
     pdf.save(
       `${fileName}.pdf`
     );
-
   } catch (error) {
     console.error(
       "PDF Generation Error:",
@@ -186,19 +230,15 @@ export async function generatePDF({
 }
 
 // =====================================================
-// HTML ELEMENT → PDF BASE64
-// =====================================================
+// HTML → PDF BASE64
 //
-// Used by WhatsApp invoice API.
+// Used by WhatsApp invoice.
 //
 // IMPORTANT:
-// This function accepts ONLY ONE argument:
-//
+// This function accepts ONLY:
 // generateInvoicePdfBase64(element)
 //
-// It returns a pure Base64 PDF string.
-// No data: prefix.
-//
+// Returns pure Base64.
 // =====================================================
 
 export async function generateInvoicePdfBase64(
@@ -211,29 +251,124 @@ export async function generateInvoicePdfBase64(
   }
 
   try {
-    // ================================================
-    // HTML → COMPRESSED JPEG
-    // ================================================
+    // =================================================
+    // GENERATE JPEG
+    // =================================================
+
+    console.log(
+      "========================================"
+    );
+
+    console.log(
+      "INVOICE PDF DIAGNOSTIC"
+    );
+
+    console.log(
+      "Generating JPEG..."
+    );
 
     const dataUrl =
       await generateJpegDataUrl(
         element
       );
 
-    // ================================================
-    // CREATE COMPRESSED PDF
-    // ================================================
+    if (!dataUrl) {
+      throw new Error(
+        "Invoice JPEG generation failed."
+      );
+    }
+
+    // =================================================
+    // JPEG BASE64 SIZE
+    // =================================================
+
+    const jpegBase64 =
+      dataUrl.split(",")[1] ||
+      "";
+
+    const jpegBytes =
+      getBase64Bytes(
+        jpegBase64
+      );
+
+    console.log(
+      "JPEG DATA"
+    );
+
+    console.log(
+      JSON.stringify(
+        {
+          jpegBytes,
+          jpegMB:
+            formatMB(
+              jpegBytes
+            ),
+          elementWidth:
+            element.scrollWidth,
+          elementHeight:
+            element.scrollHeight,
+          pixelRatio:
+            PDF_PIXEL_RATIO,
+          quality:
+            PDF_JPEG_QUALITY,
+        },
+        null,
+        2
+      )
+    );
+
+    // =================================================
+    // LOAD JPEG
+    // =================================================
+
+    const image =
+      await waitForImage(
+        dataUrl
+      );
+
+    if (
+      !image.width ||
+      !image.height
+    ) {
+      throw new Error(
+        "Invoice image dimensions are invalid."
+      );
+    }
+
+    console.log(
+      "JPEG DIMENSIONS"
+    );
+
+    console.log(
+      JSON.stringify(
+        {
+          width:
+            image.width,
+          height:
+            image.height,
+        },
+        null,
+        2
+      )
+    );
+
+    // =================================================
+    // CREATE PDF
+    // =================================================
 
     const pdf =
       new jsPDF({
         orientation:
           "portrait",
 
-        unit: "mm",
+        unit:
+          "mm",
 
-        format: "a4",
+        format:
+          "a4",
 
-        compress: true,
+        compress:
+          true,
       });
 
     const pageWidth =
@@ -242,61 +377,32 @@ export async function generateInvoicePdfBase64(
     const pageHeight =
       pdf.internal.pageSize.getHeight();
 
-    // ================================================
-    // LOAD IMAGE
-    // ================================================
-
-    const img =
-      new Image();
-
-    img.src =
-      dataUrl;
-
-    await new Promise<void>(
-      (
-        resolve,
-        reject
-      ) => {
-        img.onload = () =>
-          resolve();
-
-        img.onerror = () =>
-          reject(
-            new Error(
-              "Failed to load invoice image."
-            )
-          );
-      }
-    );
-
-    // ================================================
-    // IMAGE DIMENSIONS
-    // ================================================
-
-    const imgWidth =
+    const imageWidth =
       pageWidth;
 
-    const imgHeight =
-      (img.height *
-        imgWidth) /
-      img.width;
+    const imageHeight =
+      (image.height *
+        imageWidth) /
+      image.width;
 
     let heightLeft =
-      imgHeight;
+      imageHeight;
 
     let position = 0;
 
-    // ================================================
+    let pageCount = 1;
+
+    // =================================================
     // FIRST PAGE
-    // ================================================
+    // =================================================
 
     pdf.addImage(
       dataUrl,
       "JPEG",
       0,
       position,
-      imgWidth,
-      imgHeight,
+      imageWidth,
+      imageHeight,
       undefined,
       "FAST"
     );
@@ -304,26 +410,28 @@ export async function generateInvoicePdfBase64(
     heightLeft -=
       pageHeight;
 
-    // ================================================
+    // =================================================
     // ADDITIONAL PAGES
-    // ================================================
+    // =================================================
 
     while (
       heightLeft > 0
     ) {
       position =
         heightLeft -
-        imgHeight;
+        imageHeight;
 
       pdf.addPage();
+
+      pageCount += 1;
 
       pdf.addImage(
         dataUrl,
         "JPEG",
         0,
         position,
-        imgWidth,
-        imgHeight,
+        imageWidth,
+        imageHeight,
         undefined,
         "FAST"
       );
@@ -332,41 +440,81 @@ export async function generateInvoicePdfBase64(
         pageHeight;
     }
 
-    // ================================================
-    // GET PDF AS DATA URI STRING
-    // ================================================
+    // =================================================
+    // PDF DATA URI
+    // =================================================
 
     const pdfDataUri =
       pdf.output(
         "datauristring"
       );
 
-    if (
-      !pdfDataUri
-    ) {
+    if (!pdfDataUri) {
       throw new Error(
         "PDF generation returned empty data."
       );
     }
 
-    // ================================================
-    // REMOVE DATA URI PREFIX
-    // ================================================
+    // =================================================
+    // EXTRACT BASE64
+    // =================================================
+
+    const commaIndex =
+      pdfDataUri.indexOf(",");
+
+    if (
+      commaIndex === -1
+    ) {
+      throw new Error(
+        "Invalid PDF data URI."
+      );
+    }
 
     const base64 =
-      pdfDataUri.replace(
-        /^data:application\/pdf;filename=[^;]+;base64,/i,
-        ""
-      ).replace(
-        /^data:application\/pdf;base64,/i,
-        ""
-      ).trim();
+      pdfDataUri
+        .slice(
+          commaIndex + 1
+        )
+        .trim();
 
     if (!base64) {
       throw new Error(
         "PDF Base64 generation failed."
       );
     }
+
+    // =================================================
+    // PDF SIZE
+    // =================================================
+
+    const pdfBytes =
+      getBase64Bytes(
+        base64
+      );
+
+    console.log(
+      "PDF DATA"
+    );
+
+    console.log(
+      JSON.stringify(
+        {
+          pdfBytes,
+          pdfMB:
+            formatMB(
+              pdfBytes
+            ),
+          pages:
+            pageCount,
+        },
+        null,
+        2
+      )
+    );
+
+    console.log(
+      "========================================"
+    );
 
     return base64;
 
