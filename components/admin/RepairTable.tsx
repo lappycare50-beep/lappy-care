@@ -21,7 +21,9 @@ import {
 
 import {
   deleteRepair,
-  getRepairs,
+  getMoreRepairs,
+  getRepairsPage,
+  searchRepairs,
   updateRepair,
 } from "@/services/repairService";
 
@@ -36,6 +38,15 @@ import type {
   Invoice,
   InvoiceItem,
 } from "@/types/invoice";
+
+import type {
+  DocumentData,
+  QueryDocumentSnapshot,
+} from "firebase/firestore";
+
+// ==========================================
+// Props
+// ==========================================
 
 type Props = {
   search: string;
@@ -64,6 +75,12 @@ const STATUS_OPTIONS: RepairStatus[] = [
 
 const GOOGLE_REVIEW_URL =
   "https://g.page/r/CRCGvIT5hA6VEAE/review";
+
+// ==========================================
+// Page Size
+// ==========================================
+
+const PAGE_SIZE = 20;
 
 // ==========================================
 // Status Color
@@ -107,10 +124,6 @@ function getStatusColor(
 
 // ==========================================
 // Extract Numeric Repair ID
-//
-// Example:
-// WKD-LC000041 -> 41
-// WKD-LC000040 -> 40
 // ==========================================
 
 function extractRepairNumber(
@@ -162,9 +175,7 @@ Greetings from Lappy Care.
 We have received your device for service.
 
 🔹 Repair ID: ${repairId}
-🔹 Device: ${
-        deviceName || "Laptop"
-      }
+🔹 Device: ${deviceName || "Laptop"}
 
 📍 Current Update:
 Your device has been received successfully and is now in our service process.
@@ -187,9 +198,7 @@ Greetings from Lappy Care.
 This is an update regarding your device repair.
 
 🔹 Repair ID: ${repairId}
-🔹 Device: ${
-        deviceName || "Laptop"
-      }
+🔹 Device: ${deviceName || "Laptop"}
 
 📍 Current Update:
 Your device is currently being inspected by our technician.
@@ -212,9 +221,7 @@ Greetings from Lappy Care.
 This is an update regarding your device repair.
 
 🔹 Repair ID: ${repairId}
-🔹 Device: ${
-        deviceName || "Laptop"
-      }
+🔹 Device: ${deviceName || "Laptop"}
 
 📍 Current Update:
 The diagnosis of your device has been completed and your approval is required before we proceed.
@@ -237,9 +244,7 @@ Greetings from Lappy Care.
 This is an update regarding your device repair.
 
 🔹 Repair ID: ${repairId}
-🔹 Device: ${
-        deviceName || "Laptop"
-      }
+🔹 Device: ${deviceName || "Laptop"}
 
 📍 Current Update:
 Your device is currently awaiting the required replacement part.
@@ -264,9 +269,7 @@ Greetings from Lappy Care.
 This is an update regarding your device repair.
 
 🔹 Repair ID: ${repairId}
-🔹 Device: ${
-        deviceName || "Laptop"
-      }
+🔹 Device: ${deviceName || "Laptop"}
 
 📍 Current Update:
 Repair work on your device is currently in progress.
@@ -289,9 +292,7 @@ Greetings from Lappy Care.
 Good news! The repair work on your device has been completed and it is now undergoing final testing.
 
 🔹 Repair ID: ${repairId}
-🔹 Device: ${
-        deviceName || "Laptop"
-      }
+🔹 Device: ${deviceName || "Laptop"}
 
 📍 Current Update:
 Our team is checking the device to ensure everything is functioning properly before handover.
@@ -312,9 +313,7 @@ Greetings from Lappy Care.
 Good news! Your device repair has been completed successfully.
 
 🔹 Repair ID: ${repairId}
-🔹 Device: ${
-        deviceName || "Laptop"
-      }
+🔹 Device: ${deviceName || "Laptop"}
 
 ✅ Current Update:
 Your device is ready for pickup.
@@ -337,9 +336,7 @@ Greetings from Lappy Care.
 Your device has been successfully delivered.
 
 🔹 Repair ID: ${repairId}
-🔹 Device: ${
-        deviceName || "Laptop"
-      }
+🔹 Device: ${deviceName || "Laptop"}
 
 ✅ Current Update:
 Repair completed and device delivered successfully.
@@ -367,9 +364,7 @@ Greetings from Lappy Care.
 This is an update regarding your device repair.
 
 🔹 Repair ID: ${repairId}
-🔹 Device: ${
-        deviceName || "Laptop"
-      }
+🔹 Device: ${deviceName || "Laptop"}
 
 📍 Current Update:
 Your repair request has been cancelled.
@@ -390,9 +385,7 @@ Greetings from Lappy Care.
 This is an update regarding your device repair.
 
 🔹 Repair ID: ${repairId}
-🔹 Device: ${
-        deviceName || "Laptop"
-      }
+🔹 Device: ${deviceName || "Laptop"}
 
 📍 Current Update:
 Your device status has been updated to ${newStatus}.
@@ -491,8 +484,6 @@ async function sendStatusWhatsApp(
 
 // ==========================================
 // Manual Repair Received WhatsApp
-//
-// Tracking is ONLY included here.
 // ==========================================
 
 async function sendManualReceivedWhatsApp(
@@ -545,9 +536,7 @@ We have received your laptop for repair.
 
 🔹 Repair ID: ${repairId}
 🔹 Tracking ID: ${repairId}
-🔹 Device: ${
-    deviceName || "Laptop"
-  }
+🔹 Device: ${deviceName || "Laptop"}
 
 📌 Status: Repair Received
 
@@ -629,6 +618,33 @@ export default function RepairTable({
   const [loading, setLoading] =
     useState(true);
 
+  const [loadingMore, setLoadingMore] =
+    useState(false);
+
+  const [hasMore, setHasMore] =
+    useState(false);
+
+  const [
+    lastDoc,
+    setLastDoc,
+  ] =
+    useState<QueryDocumentSnapshot<DocumentData> | null>(
+      null
+    );
+
+  const [
+    searchResults,
+    setSearchResults,
+  ] =
+    useState<Repair[] | null>(
+      null
+    );
+
+  const [
+    searchLoading,
+    setSearchLoading,
+  ] = useState(false);
+
   const [
     updatingRepairId,
     setUpdatingRepairId,
@@ -660,17 +676,31 @@ export default function RepairTable({
   );
 
   // ==========================================
-  // Load Repairs
+  // Load First 20
   // ==========================================
 
   async function loadRepairs() {
     try {
       setLoading(true);
 
-      const data =
-        await getRepairs();
+      setSearchResults(null);
 
-      setRepairs(data);
+      const page =
+        await getRepairsPage(
+          PAGE_SIZE
+        );
+
+      setRepairs(
+        page.repairs
+      );
+
+      setLastDoc(
+        page.lastDoc
+      );
+
+      setHasMore(
+        page.hasMore
+      );
     } catch (error) {
       console.error(
         "Load Repairs Error:",
@@ -685,52 +715,142 @@ export default function RepairTable({
     }
   }
 
+  // ==========================================
+  // Initial Load
+  // ==========================================
+
   useEffect(() => {
     void loadRepairs();
   }, []);
 
   // ==========================================
-  // Search + Latest Repair First
+  // Search
+  // ==========================================
+
+  useEffect(() => {
+    const keyword =
+      search
+        .trim()
+        .toLowerCase();
+
+    if (!keyword) {
+      setSearchResults(null);
+      setSearchLoading(false);
+      return;
+    }
+
+    let cancelled = false;
+
+    const timer =
+      window.setTimeout(
+        async () => {
+          try {
+            setSearchLoading(
+              true
+            );
+
+            const results =
+              await searchRepairs(
+                keyword
+              );
+
+            if (!cancelled) {
+              setSearchResults(
+                results
+              );
+            }
+          } catch (error) {
+            console.error(
+              "Search Repairs Error:",
+              error
+            );
+
+            if (!cancelled) {
+              setSearchResults(
+                []
+              );
+            }
+          } finally {
+            if (!cancelled) {
+              setSearchLoading(
+                false
+              );
+            }
+          }
+        },
+        350
+      );
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(
+        timer
+      );
+    };
+  }, [search]);
+
+  // ==========================================
+  // Load More
+  // ==========================================
+
+  async function handleLoadMore() {
+    if (
+      loadingMore ||
+      !hasMore ||
+      !lastDoc
+    ) {
+      return;
+    }
+
+    try {
+      setLoadingMore(true);
+
+      const page =
+        await getMoreRepairs(
+          lastDoc,
+          PAGE_SIZE
+        );
+
+      setRepairs(
+        (current) => [
+          ...current,
+          ...page.repairs,
+        ]
+      );
+
+      setLastDoc(
+        page.lastDoc
+      );
+
+      setHasMore(
+        page.hasMore
+      );
+    } catch (error) {
+      console.error(
+        "Load More Repairs Error:",
+        error
+      );
+
+      alert(
+        "Failed to load more repairs."
+      );
+    } finally {
+      setLoadingMore(false);
+    }
+  }
+
+  // ==========================================
+  // Display Repairs
   // ==========================================
 
   const filteredRepairs =
     useMemo(() => {
-      const keyword =
-        search
-          .trim()
-          .toLowerCase();
+      const source =
+        search.trim()
+          ? searchResults ?? []
+          : repairs;
 
-      const filtered =
-        !keyword
-          ? [...repairs]
-          : repairs.filter(
-              (repair) =>
-                (repair.repairId ?? "")
-                  .toLowerCase()
-                  .includes(keyword) ||
-
-                (repair.customer?.name ?? "")
-                  .toLowerCase()
-                  .includes(keyword) ||
-
-                (repair.customer?.mobile ?? "")
-                  .toLowerCase()
-                  .includes(keyword) ||
-
-                (repair.device?.brand ?? "")
-                  .toLowerCase()
-                  .includes(keyword) ||
-
-                (repair.device?.model ?? "")
-                  .toLowerCase()
-                  .includes(keyword) ||
-
-                (repair.problem?.complaint ?? "")
-                  .toLowerCase()
-                  .includes(keyword)
-            );
-
-      return filtered.sort(
+      return [...source].sort(
         (a, b) =>
           extractRepairNumber(
             b.repairId
@@ -739,7 +859,11 @@ export default function RepairTable({
             a.repairId
           )
       );
-    }, [repairs, search]);
+    }, [
+      repairs,
+      searchResults,
+      search,
+    ]);
 
   // ==========================================
   // New Invoice
@@ -757,82 +881,87 @@ export default function RepairTable({
 
     const repairAmount =
       Number(
-        repair.estimate?.totalAmount || 0
+        repair.estimate
+          ?.totalAmount || 0
       );
 
-    const invoiceItem: InvoiceItem = {
-      id: crypto.randomUUID(),
+    const invoiceItem: InvoiceItem =
+      {
+        id: crypto.randomUUID(),
 
-      name:
-        `Laptop Repair Service${
-          deviceName
-            ? ` - ${deviceName}`
-            : ""
-        }`,
+        name:
+          `Laptop Repair Service${
+            deviceName
+              ? ` - ${deviceName}`
+              : ""
+          }`,
 
-      qty: 1,
+        qty: 1,
 
-      price:
-        repairAmount,
+        price:
+          repairAmount,
 
-      total:
-        repairAmount,
-    };
+        total:
+          repairAmount,
+      };
 
-    const prefilledInvoice: Invoice = {
-      invoiceNo: "",
+    const prefilledInvoice: Invoice =
+      {
+        invoiceNo: "",
 
-      customerId:
-        repair.customer?.customerId ||
-        "",
+        customerId:
+          repair.customer?.customerId ||
+          "",
 
-      customerName:
-        repair.customer?.name ||
-        "",
+        customerName:
+          repair.customer?.name ||
+          "",
 
-      mobile:
-        repair.customer?.mobile ||
-        "",
+        mobile:
+          repair.customer?.mobile ||
+          "",
 
-      email:
-        repair.customer?.email ||
-        "",
+        email:
+          repair.customer?.email ||
+          "",
 
-      repairId:
-        repair.repairId ||
-        "",
+        repairId:
+          repair.repairId ||
+          "",
 
-      items: [
-        invoiceItem,
-      ],
+        items: [
+          invoiceItem,
+        ],
 
-      subTotal:
-        repairAmount,
+        subTotal:
+          repairAmount,
 
-      discount: 0,
+        discount: 0,
 
-      gst: 18,
+        gst: 18,
 
-      grandTotal:
-        Math.round(
-          repairAmount * 1.18
-        ),
+        grandTotal:
+          Math.round(
+            repairAmount * 1.18
+          ),
 
-      paymentMethod:
-        "Cash",
+        paymentMethod:
+          "Cash",
 
-      createdAt:
-        new Date().toISOString(),
+        createdAt:
+          new Date().toISOString(),
 
-      remarks:
-        `Generated from Repair ${repair.repairId}`,
-    };
+        remarks:
+          `Generated from Repair ${repair.repairId}`,
+      };
 
     setInvoiceForRepair(
       prefilledInvoice
     );
 
-    setInvoiceModalOpen(true);
+    setInvoiceModalOpen(
+      true
+    );
   }
 
   // ==========================================
@@ -865,15 +994,16 @@ export default function RepairTable({
         repair.id
       );
 
-      const updatedRepair: Repair = {
-        ...repair,
+      const updatedRepair: Repair =
+        {
+          ...repair,
 
-        status:
-          newStatus,
+          status:
+            newStatus,
 
-        updatedAt:
-          new Date().toISOString(),
-      };
+          updatedAt:
+            new Date().toISOString(),
+        };
 
       await updateRepair(
         repair.id,
@@ -881,11 +1011,26 @@ export default function RepairTable({
       );
 
       setRepairs((current) =>
-        current.map((item) =>
-          item.id === repair.id
-            ? updatedRepair
-            : item
+        current.map(
+          (item) =>
+            item.id ===
+            repair.id
+              ? updatedRepair
+              : item
         )
+      );
+
+      setSearchResults(
+        (current) =>
+          current
+            ? current.map(
+                (item) =>
+                  item.id ===
+                  repair.id
+                    ? updatedRepair
+                    : item
+              )
+            : current
       );
 
       let whatsappSent =
@@ -908,15 +1053,21 @@ export default function RepairTable({
         );
       }
 
-      await loadRepairs();
-
       if (whatsappSent) {
         alert(
-          `Repair status updated successfully.\n\n${oldStatus} → ${newStatus}\n\nWhatsApp status message sent successfully.`
+          `Repair status updated successfully.
+
+${oldStatus} → ${newStatus}
+
+WhatsApp status message sent successfully.`
         );
       } else {
         alert(
-          `Repair status updated successfully.\n\n${oldStatus} → ${newStatus}\n\nWhatsApp status message could not be sent.`
+          `Repair status updated successfully.
+
+${oldStatus} → ${newStatus}
+
+WhatsApp status message could not be sent.`
         );
       }
     } catch (error) {
@@ -938,7 +1089,7 @@ export default function RepairTable({
   }
 
   // ==========================================
-  // Manual Repair Received WhatsApp
+  // Manual WhatsApp
   // ==========================================
 
   async function handleManualWhatsApp(
@@ -1014,11 +1165,29 @@ export default function RepairTable({
         repair.id
       );
 
+      setRepairs(
+        (current) =>
+          current.filter(
+            (item) =>
+              item.id !==
+              repair.id
+          )
+      );
+
+      setSearchResults(
+        (current) =>
+          current
+            ? current.filter(
+                (item) =>
+                  item.id !==
+                  repair.id
+              )
+            : current
+      );
+
       alert(
         "Repair Deleted Successfully."
       );
-
-      await loadRepairs();
     } catch (error) {
       console.error(
         "Delete Repair Error:",
@@ -1039,16 +1208,32 @@ export default function RepairTable({
     <>
       <div className="overflow-hidden rounded-2xl border border-yellow-500/20 bg-[#181818]">
 
+        {/* Loading */}
+
         {loading && (
           <div className="flex items-center justify-center p-12">
             <div className="text-lg text-white">
-              Loading Repairs...
+              Loading Latest Repairs...
             </div>
           </div>
         )}
 
+        {/* Search Loading */}
+
         {!loading &&
-          filteredRepairs.length === 0 && (
+          search.trim() &&
+          searchLoading && (
+            <div className="border-b border-gray-800 px-6 py-3 text-sm text-yellow-400">
+              Searching repairs...
+            </div>
+          )}
+
+        {/* Empty */}
+
+        {!loading &&
+          !searchLoading &&
+          filteredRepairs.length ===
+            0 && (
             <div className="flex flex-col items-center justify-center p-12">
 
               <Search
@@ -1061,393 +1246,538 @@ export default function RepairTable({
               </h3>
 
               <p className="mt-2 text-gray-400">
-                Try another search keyword.
+                {search.trim()
+                  ? "Try another search keyword."
+                  : "No repair records available."}
               </p>
 
             </div>
           )}
 
+        {/* Table */}
+
         {!loading &&
-          filteredRepairs.length > 0 && (
-            <div className="overflow-x-auto">
+          !searchLoading &&
+          filteredRepairs.length >
+            0 && (
+            <>
+              <div className="overflow-x-auto">
 
-              <table className="min-w-full">
+                <table className="min-w-full">
 
-                <thead className="bg-black">
+                  <thead className="bg-black">
 
-                  <tr>
+                    <tr>
 
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-yellow-400">
-                      Repair ID
-                    </th>
+                      <th className="px-6 py-4 text-left text-sm font-semibold text-yellow-400">
+                        Repair ID
+                      </th>
 
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-yellow-400">
-                      Customer
-                    </th>
+                      <th className="px-6 py-4 text-left text-sm font-semibold text-yellow-400">
+                        Customer
+                      </th>
 
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-yellow-400">
-                      Device
-                    </th>
+                      <th className="px-6 py-4 text-left text-sm font-semibold text-yellow-400">
+                        Device
+                      </th>
 
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-yellow-400">
-                      Complaint
-                    </th>
+                      <th className="px-6 py-4 text-left text-sm font-semibold text-yellow-400">
+                        Complaint
+                      </th>
 
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-yellow-400">
-                      Technician
-                    </th>
+                      <th className="px-6 py-4 text-left text-sm font-semibold text-yellow-400">
+                        Technician
+                      </th>
 
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-yellow-400">
-                      Amount
-                    </th>
+                      <th className="px-6 py-4 text-left text-sm font-semibold text-yellow-400">
+                        Amount
+                      </th>
 
-                    <th className="px-6 py-4 text-left text-sm font-semibold text-yellow-400">
-                      Status
-                    </th>
+                      <th className="px-6 py-4 text-left text-sm font-semibold text-yellow-400">
+                        Status
+                      </th>
 
-                    <th className="px-6 py-4 text-center text-sm font-semibold text-yellow-400">
-                      Actions
-                    </th>
+                      <th className="px-6 py-4 text-center text-sm font-semibold text-yellow-400">
+                        Actions
+                      </th>
 
-                  </tr>
+                    </tr>
 
-                </thead>
+                  </thead>
 
-                <tbody>
+                  <tbody>
 
-                  {filteredRepairs.map(
-                    (repair) => {
+                    {filteredRepairs.map(
+                      (repair) => {
 
-                      const isUpdating =
-                        updatingRepairId ===
-                        repair.id;
+                        const isUpdating =
+                          updatingRepairId ===
+                          repair.id;
 
-                      const isSendingWhatsApp =
-                        whatsappRepairId ===
-                        repair.id;
+                        const isSendingWhatsApp =
+                          whatsappRepairId ===
+                          repair.id;
 
-                      const customerId =
-  repair.customer?.customerId || "";
+                        const customerId =
+                          repair.customer
+                            ?.customerId ||
+                          "";
 
-                      return (
-                        <tr
-                          key={repair.id}
-                          className="border-t border-gray-800 transition hover:bg-[#202020]"
-                        >
+                        return (
+                          <tr
+                            key={
+                              repair.id
+                            }
+                            className="border-t border-gray-800 transition hover:bg-[#202020]"
+                          >
 
-                          {/* Repair ID */}
+                            {/* Repair ID */}
 
-                          <td className="px-6 py-4">
-                            <div className="font-semibold text-yellow-400">
-                              {repair.repairId}
-                            </div>
+                            <td className="px-6 py-4">
 
-                            <div className="mt-1 text-xs text-gray-500">
-                              {repair.createdAt}
-                            </div>
-                          </td>
-
-                          {/* Customer */}
-
-                          <td className="px-6 py-4">
-
-                            {customerId ? (
-                              <Link
-                                href={`/admin/customers/${customerId}`}
-                                title="Open Customer Profile"
-                                className="group flex items-center gap-2"
-                              >
-                                <UserRound
-                                  size={15}
-                                  className="shrink-0 text-zinc-500 transition group-hover:text-yellow-400"
-                                />
-
-                                <span className="font-semibold text-white transition group-hover:text-yellow-400 group-hover:underline">
-                                  {repair.customer?.name ||
-                                    "-"}
-                                </span>
-                              </Link>
-                            ) : (
-                              <div className="font-semibold text-white">
-                                {repair.customer?.name ||
-                                  "-"}
+                              <div className="font-semibold text-yellow-400">
+                                {
+                                  repair.repairId
+                                }
                               </div>
-                            )}
 
-                            {repair.customer?.mobile ? (
-                              <a
-                                href={`tel:${repair.customer.mobile}`}
-                                title={`Call ${repair.customer.name || "Customer"}`}
-                                className="mt-1 flex items-center gap-2 text-sm text-gray-400 transition hover:text-green-400 hover:underline"
-                              >
-                                <Phone
-                                  size={13}
-                                  className="shrink-0"
-                                />
+                              <div className="mt-1 text-xs text-gray-500">
+                                {
+                                  repair.createdAt
+                                }
+                              </div>
 
-                                <span>
+                            </td>
+
+                            {/* Customer */}
+
+                            <td className="px-6 py-4">
+
+                              {customerId ? (
+                                <Link
+                                  href={`/admin/customers/${customerId}`}
+                                  title="Open Customer Profile"
+                                  className="group flex items-center gap-2"
+                                >
+
+                                  <UserRound
+                                    size={15}
+                                    className="shrink-0 text-zinc-500 transition group-hover:text-yellow-400"
+                                  />
+
+                                  <span className="font-semibold text-white transition group-hover:text-yellow-400 group-hover:underline">
+                                    {
+                                      repair
+                                        .customer
+                                        ?.name ||
+                                      "-"
+                                    }
+                                  </span>
+
+                                </Link>
+                              ) : (
+                                <div className="font-semibold text-white">
                                   {
                                     repair
                                       .customer
-                                      .mobile
+                                      ?.name ||
+                                    "-"
                                   }
-                                </span>
-                              </a>
-                            ) : (
-                              <div className="mt-1 text-sm text-gray-500">
-                                No mobile
-                              </div>
-                            )}
-
-                          </td>
-
-                          {/* Device */}
-
-                          <td className="px-6 py-4">
-                            <div className="font-semibold text-white">
-                              {repair.device?.brand ||
-                                "-"}
-                            </div>
-
-                            <div className="mt-1 text-sm text-gray-400">
-                              {repair.device?.model ||
-                                "-"}
-                            </div>
-
-                            <div className="text-xs text-gray-500">
-                              {repair.device?.type ||
-                                "-"}
-                            </div>
-                          </td>
-
-                          {/* Complaint */}
-
-                          <td className="max-w-[260px] px-6 py-4">
-                            <div
-                              className="max-w-[260px] truncate font-medium text-white"
-                              title={
-                                repair.problem
-                                  ?.complaint ||
-                                "No complaint"
-                              }
-                            >
-                              {repair.problem
-                                ?.complaint ||
-                                "No complaint"}
-                            </div>
-                          </td>
-
-                          {/* Technician */}
-
-                          <td className="px-6 py-4">
-                            <div className="text-white">
-                              {repair.estimate
-                                ?.technician ||
-                                "-"}
-                            </div>
-
-                            <div className="mt-1 text-xs text-gray-500">
-                              {repair.estimate
-                                ?.priority ||
-                                ""}
-                            </div>
-                          </td>
-
-                          {/* Amount */}
-
-                          <td className="px-6 py-4">
-                            <div className="font-bold text-green-400">
-                              ₹
-                              {Number(
-                                repair.estimate
-                                  ?.totalAmount ||
-                                  0
-                              ).toLocaleString(
-                                "en-IN"
+                                </div>
                               )}
-                            </div>
 
-                            <div className="mt-1 text-xs text-gray-500">
-                              Advance: ₹
-                              {Number(
-                                repair.estimate
-                                  ?.advancePaid ||
-                                  0
-                              ).toLocaleString(
-                                "en-IN"
-                              )}
-                            </div>
-                          </td>
-
-                          {/* Status */}
-
-                          <td className="px-6 py-4">
-
-                            <select
-                              value={
-                                repair.status
-                              }
-                              disabled={
-                                isUpdating
-                              }
-                              onChange={(e) =>
-                                void handleStatusChange(
-                                  repair,
-                                  e.target.value as RepairStatus
-                                )
-                              }
-                              title="Change repair status"
-                              className={`
-                                cursor-pointer
-                                rounded-full
-                                border-0
-                                px-3
-                                py-1.5
-                                text-sm
-                                font-semibold
-                                outline-none
-                                transition
-                                hover:brightness-110
-                                disabled:cursor-wait
-                                disabled:opacity-60
-                                ${getStatusColor(
-                                  repair.status
-                                )}
-                              `}
-                            >
-                              {STATUS_OPTIONS.map(
-                                (option) => (
-                                  <option
-                                    key={option}
-                                    value={option}
-                                    className="bg-[#181818] text-white"
-                                  >
-                                    {option}
-                                  </option>
-                                )
-                              )}
-                            </select>
-
-                            {isUpdating && (
-                              <div className="mt-1 text-xs text-gray-500">
-                                Updating...
-                              </div>
-                            )}
-
-                          </td>
-
-                          {/* Actions */}
-
-                          <td className="px-6 py-4">
-
-                            <div className="flex items-center justify-center gap-2">
-
-                              {/* View */}
-
-                              <Link
-                                href={`/admin/repairs/${repair.id}/job-card`}
-                                title="Job Card Preview"
-                                className="rounded-lg bg-blue-600 p-2 text-white transition hover:bg-blue-500"
-                              >
-                                <Eye
-                                  size={18}
-                                />
-                              </Link>
-
-                              {/* Edit */}
-
-                              <button
-                                type="button"
-                                title="Edit Repair"
-                                onClick={() =>
-                                  onEdit(
+                              {repair.customer
+                                ?.mobile ? (
+                                <a
+                                  href={`tel:${repair.customer.mobile}`}
+                                  title={`Call ${
                                     repair
-                                  )
+                                      .customer
+                                      .name ||
+                                    "Customer"
+                                  }`}
+                                  className="mt-1 flex items-center gap-2 text-sm text-gray-400 transition hover:text-green-400 hover:underline"
+                                >
+
+                                  <Phone
+                                    size={13}
+                                    className="shrink-0"
+                                  />
+
+                                  <span>
+                                    {
+                                      repair
+                                        .customer
+                                        .mobile
+                                    }
+                                  </span>
+
+                                </a>
+                              ) : (
+                                <div className="mt-1 text-sm text-gray-500">
+                                  No mobile
+                                </div>
+                              )}
+
+                            </td>
+
+                            {/* Device */}
+
+                            <td className="px-6 py-4">
+
+                              <div className="font-semibold text-white">
+                                {
+                                  repair
+                                    .device
+                                    ?.brand ||
+                                  "-"
                                 }
-                                className="rounded-lg bg-yellow-500 p-2 text-black transition hover:bg-yellow-400"
-                              >
-                                <Pencil
-                                  size={18}
-                                />
-                              </button>
+                              </div>
 
-                              {/* WhatsApp */}
+                              <div className="mt-1 text-sm text-gray-400">
+                                {
+                                  repair
+                                    .device
+                                    ?.model ||
+                                  "-"
+                                }
+                              </div>
 
-                              <button
-                                type="button"
+                              <div className="text-xs text-gray-500">
+                                {
+                                  repair
+                                    .device
+                                    ?.type ||
+                                  "-"
+                                }
+                              </div>
+
+                            </td>
+
+                            {/* Complaint */}
+
+                            <td className="max-w-[260px] px-6 py-4">
+
+                              <div
+                                className="max-w-[260px] truncate font-medium text-white"
                                 title={
-                                  isSendingWhatsApp
-                                    ? "Sending WhatsApp..."
-                                    : "Send Repair Received WhatsApp"
+                                  repair
+                                    .problem
+                                    ?.complaint ||
+                                  "No complaint"
+                                }
+                              >
+                                {
+                                  repair
+                                    .problem
+                                    ?.complaint ||
+                                  "No complaint"
+                                }
+                              </div>
+
+                            </td>
+
+                            {/* Technician */}
+
+                            <td className="px-6 py-4">
+
+                              <div className="text-white">
+                                {
+                                  repair
+                                    .estimate
+                                    ?.technician ||
+                                  "-"
+                                }
+                              </div>
+
+                              <div className="mt-1 text-xs text-gray-500">
+                                {
+                                  repair
+                                    .estimate
+                                    ?.priority ||
+                                  ""
+                                }
+                              </div>
+
+                            </td>
+
+                            {/* Amount */}
+
+                            <td className="px-6 py-4">
+
+                              <div className="font-bold text-green-400">
+                                ₹
+                                {Number(
+                                  repair
+                                    .estimate
+                                    ?.totalAmount ||
+                                    0
+                                ).toLocaleString(
+                                  "en-IN"
+                                )}
+                              </div>
+
+                              <div className="mt-1 text-xs text-gray-500">
+                                Advance: ₹
+                                {Number(
+                                  repair
+                                    .estimate
+                                    ?.advancePaid ||
+                                    0
+                                ).toLocaleString(
+                                  "en-IN"
+                                )}
+                              </div>
+
+                            </td>
+
+                            {/* Status */}
+
+                            <td className="px-6 py-4">
+
+                              <select
+                                value={
+                                  repair.status
                                 }
                                 disabled={
-                                  isSendingWhatsApp
+                                  isUpdating
                                 }
-                                onClick={() =>
-                                  void handleManualWhatsApp(
-                                    repair
+                                onChange={(
+                                  e
+                                ) =>
+                                  void handleStatusChange(
+                                    repair,
+                                    e.target
+                                      .value as RepairStatus
                                   )
                                 }
-                                className="rounded-lg bg-green-600 p-2 text-white transition hover:bg-green-500 disabled:cursor-wait disabled:opacity-50"
+                                title="Change repair status"
+                                className={`
+                                  cursor-pointer
+                                  rounded-full
+                                  border-0
+                                  px-3
+                                  py-1.5
+                                  text-sm
+                                  font-semibold
+                                  outline-none
+                                  transition
+                                  hover:brightness-110
+                                  disabled:cursor-wait
+                                  disabled:opacity-60
+                                  ${getStatusColor(
+                                    repair.status
+                                  )}
+                                `}
                               >
-                                <MessageCircle
-                                  size={18}
-                                  className={
-                                    isSendingWhatsApp
-                                      ? "animate-pulse"
-                                      : ""
+
+                                {STATUS_OPTIONS.map(
+                                  (
+                                    option
+                                  ) => (
+                                    <option
+                                      key={
+                                        option
+                                      }
+                                      value={
+                                        option
+                                      }
+                                      className="bg-[#181818] text-white"
+                                    >
+                                      {
+                                        option
+                                      }
+                                    </option>
+                                  )
+                                )}
+
+                              </select>
+
+                              {isUpdating && (
+                                <div className="mt-1 text-xs text-gray-500">
+                                  Updating...
+                                </div>
+                              )}
+
+                            </td>
+
+                            {/* Actions */}
+
+                            <td className="px-6 py-4">
+
+                              <div className="flex items-center justify-center gap-2">
+
+                                {/* View */}
+
+                                <Link
+                                  href={`/admin/repairs/${repair.id}/job-card`}
+                                  title="Job Card Preview"
+                                  className="rounded-lg bg-blue-600 p-2 text-white transition hover:bg-blue-500"
+                                >
+                                  <Eye
+                                    size={
+                                      18
+                                    }
+                                  />
+                                </Link>
+
+                                {/* Edit */}
+
+                                <button
+                                  type="button"
+                                  title="Edit Repair"
+                                  onClick={() =>
+                                    onEdit(
+                                      repair
+                                    )
                                   }
-                                />
-                              </button>
+                                  className="rounded-lg bg-yellow-500 p-2 text-black transition hover:bg-yellow-400"
+                                >
+                                  <Pencil
+                                    size={
+                                      18
+                                    }
+                                  />
+                                </button>
 
-                              {/* New Invoice */}
+                                {/* WhatsApp */}
 
-                              <button
-                                type="button"
-                                title="Create New Invoice"
-                                onClick={() =>
-                                  handleNewInvoice(
-                                    repair
-                                  )
-                                }
-                                className="rounded-lg bg-emerald-600 p-2 text-white transition hover:bg-emerald-500"
-                              >
-                                <FilePlus2
-                                  size={18}
-                                />
-                              </button>
+                                <button
+                                  type="button"
+                                  title={
+                                    isSendingWhatsApp
+                                      ? "Sending WhatsApp..."
+                                      : "Send Repair Received WhatsApp"
+                                  }
+                                  disabled={
+                                    isSendingWhatsApp
+                                  }
+                                  onClick={() =>
+                                    void handleManualWhatsApp(
+                                      repair
+                                    )
+                                  }
+                                  className="rounded-lg bg-green-600 p-2 text-white transition hover:bg-green-500 disabled:cursor-wait disabled:opacity-50"
+                                >
+                                  <MessageCircle
+                                    size={
+                                      18
+                                    }
+                                    className={
+                                      isSendingWhatsApp
+                                        ? "animate-pulse"
+                                        : ""
+                                    }
+                                  />
+                                </button>
 
-                              {/* Delete */}
+                                {/* Invoice */}
 
-                              <button
-                                type="button"
-                                title="Delete Repair"
-                                onClick={() =>
-                                  void handleDelete(
-                                    repair
-                                  )
-                                }
-                                className="rounded-lg bg-red-600 p-2 text-white transition hover:bg-red-500"
-                              >
-                                <Trash2
-                                  size={18}
-                                />
-                              </button>
+                                <button
+                                  type="button"
+                                  title="Create New Invoice"
+                                  onClick={() =>
+                                    handleNewInvoice(
+                                      repair
+                                    )
+                                  }
+                                  className="rounded-lg bg-emerald-600 p-2 text-white transition hover:bg-emerald-500"
+                                >
+                                  <FilePlus2
+                                    size={
+                                      18
+                                    }
+                                  />
+                                </button>
 
-                            </div>
+                                {/* Delete */}
 
-                          </td>
+                                <button
+                                  type="button"
+                                  title="Delete Repair"
+                                  onClick={() =>
+                                    void handleDelete(
+                                      repair
+                                    )
+                                  }
+                                  className="rounded-lg bg-red-600 p-2 text-white transition hover:bg-red-500"
+                                >
+                                  <Trash2
+                                    size={
+                                      18
+                                    }
+                                  />
+                                </button>
 
-                        </tr>
-                      );
+                              </div>
+
+                            </td>
+
+                          </tr>
+                        );
+                      }
+                    )}
+
+                  </tbody>
+
+                </table>
+
+              </div>
+
+              {/* Load More */}
+
+              {!search.trim() &&
+                hasMore && (
+                  <div className="flex items-center justify-center border-t border-gray-800 p-5">
+
+                    <button
+                      type="button"
+                      onClick={() =>
+                        void handleLoadMore()
+                      }
+                      disabled={
+                        loadingMore
+                      }
+                      className="rounded-xl bg-yellow-500 px-8 py-3 font-semibold text-black transition hover:bg-yellow-400 disabled:cursor-wait disabled:opacity-60"
+                    >
+                      {loadingMore
+                        ? "Loading..."
+                        : "Load More Repairs"}
+                    </button>
+
+                  </div>
+                )}
+
+              {/* Loaded Count */}
+
+              {!search.trim() && (
+                <div className="border-t border-gray-800 px-6 py-3 text-center text-sm text-gray-500">
+                  Showing{" "}
+                  <span className="font-semibold text-gray-300">
+                    {repairs.length}
+                  </span>{" "}
+                  latest repairs
+                  {hasMore
+                    ? " • More repairs available"
+                    : " • All repairs loaded"}
+                </div>
+              )}
+
+              {/* Search Result Count */}
+
+              {search.trim() && (
+                <div className="border-t border-gray-800 px-6 py-3 text-center text-sm text-gray-500">
+                  Found{" "}
+                  <span className="font-semibold text-gray-300">
+                    {
+                      filteredRepairs.length
                     }
-                  )}
+                  </span>{" "}
+                  matching repairs
+                </div>
+              )}
 
-                </tbody>
-
-              </table>
-
-            </div>
+            </>
           )}
 
       </div>

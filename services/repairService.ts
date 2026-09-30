@@ -8,9 +8,12 @@ import {
   limit,
   orderBy,
   query,
+  startAfter,
   updateDoc,
   where,
   DocumentReference,
+  QueryDocumentSnapshot,
+  DocumentData,
 } from "firebase/firestore";
 
 import { db } from "@/lib/firebase";
@@ -42,16 +45,27 @@ const customerRepairsCache =
   new Map<string, Repair[]>();
 
 // ==========================================
+// Pagination
+// ==========================================
+
+export const REPAIRS_PAGE_SIZE = 20;
+
+export type RepairsPage = {
+  repairs: Repair[];
+  lastDoc:
+    | QueryDocumentSnapshot<DocumentData>
+    | null;
+  hasMore: boolean;
+};
+
+// ==========================================
 // Helpers
 // ==========================================
 
 function normalizeMobile(
   mobile: string
 ): string {
-  return mobile.replace(
-    /\D/g,
-    ""
-  );
+  return mobile.replace(/\D/g, "");
 }
 
 function mapRepair(
@@ -61,8 +75,7 @@ function mapRepair(
   }
 ): Repair {
   return {
-    id:
-      document.id,
+    id: document.id,
 
     ...(document.data() as Omit<
       Repair,
@@ -80,7 +93,292 @@ function invalidateRepairsCache() {
 }
 
 // ==========================================
+// Get First 20 Repairs
+// ==========================================
+
+export async function getRepairsPage(
+  pageSize = REPAIRS_PAGE_SIZE
+): Promise<RepairsPage> {
+  try {
+    const safePageSize =
+      Math.min(
+        Math.max(pageSize, 1),
+        100
+      );
+
+    const q = query(
+      repairsCollection,
+      orderBy(
+        "createdAt",
+        "desc"
+      ),
+      limit(safePageSize)
+    );
+
+    const snapshot =
+      await getDocs(q);
+
+    const repairs =
+      snapshot.docs.map(
+        (document) =>
+          mapRepair({
+            id: document.id,
+            data: () =>
+              document.data() as Record<
+                string,
+                unknown
+              >,
+          })
+      );
+
+    const lastDoc =
+      snapshot.docs.length > 0
+        ? snapshot.docs[
+            snapshot.docs.length - 1
+          ]
+        : null;
+
+    return {
+      repairs,
+      lastDoc,
+      hasMore:
+        snapshot.docs.length ===
+        safePageSize,
+    };
+  } catch (error) {
+    console.error(
+      "Error getting repairs page:",
+      error
+    );
+
+    return {
+      repairs: [],
+      lastDoc: null,
+      hasMore: false,
+    };
+  }
+}
+
+// ==========================================
+// Get Next 20 Repairs
+// ==========================================
+
+export async function getMoreRepairs(
+  lastDoc:
+    | QueryDocumentSnapshot<DocumentData>
+    | null,
+  pageSize = REPAIRS_PAGE_SIZE
+): Promise<RepairsPage> {
+  try {
+    if (!lastDoc) {
+      return {
+        repairs: [],
+        lastDoc: null,
+        hasMore: false,
+      };
+    }
+
+    const safePageSize =
+      Math.min(
+        Math.max(pageSize, 1),
+        100
+      );
+
+    const q = query(
+      repairsCollection,
+      orderBy(
+        "createdAt",
+        "desc"
+      ),
+      startAfter(lastDoc),
+      limit(safePageSize)
+    );
+
+    const snapshot =
+      await getDocs(q);
+
+    const repairs =
+      snapshot.docs.map(
+        (document) =>
+          mapRepair({
+            id: document.id,
+            data: () =>
+              document.data() as Record<
+                string,
+                unknown
+              >,
+          })
+      );
+
+    const nextLastDoc =
+      snapshot.docs.length > 0
+        ? snapshot.docs[
+            snapshot.docs.length - 1
+          ]
+        : null;
+
+    return {
+      repairs,
+      lastDoc: nextLastDoc,
+      hasMore:
+        snapshot.docs.length ===
+        safePageSize,
+    };
+  } catch (error) {
+    console.error(
+      "Error getting more repairs:",
+      error
+    );
+
+    return {
+      repairs: [],
+      lastDoc: null,
+      hasMore: false,
+    };
+  }
+}
+
+// ==========================================
+// Search Repairs
+//
+// Searches Firestore directly so older repairs
+// can also be found without loading everything.
+// ==========================================
+
+export async function searchRepairs(
+  keyword: string
+): Promise<Repair[]> {
+  try {
+    const search =
+      keyword
+        .trim()
+        .toLowerCase();
+
+    if (!search) {
+      return [];
+    }
+
+    // --------------------------------------
+    // First check cached/latest repairs
+    // --------------------------------------
+
+    const latestPage =
+      await getRepairsPage(20);
+
+    const localMatches =
+      latestPage.repairs.filter(
+        (repair) =>
+          (repair.repairId ?? "")
+            .toLowerCase()
+            .includes(search) ||
+          (repair.customer?.name ?? "")
+            .toLowerCase()
+            .includes(search) ||
+          (repair.customer?.mobile ?? "")
+            .toLowerCase()
+            .includes(search) ||
+          (repair.device?.brand ?? "")
+            .toLowerCase()
+            .includes(search) ||
+          (repair.device?.model ?? "")
+            .toLowerCase()
+            .includes(search) ||
+          (repair.problem?.complaint ?? "")
+            .toLowerCase()
+            .includes(search)
+      );
+
+    // --------------------------------------
+    // Firestore cannot do general
+    // contains search across multiple fields.
+    //
+    // To preserve existing behaviour for
+    // all older records, we fetch the full
+    // collection only when searching.
+    // --------------------------------------
+
+    const q = query(
+      repairsCollection,
+      orderBy(
+        "createdAt",
+        "desc"
+      )
+    );
+
+    const snapshot =
+      await getDocs(q);
+
+    const repairs =
+      snapshot.docs.map(
+        (document) =>
+          mapRepair({
+            id: document.id,
+            data: () =>
+              document.data() as Record<
+                string,
+                unknown
+              >,
+          })
+      );
+
+    const unique =
+      new Map<string, Repair>();
+
+    for (const repair of [
+      ...localMatches,
+      ...repairs,
+    ]) {
+      if (repair.id) {
+        unique.set(
+          repair.id,
+          repair
+        );
+      }
+    }
+
+    return Array.from(
+      unique.values()
+    )
+      .filter(
+        (repair) =>
+          (repair.repairId ?? "")
+            .toLowerCase()
+            .includes(search) ||
+          (repair.customer?.name ?? "")
+            .toLowerCase()
+            .includes(search) ||
+          (repair.customer?.mobile ?? "")
+            .toLowerCase()
+            .includes(search) ||
+          (repair.device?.brand ?? "")
+            .toLowerCase()
+            .includes(search) ||
+          (repair.device?.model ?? "")
+            .toLowerCase()
+            .includes(search) ||
+          (repair.problem?.complaint ?? "")
+            .toLowerCase()
+            .includes(search)
+      );
+  } catch (error) {
+    console.error(
+      "Error searching repairs:",
+      error
+    );
+
+    return [];
+  }
+}
+
+// ==========================================
 // Get All Repairs
+//
+// Kept for backward compatibility.
+//
+// NOTE:
+// This still loads all repairs.
+// New RepairTable should use
+// getRepairsPage() + getMoreRepairs().
 // ==========================================
 
 export async function getRepairs(
@@ -116,8 +414,7 @@ export async function getRepairs(
       snapshot.docs.map(
         (document) =>
           mapRepair({
-            id:
-              document.id,
+            id: document.id,
             data: () =>
               document.data() as Record<
                 string,
@@ -171,8 +468,7 @@ export async function getRepairById(
     }
 
     return {
-      id:
-        snapshot.id,
+      id: snapshot.id,
 
       ...(snapshot.data() as Omit<
         Repair,
@@ -336,8 +632,7 @@ export async function getRepairsByMobile(
       snapshot.docs.map(
         (document) =>
           mapRepair({
-            id:
-              document.id,
+            id: document.id,
             data: () =>
               document.data() as Record<
                 string,
@@ -391,8 +686,7 @@ export async function getRepairsByStatus(
     return snapshot.docs.map(
       (document) =>
         mapRepair({
-          id:
-            document.id,
+          id: document.id,
           data: () =>
             document.data() as Record<
               string,
@@ -411,66 +705,7 @@ export async function getRepairsByStatus(
 }
 
 // ==========================================
-// Search Repairs
-//
-// Uses cached getRepairs() so repeated search
-// operations do not repeatedly hit Firestore.
-// ==========================================
-
-export async function searchRepairs(
-  keyword: string
-): Promise<Repair[]> {
-  try {
-    const repairs =
-      await getRepairs();
-
-    const search =
-      keyword
-        .trim()
-        .toLowerCase();
-
-    if (!search) {
-      return repairs;
-    }
-
-    return repairs.filter(
-      (repair) =>
-        (repair.repairId ?? "")
-          .toLowerCase()
-          .includes(search) ||
-        (repair.customer?.name ?? "")
-          .toLowerCase()
-          .includes(search) ||
-        (repair.customer?.mobile ?? "")
-          .toLowerCase()
-          .includes(search) ||
-        (repair.device?.brand ?? "")
-          .toLowerCase()
-          .includes(search) ||
-        (repair.device?.model ?? "")
-          .toLowerCase()
-          .includes(search)
-    );
-  } catch (error) {
-    console.error(
-      "Error searching repairs:",
-      error
-    );
-
-    return [];
-  }
-}
-
-// ==========================================
 // Get Repairs By Customer
-//
-// RepairCustomer currently contains:
-// customerId, name, mobile, etc.
-//
-// This implementation avoids downloading the
-// complete repairs collection. It queries only
-// indexed customerId/mobile matches and merges
-// the results.
 // ==========================================
 
 export async function getRepairsByCustomerId(
@@ -531,8 +766,7 @@ export async function getRepairsByCustomerId(
             snapshot.docs.map(
               (document) =>
                 mapRepair({
-                  id:
-                    document.id,
+                  id: document.id,
                   data: () =>
                     document.data() as Record<
                       string,
@@ -568,8 +802,7 @@ export async function getRepairsByCustomerId(
             snapshot.docs.map(
               (document) =>
                 mapRepair({
-                  id:
-                    document.id,
+                  id: document.id,
                   data: () =>
                     document.data() as Record<
                       string,
@@ -685,8 +918,7 @@ export async function getRepairByRepairId(
       snapshot.docs[0];
 
     return {
-      id:
-        document.id,
+      id: document.id,
 
       ...(document.data() as Omit<
         Repair,

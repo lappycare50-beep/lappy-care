@@ -9,9 +9,11 @@ import AddRepairModal from "@/components/admin/AddRepairModal";
 import { Repair } from "@/types/repair";
 
 export default function RepairsPage() {
-  const [search, setSearch] = useState("");
+  const [search, setSearch] =
+    useState("");
 
-  const [openModal, setOpenModal] = useState(false);
+  const [openModal, setOpenModal] =
+    useState(false);
 
   const [selectedRepair, setSelectedRepair] =
     useState<Repair | null>(null);
@@ -19,18 +21,18 @@ export default function RepairsPage() {
   const [refreshKey, setRefreshKey] =
     useState(0);
 
-  // ==============================
+  // ==========================================
   // New Repair
-  // ==============================
+  // ==========================================
 
   function handleAddRepair() {
     setSelectedRepair(null);
     setOpenModal(true);
   }
 
-  // ==============================
+  // ==========================================
   // Edit Repair
-  // ==============================
+  // ==========================================
 
   function handleEditRepair(
     repair: Repair
@@ -39,21 +41,23 @@ export default function RepairsPage() {
     setOpenModal(true);
   }
 
-  // ==============================
+  // ==========================================
   // Close Modal
-  // ==============================
+  // ==========================================
 
   function handleClose() {
     setOpenModal(false);
     setSelectedRepair(null);
   }
 
-  // ==============================
+  // ==========================================
   // Refresh Table
-  // ==============================
+  // ==========================================
 
   function handleSuccess() {
-    setRefreshKey((prev) => prev + 1);
+    setRefreshKey(
+      (prev) => prev + 1
+    );
   }
 
   return (
@@ -78,7 +82,9 @@ export default function RepairsPage() {
           </div>
 
           <button
-            onClick={handleAddRepair}
+            onClick={
+              handleAddRepair
+            }
             className="rounded-xl bg-yellow-500 px-6 py-3 font-semibold text-black hover:bg-yellow-400"
           >
             + New Repair
@@ -93,7 +99,9 @@ export default function RepairsPage() {
           placeholder="Search Repair..."
           value={search}
           onChange={(e) =>
-            setSearch(e.target.value)
+            setSearch(
+              e.target.value
+            )
           }
           className="w-full rounded-xl border border-gray-700 bg-[#181818] px-5 py-3 text-white outline-none focus:border-yellow-500"
         />
@@ -103,7 +111,9 @@ export default function RepairsPage() {
         <RepairTable
           key={refreshKey}
           search={search}
-          onEdit={handleEditRepair}
+          onEdit={
+            handleEditRepair
+          }
         />
 
       </div>
@@ -113,8 +123,12 @@ export default function RepairsPage() {
       <AddRepairModal
         open={openModal}
         onClose={handleClose}
-        repair={selectedRepair}
-        onSuccess={handleSuccess}
+        repair={
+          selectedRepair
+        }
+        onSuccess={
+          handleSuccess
+        }
       />
 
     </AdminLayout>
