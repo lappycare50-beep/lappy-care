@@ -17,9 +17,14 @@ import {
 } from "lucide-react";
 
 import AdminLayout from "@/components/admin/AdminLayout";
-import { useAuth } from "@/context/AuthContext";
 
-import type { UserRole } from "@/types/user";
+import {
+  useAuth,
+} from "@/context/AuthContext";
+
+import type {
+  UserRole,
+} from "@/types/user";
 
 // =====================================================
 // TYPES
@@ -33,6 +38,7 @@ type StaffUser = {
   active: boolean;
   firebaseDisabled?: boolean;
   createdAt?: string;
+  updatedAt?: string;
   lastSignIn?: string;
 };
 
@@ -104,43 +110,6 @@ export default function StaffPage() {
   ] = useState("");
 
   // =====================================================
-  // TOKEN DEBUG
-  //
-  // IMPORTANT:
-  // Actual token value is NEVER logged.
-  // =====================================================
-
-  function logTokenDebug(
-    token: string
-  ) {
-    const parts =
-      token.split(".");
-
-    console.table({
-      tokenType:
-        typeof token,
-
-      tokenLength:
-        token.length,
-
-      jwtParts:
-        parts.length,
-
-      startsLikeJwt:
-        token.startsWith("eyJ"),
-
-      part1Length:
-        parts[0]?.length || 0,
-
-      part2Length:
-        parts[1]?.length || 0,
-
-      part3Length:
-        parts[2]?.length || 0,
-    });
-  }
-
-  // =====================================================
   // GET FRESH TOKEN
   // =====================================================
 
@@ -151,16 +120,9 @@ export default function StaffPage() {
       );
     }
 
-    const token =
-      await user.getIdToken(
-        true
-      );
-
-    logTokenDebug(
-      token
+    return user.getIdToken(
+      true
     );
-
-    return token;
   }
 
   // =====================================================
@@ -168,6 +130,10 @@ export default function StaffPage() {
   // =====================================================
 
   async function loadStaff() {
+    if (!user) {
+      return;
+    }
+
     try {
       setLoading(true);
       setPageError("");
@@ -186,7 +152,8 @@ export default function StaffPage() {
                 `Bearer ${token}`,
             },
 
-            cache: "no-store",
+            cache:
+              "no-store",
           }
         );
 
@@ -277,9 +244,7 @@ export default function StaffPage() {
     setPageError("");
     setSuccess("");
 
-    setModalOpen(
-      true
-    );
+    setModalOpen(true);
   }
 
   // =====================================================
@@ -291,9 +256,7 @@ export default function StaffPage() {
       return;
     }
 
-    setModalOpen(
-      false
-    );
+    setModalOpen(false);
 
     resetForm();
   }
@@ -373,19 +336,21 @@ export default function StaffPage() {
                 "application/json",
             },
 
-            cache: "no-store",
+            cache:
+              "no-store",
 
-            body: JSON.stringify({
-              name:
-                cleanName,
+            body:
+              JSON.stringify({
+                name:
+                  cleanName,
 
-              email:
-                cleanEmail,
+                email:
+                  cleanEmail,
 
-              password,
+                password,
 
-              role,
-            }),
+                role,
+              }),
           }
         );
 
@@ -420,9 +385,7 @@ export default function StaffPage() {
         );
       }
 
-      setModalOpen(
-        false
-      );
+      setModalOpen(false);
 
       resetForm();
 
@@ -457,22 +420,17 @@ export default function StaffPage() {
     <AdminLayout>
       <div className="space-y-6 p-4 sm:p-6 lg:p-8">
 
-        {/* =================================================
-            HEADER
-        ================================================= */}
+        {/* HEADER */}
 
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
 
           <div className="flex items-center gap-3">
 
             <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-yellow-400 text-black">
-              <Users
-                size={24}
-              />
+              <Users size={24} />
             </div>
 
             <div>
-
               <h1 className="text-2xl font-bold text-white sm:text-3xl">
                 Staff Management
               </h1>
@@ -480,7 +438,6 @@ export default function StaffPage() {
               <p className="mt-1 text-sm text-gray-400">
                 Manage Admin, Manager and Technician accounts.
               </p>
-
             </div>
 
           </div>
@@ -492,21 +449,15 @@ export default function StaffPage() {
             }
             className="inline-flex items-center justify-center gap-2 rounded-xl bg-yellow-400 px-5 py-3 text-sm font-bold text-black transition hover:bg-yellow-300"
           >
-            <Plus
-              size={18}
-            />
-
+            <Plus size={18} />
             Add Staff
           </button>
 
         </div>
 
-        {/* =================================================
-            CURRENT ROLE
-        ================================================= */}
+        {/* CURRENT ROLE */}
 
         <div className="rounded-xl border border-gray-800 bg-[#181818] px-4 py-3 text-sm text-gray-400">
-
           Current role:
 
           <span className="ml-2 font-bold text-white">
@@ -516,12 +467,9 @@ export default function StaffPage() {
                 )
               : "Loading"}
           </span>
-
         </div>
 
-        {/* =================================================
-            SUCCESS
-        ================================================= */}
+        {/* SUCCESS */}
 
         {success && (
           <div className="rounded-xl border border-green-500/30 bg-green-500/10 px-4 py-3 text-sm text-green-300">
@@ -529,25 +477,26 @@ export default function StaffPage() {
           </div>
         )}
 
-        {/* =================================================
-            PAGE ERROR
-        ================================================= */}
+        {/* ERROR */}
 
         {pageError && (
           <div className="rounded-xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-sm text-red-300">
-            {pageError}
+            <div className="font-semibold">
+              Failed to load staff
+            </div>
+
+            <div className="mt-1 break-words">
+              {pageError}
+            </div>
           </div>
         )}
 
-        {/* =================================================
-            STAFF TABLE
-        ================================================= */}
+        {/* STAFF TABLE */}
 
         <section className="overflow-hidden rounded-2xl border border-gray-800 bg-[#181818]">
 
           {loading ? (
             <div className="flex min-h-[320px] items-center justify-center">
-
               <div className="flex items-center gap-3 text-gray-400">
 
                 <Loader2
@@ -558,7 +507,6 @@ export default function StaffPage() {
                 Loading Staff...
 
               </div>
-
             </div>
           ) : staff.length === 0 ? (
             <div className="flex min-h-[320px] flex-col items-center justify-center px-6 text-center">
@@ -583,10 +531,7 @@ export default function StaffPage() {
                 }
                 className="mt-5 inline-flex items-center gap-2 rounded-xl bg-yellow-400 px-5 py-3 text-sm font-bold text-black transition hover:bg-yellow-300"
               >
-                <Plus
-                  size={17}
-                />
-
+                <Plus size={17} />
                 Add Staff
               </button>
 
@@ -623,17 +568,13 @@ export default function StaffPage() {
                 <tbody>
 
                   {staff.map(
-                    (
-                      item
-                    ) => (
+                    (item) => (
                       <tr
-                        key={
-                          item.id
-                        }
+                        key={item.id}
                         className="border-t border-gray-800 transition hover:bg-white/[0.03]"
                       >
 
-                        {/* Staff */}
+                        {/* STAFF */}
 
                         <td className="px-5 py-4">
 
@@ -643,18 +584,12 @@ export default function StaffPage() {
 
                               {item.role ===
                               "technician" ? (
-                                <Wrench
-                                  size={18}
-                                />
+                                <Wrench size={18} />
                               ) : item.role ===
                                 "manager" ? (
-                                <UserRound
-                                  size={18}
-                                />
+                                <UserRound size={18} />
                               ) : (
-                                <ShieldCheck
-                                  size={18}
-                                />
+                                <ShieldCheck size={18} />
                               )}
 
                             </div>
@@ -662,15 +597,11 @@ export default function StaffPage() {
                             <div className="min-w-0">
 
                               <div className="truncate font-semibold text-white">
-                                {
-                                  item.name
-                                }
+                                {item.name}
                               </div>
 
                               <div className="mt-1 truncate text-xs text-gray-500">
-                                {
-                                  item.email
-                                }
+                                {item.email}
                               </div>
 
                             </div>
@@ -679,7 +610,7 @@ export default function StaffPage() {
 
                         </td>
 
-                        {/* Role */}
+                        {/* ROLE */}
 
                         <td className="px-5 py-4">
 
@@ -709,7 +640,7 @@ export default function StaffPage() {
 
                         </td>
 
-                        {/* Status */}
+                        {/* STATUS */}
 
                         <td className="px-5 py-4">
 
@@ -735,14 +666,12 @@ export default function StaffPage() {
 
                         </td>
 
-                        {/* Last Sign In */}
+                        {/* LAST SIGN IN */}
 
                         <td className="px-5 py-4 text-sm text-gray-500">
-
                           {formatDate(
                             item.lastSignIn
                           )}
-
                         </td>
 
                       </tr>
@@ -758,17 +687,13 @@ export default function StaffPage() {
 
         </section>
 
-        {/* =================================================
-            ROLE INFORMATION
-        ================================================= */}
+        {/* ROLE INFORMATION */}
 
         <section className="grid gap-4 md:grid-cols-3">
 
           <RoleInfo
             icon={
-              <ShieldCheck
-                size={20}
-              />
+              <ShieldCheck size={20} />
             }
             title="Admin"
             description="Full access to the ERP and configuration."
@@ -776,9 +701,7 @@ export default function StaffPage() {
 
           <RoleInfo
             icon={
-              <UserRound
-                size={20}
-              />
+              <UserRound size={20} />
             }
             title="Manager"
             description="Operations, customers, inventory, sales, invoices and reports."
@@ -786,9 +709,7 @@ export default function StaffPage() {
 
           <RoleInfo
             icon={
-              <Wrench
-                size={20}
-              />
+              <Wrench size={20} />
             }
             title="Technician"
             description="Repair jobs, job cards and technician-related work."
@@ -798,9 +719,7 @@ export default function StaffPage() {
 
       </div>
 
-      {/* ===================================================
-          CREATE MODAL
-      =================================================== */}
+      {/* CREATE MODAL */}
 
       {modalOpen && (
         <div
@@ -819,7 +738,7 @@ export default function StaffPage() {
 
           <div className="w-full max-w-lg rounded-3xl border border-yellow-500/20 bg-[#181818] p-6 shadow-2xl sm:p-8">
 
-            {/* Header */}
+            {/* MODAL HEADER */}
 
             <div className="flex items-start justify-between gap-4">
 
@@ -840,20 +759,16 @@ export default function StaffPage() {
                 onClick={
                   closeCreateModal
                 }
-                disabled={
-                  saving
-                }
+                disabled={saving}
                 className="flex h-9 w-9 items-center justify-center rounded-full bg-red-500/10 text-red-400 transition hover:bg-red-500/20 disabled:opacity-50"
                 aria-label="Close"
               >
-                <X
-                  size={18}
-                />
+                <X size={18} />
               </button>
 
             </div>
 
-            {/* Form */}
+            {/* FORM */}
 
             <form
               onSubmit={
@@ -864,12 +779,8 @@ export default function StaffPage() {
 
               <Field
                 label="Full Name"
-                value={
-                  name
-                }
-                onChange={
-                  setName
-                }
+                value={name}
+                onChange={setName}
                 placeholder="Rahul Patil"
                 required
               />
@@ -877,12 +788,8 @@ export default function StaffPage() {
               <Field
                 label="Email"
                 type="email"
-                value={
-                  email
-                }
-                onChange={
-                  setEmail
-                }
+                value={email}
+                onChange={setEmail}
                 placeholder="rahul@example.com"
                 required
               />
@@ -890,12 +797,8 @@ export default function StaffPage() {
               <Field
                 label="Temporary Password"
                 type="password"
-                value={
-                  password
-                }
-                onChange={
-                  setPassword
-                }
+                value={password}
+                onChange={setPassword}
                 placeholder="Minimum 6 characters"
                 required
               />
@@ -907,9 +810,7 @@ export default function StaffPage() {
                 </label>
 
                 <select
-                  value={
-                    role
-                  }
+                  value={role}
                   onChange={(
                     event
                   ) =>
@@ -949,9 +850,7 @@ export default function StaffPage() {
                   onClick={
                     closeCreateModal
                   }
-                  disabled={
-                    saving
-                  }
+                  disabled={saving}
                   className="rounded-xl border border-gray-700 px-5 py-3 text-sm font-semibold text-gray-300 transition hover:bg-black disabled:opacity-50"
                 >
                   Cancel
@@ -959,9 +858,7 @@ export default function StaffPage() {
 
                 <button
                   type="submit"
-                  disabled={
-                    saving
-                  }
+                  disabled={saving}
                   className="inline-flex items-center justify-center gap-2 rounded-xl bg-yellow-400 px-5 py-3 text-sm font-bold text-black transition hover:bg-yellow-300 disabled:cursor-wait disabled:opacity-60"
                 >
 
@@ -971,9 +868,7 @@ export default function StaffPage() {
                       className="animate-spin"
                     />
                   ) : (
-                    <Plus
-                      size={17}
-                    />
+                    <Plus size={17} />
                   )}
 
                   {saving
@@ -1019,6 +914,7 @@ function Field({
     <div>
 
       <label className="mb-2 block text-sm font-medium text-gray-300">
+
         {label}
 
         {required && (
@@ -1030,15 +926,9 @@ function Field({
       </label>
 
       <input
-        type={
-          type
-        }
-        value={
-          value
-        }
-        required={
-          required
-        }
+        type={type}
+        value={value}
+        required={required}
         onChange={(
           event
         ) =>

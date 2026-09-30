@@ -29,32 +29,14 @@ function normalizeRole(
   value: unknown
 ): UserRole {
   switch (value) {
+    case "admin":
+      return "admin";
+
     case "manager":
       return "manager";
 
     case "technician":
       return "technician";
-
-    case "admin":
-      return "admin";
-
-    default:
-      return "admin";
-  }
-}
-
-function normalizeStoredRole(
-  value: unknown
-): UserRole {
-  switch (value) {
-    case "manager":
-      return "manager";
-
-    case "technician":
-      return "technician";
-
-    case "admin":
-      return "admin";
 
     default:
       return "admin";
@@ -65,8 +47,7 @@ function normalizeEmail(
   value: unknown
 ): string {
   if (
-    typeof value !==
-    "string"
+    typeof value !== "string"
   ) {
     return "";
   }
@@ -80,8 +61,7 @@ function normalizeName(
   value: unknown
 ): string {
   if (
-    typeof value !==
-    "string"
+    typeof value !== "string"
   ) {
     return "";
   }
@@ -90,20 +70,108 @@ function normalizeName(
 }
 
 // =====================================================
-// GET USERS
-//
-// IMPORTANT:
-// We intentionally do NOT use:
-// auth.listUsers(1000)
-//
-// Staff profiles are loaded from Firestore.
-// This avoids Firebase Auth listUsers quota usage.
+// DATE
+// =====================================================
+
+function firebaseDateToISOString(
+  value: unknown
+): string {
+  if (!value) {
+    return "";
+  }
+
+  if (
+    typeof value === "string"
+  ) {
+    return value;
+  }
+
+  if (
+    value instanceof Date
+  ) {
+    return value.toISOString();
+  }
+
+  if (
+    typeof value === "object" &&
+    value !== null &&
+    "toDate" in value &&
+    typeof (
+      value as {
+        toDate?: unknown;
+      }
+    ).toDate === "function"
+  ) {
+    return (
+      value as {
+        toDate: () => Date;
+      }
+    )
+      .toDate()
+      .toISOString();
+  }
+
+  return "";
+}
+
+// =====================================================
+// ERROR STATUS
+// =====================================================
+
+function getErrorStatus(
+  error: unknown
+): number {
+  const message =
+    error instanceof Error
+      ? error.message
+      : "";
+
+  const lower =
+    message.toLowerCase();
+
+  if (
+    lower.includes(
+      "authentication"
+    ) ||
+    lower.includes(
+      "token"
+    ) ||
+    lower.includes(
+      "unauthorized"
+    )
+  ) {
+    return 401;
+  }
+
+  if (
+    lower.includes(
+      "permission"
+    ) ||
+    lower.includes(
+      "do not have permission"
+    ) ||
+    lower.includes(
+      "admin only"
+    )
+  ) {
+    return 403;
+  }
+
+  return 500;
+}
+
+// =====================================================
+// GET STAFF
 // =====================================================
 
 export async function GET(
   request: NextRequest
 ) {
   try {
+    // =================================================
+    // VERIFY ADMIN
+    // =================================================
+
     const {
       appUser,
     } =
@@ -113,81 +181,134 @@ export async function GET(
         )
       );
 
-    // Staff management is Admin only.
     requireAdmin(
       appUser
     );
 
+    // =================================================
+    // FIREBASE ADMIN
+    // =================================================
+
     const db =
       getAdminDb();
 
+    const auth =
+      getAdminAuth();
+
+    // =================================================
+    // FIRESTORE USERS
+    // =================================================
+
     const snapshot =
       await db
-        .collection(
-          "users"
-        )
+        .collection("users")
         .get();
 
-    const users =
-      snapshot.docs
-        .map(
-          (
-            document
-          ) => {
-            const data =
-              document.data();
+    // =================================================
+    // LOAD USERS
+    // =================================================
 
-            return {
-              id:
-                document.id,
+    const users = [];
 
-              email:
-                typeof data?.email ===
-                "string"
-                  ? data.email
-                  : "",
+    for (
+      const document of snapshot.docs
+    ) {
+      const data =
+        document.data();
 
-              name:
-                typeof data?.name ===
-                "string"
-                  ? data.name
-                  : "User",
-
-              role:
-                normalizeStoredRole(
-                  data?.role
-                ),
-
-              active:
-                data?.active !==
-                false,
-
-              createdAt:
-                typeof data?.createdAt ===
-                "string"
-                  ? data.createdAt
-                  : "",
-
-              updatedAt:
-                typeof data?.updatedAt ===
-                "string"
-                  ? data.updatedAt
-                  : "",
-            };
-          }
-        )
-        .sort(
-          (
-            a,
-            b
-          ) =>
-            a.name
-              .toLowerCase()
-              .localeCompare(
-                b.name
-                  .toLowerCase()
-              )
+      const role =
+        normalizeRole(
+          data.role
         );
+
+      // Staff management page only.
+      if (
+        ![
+          "admin",
+          "manager",
+          "technician",
+        ].includes(role)
+      ) {
+        continue;
+      }
+
+      let authUser:
+        | UserRecord
+        | null = null;
+
+      try {
+        authUser =
+          await auth.getUser(
+            document.id
+          );
+      } catch (authError) {
+        console.warn(
+          `Could not load Firebase Auth user ${document.id}:`,
+          authError
+        );
+      }
+
+      users.push({
+        id:
+          document.id,
+
+        email:
+          typeof data.email ===
+          "string"
+            ? data.email
+            : authUser?.email ||
+              "",
+
+        name:
+          typeof data.name ===
+          "string"
+            ? data.name
+            : authUser?.displayName ||
+              "User",
+
+        role,
+
+        active:
+          data.active !== false &&
+          authUser?.disabled !== true,
+
+        firebaseDisabled:
+          authUser?.disabled ??
+          false,
+
+        createdAt:
+          firebaseDateToISOString(
+            data.createdAt
+          ) ||
+          authUser?.metadata
+            ?.creationTime ||
+          "",
+
+        updatedAt:
+          firebaseDateToISOString(
+            data.updatedAt
+          ) ||
+          "",
+
+        lastSignIn:
+          authUser?.metadata
+            ?.lastSignInTime ||
+          "",
+      });
+    }
+
+    // =================================================
+    // SORT
+    // =================================================
+
+    users.sort(
+      (a, b) =>
+        a.name
+          .toLowerCase()
+          .localeCompare(
+            b.name.toLowerCase()
+          )
+    );
 
     return NextResponse.json(
       {
@@ -208,26 +329,7 @@ export async function GET(
     const message =
       error instanceof Error
         ? error.message
-        : "Failed to load users.";
-
-    const lowerMessage =
-      message.toLowerCase();
-
-    const status =
-      lowerMessage.includes(
-        "permission"
-      ) ||
-      lowerMessage.includes(
-        "authentication"
-      ) ||
-      lowerMessage.includes(
-        "token"
-      ) ||
-      lowerMessage.includes(
-        "unauthorized"
-      )
-        ? 403
-        : 500;
+        : "Failed to load staff.";
 
     return NextResponse.json(
       {
@@ -237,23 +339,27 @@ export async function GET(
           message,
       },
       {
-        status,
+        status:
+          getErrorStatus(
+            error
+          ),
       }
     );
   }
 }
 
 // =====================================================
-// CREATE USER
-//
-// POST still uses Firebase Admin Auth because we need
-// to create the actual Firebase login account.
+// CREATE STAFF
 // =====================================================
 
 export async function POST(
   request: NextRequest
 ) {
   try {
+    // =================================================
+    // VERIFY ADMIN
+    // =================================================
+
     const {
       appUser,
     } =
@@ -263,10 +369,13 @@ export async function POST(
         )
       );
 
-    // Admin only.
     requireAdmin(
       appUser
     );
+
+    // =================================================
+    // BODY
+    // =================================================
 
     const body =
       await request.json();
@@ -300,7 +409,6 @@ export async function POST(
       return NextResponse.json(
         {
           success: false,
-
           error:
             "Name is required.",
         },
@@ -314,7 +422,6 @@ export async function POST(
       return NextResponse.json(
         {
           success: false,
-
           error:
             "Email is required.",
         },
@@ -331,7 +438,6 @@ export async function POST(
       return NextResponse.json(
         {
           success: false,
-
           error:
             "Password must be at least 6 characters.",
         },
@@ -342,7 +448,7 @@ export async function POST(
     }
 
     // =================================================
-    // CREATE FIREBASE AUTH USER
+    // ADMIN SERVICES
     // =================================================
 
     const auth =
@@ -350,6 +456,10 @@ export async function POST(
 
     const db =
       getAdminDb();
+
+    // =================================================
+    // CREATE AUTH USER
+    // =================================================
 
     let createdUser:
       UserRecord;
@@ -399,11 +509,45 @@ export async function POST(
         );
       }
 
+      if (
+        code ===
+        "auth/invalid-email"
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+
+            error:
+              "Invalid email address.",
+          },
+          {
+            status: 400,
+          }
+        );
+      }
+
+      if (
+        code ===
+        "auth/invalid-password"
+      ) {
+        return NextResponse.json(
+          {
+            success: false,
+
+            error:
+              "Invalid password.",
+          },
+          {
+            status: 400,
+          }
+        );
+      }
+
       throw authError;
     }
 
     // =================================================
-    // CREATE FIRESTORE PROFILE
+    // FIRESTORE PROFILE
     // =================================================
 
     const now =
@@ -411,9 +555,7 @@ export async function POST(
 
     try {
       await db
-        .collection(
-          "users"
-        )
+        .collection("users")
         .doc(
           createdUser.uid
         )
@@ -438,16 +580,15 @@ export async function POST(
               now,
           },
           {
-            merge:
-              true,
+            merge: true,
           }
         );
     } catch (
       firestoreError
     ) {
-      // =================================================
-      // ROLLBACK AUTH USER
-      // =================================================
+      // ===============================================
+      // ROLLBACK AUTH
+      // ===============================================
 
       try {
         await auth.deleteUser(
@@ -457,7 +598,7 @@ export async function POST(
         rollbackError
       ) {
         console.error(
-          "User rollback failed:",
+          "Firebase Auth rollback failed:",
           rollbackError
         );
       }
@@ -471,8 +612,7 @@ export async function POST(
 
     return NextResponse.json(
       {
-        success:
-          true,
+        success: true,
 
         message:
           "Staff user created successfully.",
@@ -490,11 +630,17 @@ export async function POST(
           active:
             true,
 
+          firebaseDisabled:
+            false,
+
           createdAt:
             now,
 
           updatedAt:
             now,
+
+          lastSignIn:
+            "",
         },
       },
       {
@@ -512,35 +658,18 @@ export async function POST(
         ? error.message
         : "Failed to create staff user.";
 
-    const lowerMessage =
-      message.toLowerCase();
-
-    const status =
-      lowerMessage.includes(
-        "permission"
-      ) ||
-      lowerMessage.includes(
-        "authentication"
-      ) ||
-      lowerMessage.includes(
-        "token"
-      ) ||
-      lowerMessage.includes(
-        "unauthorized"
-      )
-        ? 403
-        : 500;
-
     return NextResponse.json(
       {
-        success:
-          false,
+        success: false,
 
         error:
           message,
       },
       {
-        status,
+        status:
+          getErrorStatus(
+            error
+          ),
       }
     );
   }

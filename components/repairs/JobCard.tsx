@@ -659,6 +659,10 @@ export default function JobCard({
           </li>
 
           <li>
+      A minimum service/diagnosis charge of ₹300 is applicable even if the repair is not proceeded with.
+    </li>
+
+          <li>
             Warranty is applicable only on repaired or replaced parts
             mentioned in the invoice.
           </li>

@@ -18,8 +18,7 @@ import {
 // =====================================================
 
 function getFirebaseAdminApp(): App {
-  const existingApps =
-    getApps();
+  const existingApps = getApps();
 
   if (existingApps.length > 0) {
     return existingApps[0];
@@ -38,38 +37,51 @@ function getFirebaseAdminApp(): App {
   const privateKey =
     process.env.FIREBASE_PRIVATE_KEY;
 
-  if (
-    !projectId ||
-    !clientEmail ||
-    !privateKey
-  ) {
+  if (!projectId) {
     throw new Error(
-      "Firebase Admin environment variables are missing."
+      "FIREBASE_PROJECT_ID is missing."
     );
   }
+
+  if (!clientEmail) {
+    throw new Error(
+      "FIREBASE_CLIENT_EMAIL is missing."
+    );
+  }
+
+  if (!privateKey) {
+    throw new Error(
+      "FIREBASE_PRIVATE_KEY is missing."
+    );
+  }
+
+  // ===================================================
+  // Private Key Normalization
+  //
+  // Vercel / .env मध्ये \n string असू शकते.
+  // ===================================================
+
+  const normalizedPrivateKey =
+    privateKey
+      .replace(/\\n/g, "\n")
+      .replace(/^"(.*)"$/, "$1");
 
   // ===================================================
   // Initialize Firebase Admin
   // ===================================================
 
   return initializeApp({
-    credential:
-      cert({
-        projectId,
-
-        clientEmail,
-
-        privateKey:
-          privateKey.replace(
-            /\\n/g,
-            "\n"
-          ),
-      }),
+    credential: cert({
+      projectId,
+      clientEmail,
+      privateKey:
+        normalizedPrivateKey,
+    }),
   });
 }
 
 // =====================================================
-// Firebase Admin Firestore
+// Firestore
 // =====================================================
 
 export function getAdminDb() {

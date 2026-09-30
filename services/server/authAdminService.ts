@@ -13,7 +13,70 @@ import type {
 } from "@/types/user";
 
 // =====================================================
+// FIRESTORE VALUE → STRING
+// =====================================================
+
+function stringifyFirestoreValue(
+  value: unknown
+): string {
+  if (
+    typeof value === "string"
+  ) {
+    return value;
+  }
+
+  if (
+    value &&
+    typeof value === "object" &&
+    "toDate" in value &&
+    typeof (
+      value as {
+        toDate?: unknown;
+      }
+    ).toDate === "function"
+  ) {
+    return (
+      value as {
+        toDate: () => Date;
+      }
+    )
+      .toDate()
+      .toISOString();
+  }
+
+  if (value instanceof Date) {
+    return value.toISOString();
+  }
+
+  return String(value);
+}
+
+// =====================================================
+// ROLE NORMALIZER
+// =====================================================
+
+function normalizeRole(
+  value: unknown
+): UserRole {
+  switch (value) {
+    case "admin":
+      return "admin";
+
+    case "manager":
+      return "manager";
+
+    case "technician":
+      return "technician";
+
+    default:
+      return "admin";
+  }
+}
+
+// =====================================================
 // SAFE TOKEN DEBUG
+//
+// Actual token is NEVER logged.
 // =====================================================
 
 function getTokenDebugInfo(
@@ -62,12 +125,6 @@ function getTokenDebugInfo(
           "string" &&
         payload.sub.length > 0,
 
-      authTime:
-        typeof payload?.auth_time ===
-        "number"
-          ? payload.auth_time
-          : null,
-
       expiresAt:
         typeof payload?.exp ===
         "number"
@@ -85,11 +142,9 @@ function getTokenDebugInfo(
       jwtParts:
         token.split(".").length,
 
-      validShape:
-        false,
+      validShape: false,
 
-      decodeError:
-        true,
+      decodeError: true,
     };
   }
 }
@@ -107,7 +162,7 @@ export async function verifyAdminRequest(
   decodedToken: DecodedIdToken;
 }> {
   // ===================================================
-  // AUTHORIZATION HEADER
+  // Authorization Header
   // ===================================================
 
   if (
@@ -133,7 +188,7 @@ export async function verifyAdminRequest(
   }
 
   // ===================================================
-  // ADMIN AUTH
+  // Firebase Admin Auth
   // ===================================================
 
   const adminAuth =
@@ -142,10 +197,11 @@ export async function verifyAdminRequest(
   const adminProjectId =
     adminAuth.app.options
       .projectId ||
+    process.env.FIREBASE_PROJECT_ID ||
     "";
 
   // ===================================================
-  // SAFE TOKEN DEBUG
+  // SAFE DEBUG
   // ===================================================
 
   const tokenDebug =
@@ -171,7 +227,7 @@ export async function verifyAdminRequest(
   );
 
   // ===================================================
-  // VERIFY FIREBASE ID TOKEN
+  // Verify Firebase ID Token
   // ===================================================
 
   let decodedToken:
@@ -189,8 +245,6 @@ export async function verifyAdminRequest(
         message?: string;
       };
 
-    // IMPORTANT:
-    // Actual token is never logged.
     console.error(
       "Firebase verifyIdToken failed:",
       {
@@ -206,11 +260,11 @@ export async function verifyAdminRequest(
 
         tokenIssuer:
           tokenDebug.issuer ||
-          "",
+          "unknown",
 
         tokenAudience:
           tokenDebug.audience ||
-          "",
+          "unknown",
 
         tokenExpiresAt:
           tokenDebug.expiresAt ??
@@ -218,8 +272,6 @@ export async function verifyAdminRequest(
       }
     );
 
-    // Temporary detailed error so the
-    // exact server-side cause reaches the UI.
     throw new Error(
       [
         "Firebase token verification failed.",
@@ -233,27 +285,12 @@ export async function verifyAdminRequest(
           authError?.message ||
           "unknown"
         }`,
-
-        `adminProjectId=${
-          adminProjectId ||
-          "unknown"
-        }`,
-
-        `tokenIssuer=${
-          tokenDebug.issuer ||
-          "unknown"
-        }`,
-
-        `tokenAudience=${
-          tokenDebug.audience ||
-          "unknown"
-        }`,
       ].join(" | ")
     );
   }
 
   // ===================================================
-  // TOKEN UID
+  // UID
   // ===================================================
 
   if (!decodedToken.uid) {
@@ -263,7 +300,7 @@ export async function verifyAdminRequest(
   }
 
   // ===================================================
-  // LOAD APPLICATION USER
+  // Load Application User
   // ===================================================
 
   const db =
@@ -278,10 +315,10 @@ export async function verifyAdminRequest(
       .get();
 
   // ===================================================
-  // EXISTING ADMIN COMPATIBILITY
+  // Existing Admin Compatibility
   //
-  // Existing Firebase account without
-  // users/{uid} remains Admin.
+  // Existing admin account without Firestore
+  // profile is treated as admin.
   // ===================================================
 
   if (
@@ -323,7 +360,7 @@ export async function verifyAdminRequest(
   }
 
   // ===================================================
-  // FIRESTORE USER PROFILE
+  // Firestore User Profile
   // ===================================================
 
   const data =
@@ -373,7 +410,7 @@ export async function verifyAdminRequest(
   };
 
   // ===================================================
-  // ACTIVE CHECK
+  // Active Check
   // ===================================================
 
   if (!appUser.active) {
@@ -459,70 +496,4 @@ export function requireStaffAccess(
       "technician",
     ]
   );
-}
-
-// =====================================================
-// ROLE NORMALIZER
-// =====================================================
-
-function normalizeRole(
-  value: unknown
-): UserRole {
-  switch (value) {
-    case "manager":
-      return "manager";
-
-    case "technician":
-      return "technician";
-
-    case "admin":
-      return "admin";
-
-    default:
-      return "admin";
-  }
-}
-
-// =====================================================
-// FIRESTORE VALUE → STRING
-// =====================================================
-
-function stringifyFirestoreValue(
-  value: unknown
-): string {
-  if (
-    typeof value ===
-    "string"
-  ) {
-    return value;
-  }
-
-  if (
-    value &&
-    typeof value ===
-      "object" &&
-    "toDate" in value &&
-    typeof (
-      value as {
-        toDate?: unknown;
-      }
-    ).toDate ===
-      "function"
-  ) {
-    return (
-      value as {
-        toDate: () => Date;
-      }
-    )
-      .toDate()
-      .toISOString();
-  }
-
-  if (
-    value instanceof Date
-  ) {
-    return value.toISOString();
-  }
-
-  return String(value);
 }
